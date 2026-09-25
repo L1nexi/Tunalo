@@ -60,7 +60,7 @@ _可接受别名_: 语义连续性
 _避免使用_: Playlist Continuity、集合全等
 
 **Scene Assignment**:
-一个已启用 Scene 到一个具名 Wallpaper Engine Playlist 的关联。多个 Scene 可以关联同一个 Playlist；未建立关联的 Scene 不参与调度。
+一个已启用 Scene 到一个具名 Wallpaper Engine Playlist 的关联，表达用户希望该场景呈现的画面。多个 Scene 可以关联同一个 Playlist；未建立关联的 Scene 不参与调度。
 _可接受别名_: 场景关联
 _避免使用_: Scene、Playlist
 
