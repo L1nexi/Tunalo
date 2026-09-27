@@ -9,11 +9,11 @@ import pystray
 
 from app.context import get_app_root
 from app.version import VERSION
-from core.runtime.scheduler import WEScheduler
+from core.runtime.scheduler import Scheduler
 from ui.i18n import scene_name, t
 from ui.icon_generator import IconGenerator
 
-logger = logging.getLogger("WEScheduler.Tray")
+logger = logging.getLogger("Tunalo.Tray")
 
 # Preset pause durations: (i18n_key, seconds).
 # Keys must exist in utils/i18n.py translation table.
@@ -128,7 +128,7 @@ class TrayIcon:
     - Via ``scheduler.on_auto_resume`` hook when a timed pause expires.
     """
 
-    def __init__(self, scheduler: WEScheduler):
+    def __init__(self, scheduler: Scheduler):
         self.scheduler = scheduler
         self.icon = None
         self._last_paused_state: bool | None = None
@@ -368,9 +368,9 @@ class TrayIcon:
         self._last_paused_state = self.scheduler.paused
 
         self.icon = pystray.Icon(
-            "WEScheduler",
+            "Tunalo",
             IconGenerator.generate(paused=self.scheduler.paused),
-            "Context Aware WE Scheduler",
+            "Tunalo",
             menu=self._build_menu(),
         )
         self._patch_menu_refresh()

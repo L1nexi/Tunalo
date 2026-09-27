@@ -1,11 +1,15 @@
 # Changelog
 
-All notable changes to Context-Aware Wallpaper Engine Scheduler are documented here.
+All notable changes to Tunalo are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
 ## [Unreleased]
+
+### Changed
+
+- 主产品名称改为 Tunalo；发布程序、界面和日志改用新名称，开发环境变量改为 `TUNALO_API_PORT` 与 `TUNALO_LOG_LEVEL`。
 
 ## [0.9.0] - 2026-09-25
 

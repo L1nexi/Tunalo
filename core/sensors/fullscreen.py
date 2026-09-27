@@ -6,7 +6,7 @@ import logging
 from configurations.runtime_models import SchedulerConfig
 from core.sensors.base import Sensor
 
-logger = logging.getLogger("WEScheduler.Sensor")
+logger = logging.getLogger("Tunalo.Sensor")
 
 
 class FullscreenSensor(Sensor):

@@ -20,7 +20,7 @@ from core.models.trace import (
     Match,
 )
 
-logger = logging.getLogger("WEScheduler.Controller")
+logger = logging.getLogger("Tunalo.Controller")
 
 CONTINUITY_REFERENCE_OVERLAP = 1.0 / 3.0
 CONTINUITY_REFERENCE_HOLD_TICKS = 120

@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-logger = logging.getLogger("WEScheduler.WEPath")
+logger = logging.getLogger("Tunalo.WEPath")
 
 
 def _steam_install_path() -> str | None:

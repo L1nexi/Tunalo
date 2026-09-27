@@ -5,7 +5,7 @@ from typing import Literal
 
 from core.models.scene import SceneId
 
-logger = logging.getLogger("WEScheduler.I18n")
+logger = logging.getLogger("Tunalo.I18n")
 
 type Lang = Literal["zh", "en"]
 
@@ -41,8 +41,8 @@ _ZH: dict[str, str] = {
     "pause_custom": "自定义...",
     "open_logs": "打开日志",
     "about": "关于",
-    "about_title": "关于 WEScheduler",
-    "about_body": "WEScheduler\n版本：{version}",
+    "about_title": "关于 Tunalo",
+    "about_body": "Tunalo\n版本：{version}",
     "exit": "退出",
     "dialog_title": "自定义暂停时长",
     "days": "天:",
@@ -52,7 +52,7 @@ _ZH: dict[str, str] = {
     "cancel": "取消",
     "startup_error_title": "启动失败",
     "startup_error_body": "调度器启动失败。\n\n{detail}\n\n请查看日志获取详情。",
-    "setup_title": "WEScheduler 设置",
+    "setup_title": "Tunalo 设置",
     "settings_show": "设置",
     "tick_history_export": "导出近期调度记录",
 }
@@ -89,8 +89,8 @@ _EN: dict[str, str] = {
     "pause_custom": "Custom...",
     "open_logs": "Open Logs",
     "about": "About",
-    "about_title": "About WEScheduler",
-    "about_body": "WEScheduler\nVersion: {version}",
+    "about_title": "About Tunalo",
+    "about_body": "Tunalo\nVersion: {version}",
     "exit": "Exit",
     "dialog_title": "Custom Pause Duration",
     "days": "Days:",
@@ -100,7 +100,7 @@ _EN: dict[str, str] = {
     "cancel": "Cancel",
     "startup_error_title": "Startup Failed",
     "startup_error_body": "Scheduler failed to start.\n\n{detail}\n\nCheck the log for details.",
-    "setup_title": "WEScheduler Setup",
+    "setup_title": "Tunalo Setup",
     "settings_show": "Settings",
     "tick_history_export": "Export recent schedule history",
 }

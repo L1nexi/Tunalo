@@ -20,7 +20,7 @@ const profile = ref<Profile | null>(null)
 const detail = ref("")
 
 document.documentElement.lang = initialLocale === "zh" ? "zh-CN" : "en"
-document.title = initialLocale === "zh" ? "WEScheduler 设置" : "WEScheduler Settings"
+document.title = initialLocale === "zh" ? "Tunalo 设置" : "Tunalo Settings"
 
 async function loadProfile(): Promise<void> {
   state.value = "loading"

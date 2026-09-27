@@ -4,7 +4,7 @@ import logging
 import os
 import subprocess
 
-logger = logging.getLogger("WEScheduler.Executor")
+logger = logging.getLogger("Tunalo.Executor")
 
 WE_CONTROL_TIMEOUT_SECONDS = 3.0
 KEEP_ALIVE_INTERVAL = 5

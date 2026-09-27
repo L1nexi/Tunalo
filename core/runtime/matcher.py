@@ -13,7 +13,7 @@ from core.runtime.tag_resolver import resolve_raw_tags
 if TYPE_CHECKING:
     from core.policies import Policy
 
-logger = logging.getLogger("WEScheduler.Matcher")
+logger = logging.getLogger("Tunalo.Matcher")
 
 _MIN_SIMILARITY = 0.001
 _CLUSTER_GAP_THRESHOLD = 0.02

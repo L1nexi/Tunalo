@@ -11,7 +11,7 @@ import psutil
 
 from ui.i18n import t
 
-logger = logging.getLogger("WEScheduler.WebView")
+logger = logging.getLogger("Tunalo.WebView")
 
 WM_SETICON = 0x0080
 ICON_SMALL = 0

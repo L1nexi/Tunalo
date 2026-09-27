@@ -9,7 +9,7 @@ from configurations.runtime_models import BasePolicyConfig, PoliciesConfig
 from core.models.context import Context
 from core.models.trace import BaseEvaluation
 
-logger = logging.getLogger("WEScheduler.Policy")
+logger = logging.getLogger("Tunalo.Policy")
 
 
 def _circular_distance(a: float, b: float, period: float) -> float:

@@ -4,7 +4,7 @@ import logging
 import subprocess
 from collections.abc import Callable
 
-logger = logging.getLogger("WEScheduler.SettingsWindow")
+logger = logging.getLogger("Tunalo.SettingsWindow")
 
 
 class SettingsWindowController:

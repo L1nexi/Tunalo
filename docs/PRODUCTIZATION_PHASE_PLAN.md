@@ -20,7 +20,7 @@
 - Bottle 按现有进程结构保留，必要时调整；它负责静态界面与主进程之间的本地通信。
 - 配置修改通过显式应用操作进入调度器，不以文件变化监听作为正式流程。
 - `ProfileManager` 独占 Profile 的读取、编译、持久化和应用队列，但不持有或代理 Engine。
-- `app/main.py` 创建 `ProfileManager`，并将同一实例交给 Bottle API、首次启动流程和 `WEScheduler`；`WEScheduler` 依赖该实例、直接持有活动 Engine，并负责调度编排。
+- `app/main.py` 创建 `ProfileManager`，并将同一实例交给 Bottle API、首次启动流程和 `Scheduler`；`Scheduler` 依赖该实例、直接持有活动 Engine，并负责调度编排。
 - Profile 应用命令由调度线程在运行时安全边界处理，活动 Engine 仍保持单写者语义。
 - Profile 固定持久化为 `<config_dir>/profile.json`，由单写者队列串行更新并使用同目录原子替换，不使用乐观锁。
 - 天气是必选能力，凭据或连接故障会直接影响调度质量。首次创建 Profile 时必须通过一次 OpenWeatherMap 真实连接校验；运行中仅在 API Key 或地点发生变化时重新校验，避免天气服务临时故障阻塞无关设置。运行时仍按抓取间隔重试，不引入额外运行时状态。

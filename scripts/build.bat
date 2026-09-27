@@ -10,7 +10,7 @@ set FRONTEND_APP_DIR=frontend
 set FRONTEND_DIST_DIR=%FRONTEND_APP_DIR%\dist
 
 echo ==========================================
-echo      WEScheduler Build Script
+echo      Tunalo Build Script
 echo ==========================================
 
 echo [1/5] Installing dependencies...
@@ -37,7 +37,7 @@ if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
 echo [4/5] Running PyInstaller...
-"%PYTHON%" -m PyInstaller --noconsole --onefile --name "WEScheduler" ^
+"%PYTHON%" -m PyInstaller --noconsole --onefile --name "Tunalo" ^
     --icon "%CD%\packaging\AppIcon.ico" ^
     --add-data "%CD%\%FRONTEND_DIST_DIR%;%FRONTEND_DIST_DIR%" ^
     --add-data "%CD%\packaging\AppIcon.ico;." ^
@@ -62,6 +62,6 @@ copy README.md dist\README.md
 
 echo ==========================================
 echo      Build Complete!
-echo      Executable is in: dist\WEScheduler.exe
+echo      Executable is in: dist\Tunalo.exe
 echo ==========================================
 pause

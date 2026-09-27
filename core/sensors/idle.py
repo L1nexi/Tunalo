@@ -7,7 +7,7 @@ import logging
 from configurations.runtime_models import SchedulerConfig
 from core.sensors.base import Sensor
 
-logger = logging.getLogger("WEScheduler.Sensor")
+logger = logging.getLogger("Tunalo.Sensor")
 
 _user32 = ctypes.windll.user32
 _kernel32 = ctypes.windll.kernel32

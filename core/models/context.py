@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.sensors import Sensor
 
-logger = logging.getLogger("WEScheduler.Context")
+logger = logging.getLogger("Tunalo.Context")
 
 
 @dataclass

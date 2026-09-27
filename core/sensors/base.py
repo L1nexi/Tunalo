@@ -6,7 +6,7 @@ from typing import Any, ClassVar
 
 from configurations.runtime_models import SchedulerConfig
 
-logger = logging.getLogger("WEScheduler.Sensor")
+logger = logging.getLogger("Tunalo.Sensor")
 
 
 class Sensor(ABC):

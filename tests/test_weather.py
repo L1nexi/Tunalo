@@ -61,6 +61,6 @@ def test_weather_sensor_warning_identifies_timeout_without_exposing_request(monk
     while time.monotonic() < deadline and not any("Weather fetch failed:" in record.message for record in caplog.records):
         time.sleep(0.01)
 
-    warnings = [record.message for record in caplog.records if record.name == "WEScheduler.Sensor"]
+    warnings = [record.message for record in caplog.records if record.name == "Tunalo.Sensor"]
     assert any("reason=timeout" in message for message in warnings)
     assert all("fake-secret" not in message for message in warnings)

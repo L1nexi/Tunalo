@@ -10,7 +10,7 @@ from configurations.runtime_models import SchedulerConfig
 from core.models.context import WindowData
 from core.sensors.base import Sensor
 
-logger = logging.getLogger("WEScheduler.Sensor")
+logger = logging.getLogger("Tunalo.Sensor")
 
 
 class WindowSensor(Sensor):

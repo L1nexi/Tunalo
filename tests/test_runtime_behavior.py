@@ -359,4 +359,4 @@ def test_missing_persisted_state_loads_as_default_without_warning(tmp_path: Path
     state = PersistedState.load(str(tmp_path / "missing-state.json"))
 
     assert state == PersistedState()
-    assert not [record for record in caplog.records if record.name == "WEScheduler.State"]
+    assert not [record for record in caplog.records if record.name == "Tunalo.State"]

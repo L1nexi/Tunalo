@@ -7,7 +7,7 @@ from wsgiref.simple_server import WSGIServer, make_server
 
 import bottle
 
-logger = logging.getLogger("WEScheduler.API")
+logger = logging.getLogger("Tunalo.API")
 
 
 class _ThreadingWSGIServer(ThreadingMixIn, WSGIServer):

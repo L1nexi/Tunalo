@@ -433,7 +433,7 @@ def test_api_setup_logs_safe_location_failure_reason(app, monkeypatch, caplog):
 
     assert "503" in status
     assert body == {"error": "location_detection_unavailable", "reason": "proxy_error"}
-    warnings = [record.message for record in caplog.records if record.name == "WEScheduler.API"]
+    warnings = [record.message for record in caplog.records if record.name == "Tunalo.API"]
     assert any("Location estimate unavailable: reason=proxy_error" in message for message in warnings)
     assert all("fake-secret" not in message for message in warnings)
 
@@ -532,7 +532,7 @@ def test_api_create_profile_leaves_profile_absent_when_weather_key_is_rejected(
     assert any(
         "Weather validation rejected: operation=create reason=weather_api_key_invalid" in record.message
         for record in caplog.records
-        if record.name == "WEScheduler.API"
+        if record.name == "Tunalo.API"
     )
 
 
@@ -602,7 +602,7 @@ def test_api_create_profile_logs_safe_weather_timeout_reason(tmp_path: Path, tic
     status, _body = wsgi_post(app, "/api/profile", _profile_payload(executable))
 
     assert "503" in status
-    warnings = [record.message for record in caplog.records if record.name == "WEScheduler.API"]
+    warnings = [record.message for record in caplog.records if record.name == "Tunalo.API"]
     assert any("Weather validation unavailable: operation=create reason=timeout" in message for message in warnings)
     assert all("fake-secret" not in message for message in warnings)
 
@@ -722,7 +722,7 @@ def test_api_apply_profile_returns_normalized_committed_profile(tick_history, pr
 
 
 def test_profile_apply_log_distinguishes_weather_change(tick_history, profile_manager, caplog):
-    caplog.set_level(logging.INFO, logger="WEScheduler.Profile")
+    caplog.set_level(logging.INFO, logger="Tunalo.Profile")
     app = build_api_app(tick_history, profile_manager)
     scene_draft = _profile_payload_for(profile_manager, playlist="NEW")
 
@@ -734,7 +734,7 @@ def test_profile_apply_log_distinguishes_weather_change(tick_history, profile_ma
 
     assert "200" in scene_status
     assert "200" in weather_status
-    messages = [record.message for record in caplog.records if record.name == "WEScheduler.Profile"]
+    messages = [record.message for record in caplog.records if record.name == "Tunalo.Profile"]
     assert any("weather_changed=False" in message for message in messages)
     assert any("weather_changed=True" in message for message in messages)
     assert all("fake-new-key" not in message for message in messages)

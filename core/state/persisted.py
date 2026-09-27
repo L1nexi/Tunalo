@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.context import get_data_dir
 from core.models.scene import SceneId
 
-logger = logging.getLogger("WEScheduler.State")
+logger = logging.getLogger("Tunalo.State")
 
 _STATE_FILE = os.path.join(get_data_dir(), "state.json")
 

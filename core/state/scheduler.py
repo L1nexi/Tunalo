@@ -8,7 +8,7 @@ from core.models.scene import Scenes
 from core.models.trace import ScheduleTrace, TickTrace
 from core.state.persisted import PersistedState
 
-logger = logging.getLogger("WEScheduler.State")
+logger = logging.getLogger("Tunalo.State")
 
 
 @dataclass

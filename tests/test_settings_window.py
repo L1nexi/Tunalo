@@ -82,7 +82,7 @@ def test_show_reports_focus_failure_without_starting_duplicate(caplog):
     )
 
     controller.show()
-    with caplog.at_level(logging.WARNING, logger="WEScheduler.SettingsWindow"):
+    with caplog.at_level(logging.WARNING, logger="Tunalo.SettingsWindow"):
         controller.show()
 
     assert spawned == [process]

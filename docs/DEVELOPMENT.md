@@ -22,7 +22,7 @@ cd frontend
 npm run dev
 ```
 
-如需其他端口，请保持后端端口与前端的 `WESCHEDULER_API_PORT` 一致。
+如需其他端口，请保持后端端口与前端的 `TUNALO_API_PORT` 一致。
 
 ## 检查与构建
 
@@ -51,4 +51,4 @@ npm run build-only
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
 
-需要排查天气或本地服务时，可临时设置 `WESCHEDULER_LOG_LEVEL=DEBUG`。分享日志前请检查敏感内容。产品化规划、验收事项和后续改进见 [文档索引](index.md)。
+需要排查天气或本地服务时，可临时设置 `TUNALO_LOG_LEVEL=DEBUG`。分享日志前请检查敏感内容。产品化规划、验收事项和后续改进见 [文档索引](index.md)。

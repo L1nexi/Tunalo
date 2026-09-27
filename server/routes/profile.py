@@ -17,7 +17,7 @@ from core.runtime.profile_manager import (
 )
 from integrations.openweather import WeatherRejected, WeatherUnavailable, validate_weather_connection
 
-logger = logging.getLogger("WEScheduler.API")
+logger = logging.getLogger("Tunalo.API")
 PROFILE_APPLY_TIMEOUT_SECONDS = 2.0
 WEATHER_KEY_TEST_LATITUDE = 51.5072
 WEATHER_KEY_TEST_LONGITUDE = -0.1276

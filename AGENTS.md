@@ -35,7 +35,7 @@ Execute:  Actuator.act()               -> ActionResult
 Commit:   SchedulerState.commit()      -> cache persist
 ```
 
-`Engine.schedule()` 接管完整调度流程：sense、match、plan、decide、execute，并返回 `ScheduleTrace`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列，但不持有或代理 Engine；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `WEScheduler`。`WEScheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine，不再通过文件热重载进入运行时。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
+`Engine.schedule()` 接管完整调度流程：sense、match、plan、decide、execute，并返回 `ScheduleTrace`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列，但不持有或代理 Engine；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine，不再通过文件热重载进入运行时。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
 
 关键组件：
 
@@ -77,7 +77,7 @@ cd frontend
 npm run dev
 ```
 
-如需其他端口，保持后端端口与前端 `WESCHEDULER_API_PORT=<port>` 一致；默认端口是 `38417`。前端工作区应运行 `npm run type-check` 和 `npm run build-only`。
+如需其他端口，保持后端端口与前端 `TUNALO_API_PORT=<port>` 一致；默认端口是 `38417`。前端工作区应运行 `npm run type-check` 和 `npm run build-only`。
 
 Python 文件修改完毕后，用 Ruff 格式化
 
@@ -100,6 +100,6 @@ pytest 配置以 `pytest.ini` 为准，这是测试隔离契约的一部分：`t
 
 ## 配置与架构约束
 
-正式配置入口是 `<config_dir>/profile.json`。`ProfileStore` 负责原子替换，`ProfileCompiler` 负责生成完整的内部 `SchedulerConfig`，`ProfileManager` 是 Profile 读取和应用的唯一入口；不要让 Sensor、Policy、Engine 或 `WEScheduler` 直接读取和操作 Profile，也不要绕过单写者应用队列修改运行时。Profile 不使用 revision 乐观锁；`version` 只表示数据结构版本。打扰档位是 setup 的填值快捷方式，Profile 只保存四个确定时间值。用户从产品预设的 Scene 中选择并绑定 Wallpaper Engine Playlist，不提供自定义 Scene、Tag、权重或通用配置树。测试使用 fixture 或 `.pytest_tmp/`，不要无提示改写真实配置。
+正式配置入口是 `<config_dir>/profile.json`。`ProfileStore` 负责原子替换，`ProfileCompiler` 负责生成完整的内部 `SchedulerConfig`，`ProfileManager` 是 Profile 读取和应用的唯一入口；不要让 Sensor、Policy、Engine 或 `Scheduler` 直接读取和操作 Profile，也不要绕过单写者应用队列修改运行时。Profile 不使用 revision 乐观锁；`version` 只表示数据结构版本。打扰档位是 setup 的填值快捷方式，Profile 只保存四个确定时间值。用户从产品预设的 Scene 中选择并绑定 Wallpaper Engine Playlist，不提供自定义 Scene、Tag、权重或通用配置树。测试使用 fixture 或 `.pytest_tmp/`，不要无提示改写真实配置。
 
 Tick History 是密集、近期、仅在内存中有界保留的逐 tick 调度记录；Event Log 是稀疏、持久化的启动、暂停、切换和执行失败事件，不要混用两者的命名。Tick History 导出读取 `TickHistoryStore` 的不可变窗口快照，复用现有 DTO，并由 JSON formatter 负责序列化和敏感字段裁剪。首版只脱敏 API Key 与地理位置，不裁剪活动窗口、进程、playlist 或本机路径。

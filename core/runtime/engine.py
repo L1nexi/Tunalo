@@ -17,7 +17,7 @@ from core.runtime.we_config import WEConfigProber
 from core.sensors import SENSOR_REGISTRY
 from ui.i18n import set_language
 
-logger = logging.getLogger("WEScheduler.Runtime")
+logger = logging.getLogger("Tunalo.Runtime")
 
 
 @dataclass(frozen=True)

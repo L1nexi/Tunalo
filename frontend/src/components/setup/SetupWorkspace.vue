@@ -199,7 +199,7 @@ function updateActivity(value: ProfileDraft["activity"]): void {
 watch(locale, (value, previous) => {
   if (previous !== undefined) draft.language = value
   document.documentElement.lang = value === "zh" ? "zh-CN" : "en"
-  document.title = value === "zh" ? "WEScheduler 设置" : "WEScheduler Settings"
+  document.title = value === "zh" ? "Tunalo 设置" : "Tunalo Settings"
 }, { immediate: true })
 
 function handleBeforeUnload(event: BeforeUnloadEvent): void {

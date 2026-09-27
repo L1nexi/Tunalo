@@ -30,7 +30,7 @@ date: 2026-09-23
 ### 已经建立的主干能力
 
 - Profile、`ProfileCompiler`、原子持久化和 `ProfileManager` 已经成为正式配置路径。
-- `app/main.py` 创建同一个 `ProfileManager`，交给本地 HTTP API、首次启动流程和 `WEScheduler`。
+- `app/main.py` 创建同一个 `ProfileManager`，交给本地 HTTP API、首次启动流程和 `Scheduler`。
 - 运行时 Profile 更新通过单写者队列，在调度线程的安全边界应用；不依赖文件热重载。
 - Tick History 导出、旧 Diagnostics 下线、旧六 YAML 用户入口和旧配置 CLI 清理已经完成。
 - 首次启动宿主分支、Profile 创建、Scene 目录、Wallpaper Engine Playlist 扫描和初版 Setup GUI 已经建立。

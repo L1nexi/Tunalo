@@ -8,7 +8,7 @@ from core.models.context import Context
 from core.models.trace import TimeDetails, TimeEvaluation
 from core.policies.base import Policy, _circular_distance, _hann
 
-logger = logging.getLogger("WEScheduler.Policy")
+logger = logging.getLogger("Tunalo.Policy")
 
 
 class TimePolicy(Policy):

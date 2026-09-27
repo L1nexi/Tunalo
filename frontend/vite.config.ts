@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 
-const apiPort = process.env.WESCHEDULER_API_PORT?.trim() || "38417";
+const apiPort = process.env.TUNALO_API_PORT?.trim() || "38417";
 
 export default defineConfig({
   base: "./",

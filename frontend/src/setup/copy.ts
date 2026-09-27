@@ -2,14 +2,14 @@ import type { Locale, SceneId } from "@/api/profile";
 import type { DisturbancePreset } from "@/setup/model";
 
 const zh = {
-  appName: "WEScheduler",
+  appName: "Tunalo",
   mode: { setup: "首次设置", settings: "设置" },
   loading: {
     title: "正在读取设置",
     description: "连接本地调度器并准备设置草稿。",
   },
   unavailable: {
-    title: "无法连接到 WEScheduler 服务",
+    title: "无法连接到 Tunalo 服务",
     description: "请确认主程序仍在运行，然后重试。",
     retry: "重试",
   },
@@ -82,7 +82,7 @@ const zh = {
   weather: {
     title: "连接天气服务",
     description:
-      "WEScheduler 使用 OpenWeatherMap 获取天气以及日出和日落信息。密钥仅保存于本地。",
+      "Tunalo 使用 OpenWeatherMap 获取天气以及日出和日落信息。密钥仅保存于本地。",
     keyLabel: "OpenWeatherMap API Key",
     keyDescription: "保存天气设置时会联网校验 API Key 有效性。",
     keyPlaceholder: "粘贴 API Key",
@@ -259,7 +259,7 @@ const zh = {
 };
 
 const en: typeof zh = {
-  appName: "WEScheduler",
+  appName: "Tunalo",
   mode: { setup: "First-time setup", settings: "Settings" },
   loading: {
     title: "Loading settings",
@@ -267,7 +267,7 @@ const en: typeof zh = {
       "Connecting to the local scheduler and preparing a Profile draft.",
   },
   unavailable: {
-    title: "WEScheduler is unavailable",
+    title: "Tunalo is unavailable",
     description:
       "Make sure the main application is still running, then try again.",
     retry: "Try again",
@@ -343,7 +343,7 @@ const en: typeof zh = {
   weather: {
     title: "Connect weather",
     description:
-      "WEScheduler uses OpenWeatherMap for conditions, sunrise, and sunset. The key stays in the local Profile.",
+      "Tunalo uses OpenWeatherMap for conditions, sunrise, and sunset. The key stays in the local Profile.",
     keyLabel: "OpenWeatherMap API key",
     keyDescription:
       "Enter a valid Current Weather API key. Weather changes are checked online before saving.",

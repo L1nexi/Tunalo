@@ -14,11 +14,11 @@ from core.state.action_events import ActionEventWriter
 from core.state.persisted import PersistedState
 from core.state.scheduler import SchedulerState
 
-logger = logging.getLogger("WEScheduler.Core")
+logger = logging.getLogger("Tunalo.Core")
 type TickListener = Callable[[TickTrace], None]
 
 
-class WEScheduler:
+class Scheduler:
     def __init__(self, profile_manager: ProfileManager, event_logger: EventLogger):
         self.event_logger = event_logger
         self.initialized = False

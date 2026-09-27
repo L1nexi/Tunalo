@@ -25,7 +25,7 @@ def _parse_args() -> argparse.Namespace:
         --locale      UI language for the webview client
 
     """
-    parser = argparse.ArgumentParser(description="Context Aware Wallpaper Engine Scheduler")
+    parser = argparse.ArgumentParser(description="Tunalo")
     parser.add_argument(
         "--config",
         default="config",
@@ -88,7 +88,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
     from app.event_logger import JsonlEventLogger
     from app.startup import ensure_initial_profile
     from core.runtime.profile_manager import ProfileManager
-    from core.runtime.scheduler import WEScheduler
+    from core.runtime.scheduler import Scheduler
     from core.state.tick_history import TickHistoryStore
     from server.app import build_api_app
     from server.host import APIServer
@@ -99,7 +99,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
     data_dir = get_data_dir()
     profile_manager = ProfileManager(config_dir)
-    scheduler = WEScheduler(
+    scheduler = Scheduler(
         profile_manager=profile_manager,
         event_logger=JsonlEventLogger(data_dir),
     )
@@ -155,7 +155,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
 def main() -> None:
     logger = setup_logger()
-    logger.info("Context Aware WE Scheduler starting...")
+    logger.info("Tunalo starting...")
 
     args = _parse_args()
 

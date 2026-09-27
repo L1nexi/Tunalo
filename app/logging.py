@@ -14,14 +14,14 @@ _LOG_LEVELS = {
 }
 
 
-def setup_logger(name: str = "WEScheduler", log_file: str = "scheduler.log", level: int | None = None) -> logging.Logger:
+def setup_logger(name: str = "Tunalo", log_file: str = "scheduler.log", level: int | None = None) -> logging.Logger:
     """
     Sets up a logger with console and file handlers.
     Logs are saved to the 'logs' directory in the project root.
     """
     logger = logging.getLogger(name)
     if level is None:
-        configured = os.environ.get("WESCHEDULER_LOG_LEVEL", "INFO").strip().upper()
+        configured = os.environ.get("TUNALO_LOG_LEVEL", "INFO").strip().upper()
         level = _LOG_LEVELS.get(configured, logging.INFO)
     logger.setLevel(level)
 

@@ -6,7 +6,7 @@ import os
 import threading
 from datetime import UTC, datetime
 
-logger = logging.getLogger("WEScheduler.Events")
+logger = logging.getLogger("Tunalo.Events")
 
 
 class JsonlEventLogger:

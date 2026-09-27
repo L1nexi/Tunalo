@@ -1,6 +1,6 @@
 import { useColorMode } from "@vueuse/core"
 
 export const themeMode = useColorMode({
-  storageKey: "wescheduler-theme",
+  storageKey: "tunalo-theme",
   emitAuto: true,
 })

@@ -9,7 +9,7 @@ from core.models.context import WeatherData
 from core.sensors.base import Sensor
 from integrations.openweather import WeatherRejected, WeatherUnavailable, fetch_weather
 
-logger = logging.getLogger("WEScheduler.Sensor")
+logger = logging.getLogger("Tunalo.Sensor")
 
 
 class WeatherSensor(Sensor):

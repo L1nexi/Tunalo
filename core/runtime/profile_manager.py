@@ -15,7 +15,7 @@ from configurations.runtime_models import SchedulerConfig
 from core.runtime.engine import Engine
 from core.runtime.we_config import WEConfigProber
 
-logger = logging.getLogger("WEScheduler.Profile")
+logger = logging.getLogger("Tunalo.Profile")
 
 
 class ProfileNotFoundError(RuntimeError):

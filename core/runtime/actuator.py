@@ -10,7 +10,7 @@ from core.models.trace import (
 )
 from core.runtime.executor import WEExecutor
 
-logger = logging.getLogger("WEScheduler.Actuator")
+logger = logging.getLogger("Tunalo.Actuator")
 
 
 class Actuator:

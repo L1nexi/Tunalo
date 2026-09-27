@@ -11,7 +11,7 @@ from core.runtime.we_config import WEConfigProber, WEConfigReadError
 from core.runtime.we_path import resolve_wallpaper_engine_path
 from integrations.ip_location import LocationDetectionUnavailable, detect_city_location
 
-logger = logging.getLogger("WEScheduler.API")
+logger = logging.getLogger("Tunalo.API")
 
 
 class PlaylistScanRequest(BaseModel):

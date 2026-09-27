@@ -38,7 +38,7 @@ def detect_city_location() -> DetectedLocation:
     try:
         response = requests.get(
             LOCATION_LOOKUP_URL,
-            headers={"User-Agent": "WEScheduler"},
+            headers={"User-Agent": "Tunalo"},
             timeout=LOCATION_REQUEST_TIMEOUT_SECONDS,
         )
     except requests.RequestException as exc:

@@ -38,7 +38,7 @@ Execute:  Actuator.act()               -> ActionResult
 Commit:   SchedulerState.commit()      -> cache persist
 ```
 
-`Engine.schedule()` 接管完整调度流程。`WEScheduler` 持有活动 Engine，负责编排生命周期、tick、安全点应用、暂停恢复、keep_alive、状态提交和 listener 通知。
+`Engine.schedule()` 接管完整调度流程。`Scheduler` 持有活动 Engine，负责编排生命周期、tick、安全点应用、暂停恢复、keep_alive、状态提交和 listener 通知。
 
 - `ProfileManager` 独占 Profile 的加载、编译、持久化和单写者应用队列，但不持有或代理 Engine。
 - `Matcher` 比较上下文向量和产品预设 Scene 的标签向量。
@@ -75,7 +75,7 @@ Commit:   SchedulerState.commit()      -> cache persist
 
 - 优先使用 `.\scripts\test.ps1`；脚本为每次运行分配独立 `.pytest_tmp` 目录。
 - 测试验证公开行为，系统边界才使用 mock。
-- 不要让 Sensor、Policy、Engine 或 `WEScheduler` 直接读取 Profile。
+- 不要让 Sensor、Policy、Engine 或 `Scheduler` 直接读取 Profile。
 - 不要绕过 ProfileManager 队列修改运行时。
 - Tick History 是密集、近期、内存有界的逐 tick 记录；Event Log 是稀疏、持久化的运行事件。
 - 旧 Diagnostics 页面已下线；Tick History 的本地读取接口为 `GET /api/tick-history?limit=<positive-int>`，排错入口是托盘导出。
