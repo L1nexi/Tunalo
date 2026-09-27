@@ -11,7 +11,7 @@ from app.context import get_app_root
 from app.version import VERSION
 from core.runtime.scheduler import Scheduler
 from ui.i18n import scene_name, t
-from ui.icon_generator import IconGenerator
+from ui.icon_assets import load_tray_icon
 
 logger = logging.getLogger("Tunalo.Tray")
 
@@ -161,7 +161,7 @@ class TrayIcon:
             return
         current = self.scheduler.paused
         if current != self._last_paused_state:
-            self.icon.icon = IconGenerator.generate(paused=current)
+            self.icon.icon = load_tray_icon(paused=current)
             self._last_paused_state = current
         # Always rebuild the Win32 HMENU so dynamic text / visibility
         # reflects the latest scheduler state (harmless if redundant).
@@ -369,7 +369,7 @@ class TrayIcon:
 
         self.icon = pystray.Icon(
             "Tunalo",
-            IconGenerator.generate(paused=self.scheduler.paused),
+            load_tray_icon(paused=self.scheduler.paused),
             "Tunalo",
             menu=self._build_menu(),
         )

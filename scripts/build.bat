@@ -41,6 +41,7 @@ echo [4/5] Running PyInstaller...
     --icon "%CD%\packaging\AppIcon.ico" ^
     --add-data "%CD%\%FRONTEND_DIST_DIR%;%FRONTEND_DIST_DIR%" ^
     --add-data "%CD%\packaging\AppIcon.ico;." ^
+    --add-data "%CD%\packaging\PausedIcon.ico;." ^
     --specpath build ^
     --hidden-import=pystray ^
     --hidden-import=PIL ^

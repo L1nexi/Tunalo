@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 import psutil
 
 from ui.i18n import t
+from ui.icon_assets import icon_path
 
 logger = logging.getLogger("Tunalo.WebView")
 
@@ -19,11 +20,7 @@ ICON_BIG = 1
 
 
 def _resolve_icon_path() -> str:
-    if getattr(sys, "frozen", False):
-        return os.path.join(sys._MEIPASS, "AppIcon.ico")
-    from app.context import get_app_root
-
-    return os.path.join(get_app_root(), "AppIcon.ico")
+    return str(icon_path("AppIcon.ico"))
 
 
 def _set_window_icon() -> None:
