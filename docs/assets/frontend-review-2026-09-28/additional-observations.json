@@ -1,0 +1,26 @@
+[
+  {
+    "name": "save_sent_style",
+    "value": "balanced"
+  },
+  {
+    "name": "editable_while_saving",
+    "value": "true"
+  },
+  {
+    "name": "same_choice_after_save",
+    "value": "false"
+  },
+  {
+    "name": "scenes_scrolled",
+    "value": 255
+  },
+  {
+    "name": "weather_scroll_after_navigation",
+    "value": 0
+  },
+  {
+    "name": "invalid_field_description",
+    "value": null
+  }
+]

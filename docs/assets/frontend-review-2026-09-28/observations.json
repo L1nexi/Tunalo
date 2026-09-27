@@ -1,0 +1,53 @@
+{
+  "screenshots": [
+    "01-connection",
+    "02-weather",
+    "03-location",
+    "04-scenes",
+    "05-scheduling",
+    "06-activity",
+    "07-review",
+    "08-unsaved-close",
+    "09-location-error",
+    "10-weather-error",
+    "11-scenes-dark",
+    "12-location-wide",
+    "13-scheduling-small",
+    "14-first-connection",
+    "15-first-missing",
+    "16-first-scenes-missing"
+  ],
+  "checks": [
+    {
+      "name": "unchanged_save_enabled",
+      "value": true
+    },
+    {
+      "name": "uncommitted_activity_after_navigation",
+      "value": "",
+      "body": "休闲指有意进行的娱乐活动。对于不具明确指向性活动，无需进行场景规则配置。\n\n工作场景规则\n进程名\n添加\nCode.exe\n窗口标题关键词\n添加\n\n暂未添加\n\n休闲场景规则\n进程名\n添加\n\n暂未添加\n\n窗口标题关键词\n添加\n\n暂未添加"
+    },
+    {
+      "name": "reenabled_rain_playlist",
+      "value": "CASUAL_ANIME（含 60 张壁纸）"
+    },
+    {
+      "name": "unsaved_dialog",
+      "value": "关闭\n返回\n关闭"
+    },
+    {
+      "name": "error_focus",
+      "value": {
+        "tag": "BODY",
+        "text": "\n    Tunalo首次设置设置项Wallpaper Engine天气服务天气位置场景绑定调度风格活动进程检测查看配置草稿中EN绑定使用场景启用需要的内置场景，并为每个场景选择 Wallpaper Engine 播放列表。多个场景可以共用一个播放列表。需要处理请完成当前配置项的全部必填内容。日常情境日间工作选择播放列表请为此场景选择播放列表。日间休闲选择播放列表请为此场景选择播放列表。夜间工作选择播放列表请为此场景选择播放列表。夜间休闲选择播放列表请为此场景选择播放列表。季节氛围春季选择播放列表夏季选择播放列表秋季选择播放列表冬季选择播放列表天气氛围黄昏选择播放列表雨天选择播放列表请为此场景选择播放列表。至少启用并绑定一个场景。取消查看配置草稿 \n    \n  \n\n",
+        "aria": null
+      }
+    }
+  ],
+  "console": [
+    "Warning: Missing `Description` or `aria-describedby=\"undefined\"` for DialogContent.",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}
