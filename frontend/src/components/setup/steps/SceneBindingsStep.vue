@@ -1,19 +1,44 @@
 <script setup lang="ts">
-import { LightbulbIcon, TriangleAlertIcon } from "@lucide/vue"
+import { ChevronDownIcon, LightbulbIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed, ref } from "vue"
 
 import type { Locale, PlaylistScanResult, SceneCatalogItem, SceneId } from "@/api/profile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Combobox,
+  ComboboxAnchor,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxViewport,
+} from "@/components/ui/combobox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { COPY, SCENE_LABELS } from "@/setup/copy"
+import { FieldError, FieldLabel } from "@/components/ui/field"
+import { cn } from "@/lib/utils"
+import { COPY, SCENE_DESCRIPTIONS, SCENE_LABELS } from "@/setup/copy"
 import type { ProfileDraft } from "@/setup/model"
 
 type Scenes = ProfileDraft["scenes"]
+type Playlist = PlaylistScanResult["playlists"][number]
+
+interface SceneCard {
+  sceneId: SceneId
+  label: string
+  description: string
+  enabled: boolean
+  bindingInvalid: boolean
+  bound: Playlist | undefined
+}
+
+interface SceneGroup {
+  id: "season" | "context" | "weather"
+  title: string
+  cards: SceneCard[]
+}
 
 const props = defineProps<{
   locale: Locale
@@ -38,43 +63,48 @@ const emit = defineEmits<{
 const copy = computed(() => COPY[props.locale])
 const supportedScenes = computed(() => new Set(props.catalog.map((scene) => scene.id)))
 const availablePlaylists = computed(() => new Set(props.playlists.map((playlist) => playlist.name)))
-const showInactive = ref(false)
-const playlistSearch = ref("")
-const sceneGroups = computed(() => [
-  {
-    id: "context",
-    title: copy.value.scenes.groups.context,
-    scenes: ["day_work", "day_leisure", "night_work", "night_leisure"] as SceneId[],
-  },
-  {
-    id: "season",
-    title: copy.value.scenes.groups.season,
-    scenes: ["spring", "summer", "autumn", "winter"] as SceneId[],
-  },
-  {
-    id: "weather",
-    title: copy.value.scenes.groups.weather,
-    scenes: ["sunset", "rain"] as SceneId[],
-  },
-])
-const supportedOrder = computed(() => sceneGroups.value.flatMap((group) => group.scenes).filter((id) => supportedScenes.value.has(id)))
-const enabledScenes = computed(() => supportedOrder.value
-  .filter((id) => id in props.scenes)
-  .sort((a, b) => Number(assignmentInvalid(b)) - Number(assignmentInvalid(a))))
-const inactiveScenes = computed(() => supportedOrder.value.filter((id) => !(id in props.scenes)))
-const inactiveGroups = computed(() => sceneGroups.value
-  .map((group) => ({ ...group, scenes: group.scenes.filter((id) => inactiveScenes.value.includes(id)) }))
-  .filter((group) => group.scenes.length > 0))
-const filteredPlaylists = computed(() => props.playlists.filter((playlist) =>
-  playlist.name.toLocaleLowerCase().includes(playlistSearch.value.trim().toLocaleLowerCase())))
+const openPicker = ref<SceneId | null>(null)
+
+function toSceneCard(sceneId: SceneId): SceneCard {
+  const name = props.scenes[sceneId]
+  return {
+    sceneId,
+    label: SCENE_LABELS[props.locale][sceneId],
+    description: SCENE_DESCRIPTIONS[props.locale][sceneId],
+    enabled: sceneId in props.scenes,
+    bindingInvalid: sceneId in props.scenes && !availablePlaylists.value.has(name ?? ""),
+    bound: name ? props.playlists.find((playlist) => playlist.name === name) : undefined,
+  }
+}
+
+const sceneGroups = computed<SceneGroup[]>(() => {
+  const catalog: Array<{ id: SceneGroup["id"], title: string, sceneIds: SceneId[] }> = [
+    { id: "season", title: copy.value.scenes.groups.season, sceneIds: ["spring", "summer", "autumn", "winter"] },
+    { id: "context", title: copy.value.scenes.groups.context, sceneIds: ["day_work", "day_leisure", "night_work", "night_leisure"] },
+    { id: "weather", title: copy.value.scenes.groups.weather, sceneIds: ["sunset", "rain"] },
+  ]
+  return catalog
+    .map(({ id, title, sceneIds }) => ({
+      id,
+      title,
+      cards: sceneIds.filter((sceneId) => supportedScenes.value.has(sceneId)).map(toSceneCard),
+    }))
+    .filter((group) => group.cards.length > 0)
+})
+
+function groupEnabledCount(group: SceneGroup): number {
+  return group.cards.filter((card) => card.enabled).length
+}
 
 function toggleScene(sceneId: SceneId, enabled: boolean | "indeterminate"): void {
   const updated = { ...props.scenes }
   if (enabled === true) {
     updated[sceneId] ??= props.rememberedScenes[sceneId] ?? ""
+    openPicker.value = sceneId
   } else {
     if (updated[sceneId]) emit("rememberScene", sceneId, updated[sceneId])
     delete updated[sceneId]
+    if (openPicker.value === sceneId) openPicker.value = null
   }
   emit("update:scenes", updated)
 }
@@ -82,18 +112,15 @@ function toggleScene(sceneId: SceneId, enabled: boolean | "indeterminate"): void
 function setPlaylist(sceneId: SceneId, value: unknown): void {
   if (typeof value === "string") {
     emit("update:scenes", { ...props.scenes, [sceneId]: value })
-    playlistSearch.value = ""
   }
 }
 
-function assignmentInvalid(sceneId: SceneId): boolean {
-  return sceneId in props.scenes && !availablePlaylists.value.has(props.scenes[sceneId] ?? "")
-}
-
-function selectedPlaylistLabel(sceneId: SceneId): string {
-  const name = props.scenes[sceneId]
-  const playlist = props.playlists.find((item) => item.name === name)
-  return playlist ? copy.value.scenes.playlistOption(playlist.name, playlist.item_count) : name ?? ""
+function cardClass(card: SceneCard): string {
+  return cn(
+    "flex min-w-0 flex-col gap-2 rounded-lg border p-3",
+    !card.enabled && "opacity-60",
+    props.attempted && card.bindingInvalid && "border-destructive",
+  )
 }
 </script>
 
@@ -118,85 +145,88 @@ function selectedPlaylistLabel(sceneId: SceneId): string {
 
     <p class="text-sm text-muted-foreground">{{ copy.scenes.matchExplanation }}</p>
 
-    <FieldSet v-if="enabledScenes.length">
-      <FieldLegend>{{ copy.scenes.activeTitle }}</FieldLegend>
-      <p v-if="enabledScenes.some(assignmentInvalid)" class="text-sm text-destructive">{{ copy.scenes.pendingBindings }}</p>
-      <div v-if="playlists.length > 8" class="max-w-sm">
-        <FieldLabel for="playlist-search">{{ copy.scenes.searchPlaylist }}</FieldLabel>
-        <Input id="playlist-search" v-model="playlistSearch" type="search" />
-      </div>
-      <FieldGroup class="gap-2">
-        <Field
-          v-for="sceneId in enabledScenes"
-          :key="sceneId"
-          orientation="responsive"
-          :data-invalid="attempted && assignmentInvalid(sceneId)"
-          class="min-w-0 rounded-lg border p-3"
-        >
-          <div class="flex min-w-44 items-center gap-3">
-            <Checkbox
-              :id="`scene-${sceneId}`"
-              :model-value="sceneId in scenes"
-              :disabled="playlists.length === 0"
-              @update:model-value="(value) => toggleScene(sceneId, value)"
-            />
-            <FieldLabel :for="`scene-${sceneId}`" class="font-normal">
-              {{ SCENE_LABELS[locale][sceneId] }}
-            </FieldLabel>
-          </div>
-          <FieldContent class="min-w-0">
-            <Select
-              :model-value="scenes[sceneId]"
-              :disabled="!(sceneId in scenes) || playlists.length === 0"
-              @update:model-value="(value) => setPlaylist(sceneId, value)"
-            >
-              <SelectTrigger
-                class="min-w-0 w-full max-w-full"
-                :aria-label="`${SCENE_LABELS[locale][sceneId]}: ${copy.scenes.playlist}`"
-                :aria-invalid="attempted && assignmentInvalid(sceneId)"
-                :aria-describedby="attempted && assignmentInvalid(sceneId) ? `scene-error-${sceneId}` : undefined"
-                :title="scenes[sceneId] || undefined"
-              >
-                <SelectValue :placeholder="copy.scenes.choosePlaylist">{{ scenes[sceneId] ? selectedPlaylistLabel(sceneId) : copy.scenes.choosePlaylist }}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem v-for="playlist in filteredPlaylists" :key="playlist.name" :value="playlist.name">
-                    {{ copy.scenes.playlistOption(playlist.name, playlist.item_count) }}
-                  </SelectItem>
-                  <p v-if="filteredPlaylists.length === 0" class="px-2 py-1 text-sm text-muted-foreground">{{ copy.scenes.noPlaylistMatch }}</p>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldError
-              v-if="attempted && assignmentInvalid(sceneId)"
-              :id="`scene-error-${sceneId}`"
-              :errors="[scenes[sceneId] ? copy.scenes.unavailablePlaylist : copy.scenes.bindingRequired]"
-            />
-          </FieldContent>
-        </Field>
-      </FieldGroup>
-    </FieldSet>
-
-    <Collapsible v-if="inactiveScenes.length" v-model:open="showInactive">
+    <Collapsible
+      v-for="group in sceneGroups"
+      :key="group.id"
+      :default-open="true"
+    >
       <CollapsibleTrigger as-child>
-        <Button type="button" variant="outline">{{ copy.scenes.inactiveTitle(inactiveScenes.length) }}</Button>
+        <button
+          type="button"
+          class="group flex w-full items-center gap-2 rounded-md px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/30 hover:bg-accent/50"
+        >
+          <ChevronDownIcon class="transition-transform group-data-[state=closed]:-rotate-90" />
+          <span class="text-sm font-medium">{{ group.title }}</span>
+          <span class="text-sm text-muted-foreground">{{ copy.scenes.groupSummary(groupEnabledCount(group), group.cards.length) }}</span>
+        </button>
       </CollapsibleTrigger>
-      <CollapsibleContent class="pt-4">
-        <FieldSet v-for="group in inactiveGroups" :key="group.id" class="mb-4">
-          <FieldLegend>{{ group.title }}</FieldLegend>
-          <FieldGroup class="gap-2">
-            <Field v-for="sceneId in group.scenes" :key="sceneId" class="flex items-center gap-3">
+      <CollapsibleContent>
+        <div class="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2 xl:grid-cols-3">
+          <div
+            v-for="card in group.cards"
+            :key="card.sceneId"
+            :class="cardClass(card)"
+            :data-disabled="card.enabled ? undefined : ''"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <FieldLabel :for="`scene-${card.sceneId}`" class="font-medium">
+                {{ card.label }}
+              </FieldLabel>
               <Checkbox
-                :id="`scene-${sceneId}`"
-                :model-value="false"
+                :id="`scene-${card.sceneId}`"
+                :model-value="card.enabled"
                 :disabled="playlists.length === 0"
-                @update:model-value="(value) => toggleScene(sceneId, value)"
+                @update:model-value="(value) => toggleScene(card.sceneId, value)"
               />
-              <FieldLabel :for="`scene-${sceneId}`">{{ SCENE_LABELS[locale][sceneId] }}</FieldLabel>
-            </Field>
-          </FieldGroup>
-        </FieldSet>
+            </div>
+            <p class="text-sm text-muted-foreground">{{ card.description }}</p>
+
+            <template v-if="card.enabled">
+              <Combobox
+                :open="openPicker === card.sceneId"
+                :model-value="scenes[card.sceneId] ?? ''"
+                :reset-search-term-on-blur="true"
+                @update:open="(open) => (openPicker = open ? card.sceneId : null)"
+                @update:model-value="(value) => setPlaylist(card.sceneId, value)"
+              >
+                <ComboboxAnchor as-child>
+                  <ComboboxTrigger as-child>
+                    <Button
+                      variant="outline"
+                      class="w-full justify-between font-normal"
+                      :aria-label="`${card.label}: ${copy.scenes.playlist}`"
+                      :aria-invalid="attempted && card.bindingInvalid"
+                      :aria-describedby="attempted && card.bindingInvalid ? `scene-error-${card.sceneId}` : undefined"
+                    >
+                      <span class="min-w-0 truncate">{{ scenes[card.sceneId] || copy.scenes.choosePlaylist }}</span>
+                      <ChevronDownIcon class="opacity-50" />
+                    </Button>
+                  </ComboboxTrigger>
+                </ComboboxAnchor>
+                <ComboboxList>
+                  <ComboboxInput
+                    :placeholder="copy.scenes.searchPlaylist"
+                    :display-value="() => ''"
+                  />
+                  <ComboboxEmpty>{{ copy.scenes.noPlaylistMatch }}</ComboboxEmpty>
+                  <ComboboxViewport>
+                    <ComboboxItem v-for="playlist in playlists" :key="playlist.name" :value="playlist.name">
+                      {{ playlist.name }}
+                    </ComboboxItem>
+                  </ComboboxViewport>
+                </ComboboxList>
+              </Combobox>
+              <p v-if="card.bound" class="text-xs text-muted-foreground">
+                {{ copy.scenes.playlistCount(card.bound.item_count) }}
+              </p>
+              <FieldError
+                v-if="attempted && card.bindingInvalid"
+                :id="`scene-error-${card.sceneId}`"
+                :errors="[scenes[card.sceneId] ? copy.scenes.unavailablePlaylist : copy.scenes.bindingRequired]"
+              />
+            </template>
+          </div>
+        </div>
       </CollapsibleContent>
     </Collapsible>
 

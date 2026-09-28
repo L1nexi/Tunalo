@@ -154,21 +154,17 @@ const zh = {
     description:
       "启用需要的内置场景，并为每个场景选择 Wallpaper Engine 播放列表。多个场景可以共用一个播放列表。",
     defaultHint: "",
-    enabled: "启用",
     playlist: "播放列表",
     choosePlaylist: "选择播放列表",
-    playlistOption: (name: string, count: number) =>
-      `${name}（含 ${count} 张壁纸）`,
+    searchPlaylist: "搜索播放列表",
+    noPlaylistMatch: "没有匹配的播放列表。",
+    playlistCount: (count: number) => `${count} 张壁纸`,
     bindingRequired: "请为此场景选择播放列表。",
     unavailablePlaylist: "已选播放列表不在扫描结果中，请重新选择。",
     required: "至少启用并绑定一个场景。",
     unavailable: "场景绑定需要至少一个包含壁纸的播放列表。",
-    groups: { context: "日常情境", season: "季节氛围", weather: "天气氛围" },
-    activeTitle: "已启用与待绑定",
-    inactiveTitle: (count: number) => `添加其他场景（${count}）`,
-    pendingBindings: "请为待绑定的场景选择播放列表。",
-    searchPlaylist: "搜索播放列表",
-    noPlaylistMatch: "没有匹配的播放列表。",
+    groupSummary: (enabled: number, total: number) => `已启用 ${enabled}/${total}`,
+    groups: { season: "季节氛围", context: "日常情境", weather: "天气氛围" },
     matchExplanation: "天气、时段、季节和活动会共同参与场景匹配；同时成立时由匹配结果决定候选场景，不按此处的列表顺序固定优先。",
   },
   preferences: {
@@ -469,27 +465,19 @@ const en: typeof zh = {
       "Enable built-in Scenes and choose a Wallpaper Engine playlist for each. Multiple Scenes may share a playlist.",
     defaultHint:
       "First-time setup preselects four everyday Scenes and Rain. Assign a playlist to each selected Scene; you can reuse one or turn off any Scene you do not need.",
-    enabled: "Enabled",
     playlist: "Playlist",
     choosePlaylist: "Choose a playlist",
-    playlistOption: (name: string, count: number) =>
-      `${name} (${count} wallpapers)`,
+    searchPlaylist: "Search playlists",
+    noPlaylistMatch: "No matching playlists.",
+    playlistCount: (count: number) => `${count} wallpapers`,
     bindingRequired: "Choose a playlist for this Scene.",
     unavailablePlaylist:
       "The selected playlist is missing from the scan. Choose another.",
     required: "Enable and assign at least one Scene.",
     unavailable:
       "Scene assignments need at least one playlist containing wallpapers.",
-    groups: {
-      context: "Everyday context",
-      season: "Seasonal atmosphere",
-      weather: "Weather atmosphere",
-    },
-    activeTitle: "Enabled and awaiting playlists",
-    inactiveTitle: (count: number) => `Add other Scenes (${count})`,
-    pendingBindings: "Choose a playlist for every pending Scene.",
-    searchPlaylist: "Search playlists",
-    noPlaylistMatch: "No matching playlists.",
+    groupSummary: (enabled: number, total: number) => `${enabled}/${total} enabled`,
+    groups: { season: "Seasonal atmosphere", context: "Everyday context", weather: "Weather atmosphere" },
     matchExplanation: "Weather, time, season, and activity all contribute to Scene matching. The list order does not set a fixed priority when several apply.",
   },
   preferences: {
@@ -685,6 +673,33 @@ export const SCENE_LABELS: Record<Locale, Record<SceneId, string>> = {
     winter: "Winter",
     sunset: "Sunset",
     rain: "Rain",
+  },
+};
+
+export const SCENE_DESCRIPTIONS: Record<Locale, Record<SceneId, string>> = {
+  zh: {
+    day_work: "白天、当前活动为工作时参与匹配。",
+    day_leisure: "白天、当前活动为休闲时参与匹配。",
+    night_work: "夜间、当前活动为工作时参与匹配。",
+    night_leisure: "夜间、当前活动为休闲时参与匹配。",
+    spring: "春季白天更契合，晴好天气加分。",
+    summer: "夏季白天更契合，晴好天气加分。",
+    autumn: "秋季整体契合，黄昏时加分。",
+    winter: "冬季整体契合，黄昏与下雪时加分。",
+    sunset: "黄昏时分的氛围场景。",
+    rain: "下雨时参与匹配，雷雨时加分。",
+  },
+  en: {
+    day_work: "Matches on daytime while working.",
+    day_leisure: "Matches on daytime during leisure.",
+    night_work: "Matches at night while working.",
+    night_leisure: "Matches at night during leisure.",
+    spring: "Fits spring days; clear weather adds weight.",
+    summer: "Fits summer days; clear weather adds weight.",
+    autumn: "Fits autumn; sunset hours add weight.",
+    winter: "Fits winter; sunset and snow add weight.",
+    sunset: "An atmosphere scene for sunset hours.",
+    rain: "Matches while raining; storms add weight.",
   },
 };
 

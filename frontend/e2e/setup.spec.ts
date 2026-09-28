@@ -72,18 +72,67 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   for (const name of ["日间工作", "日间休闲", "夜间工作", "夜间休闲", "雨天"]) {
     await expect(page.getByRole("checkbox", { name })).toBeChecked()
   }
-  await expect(page.getByText("添加其他场景", { exact: false })).toBeVisible()
+  await expect(page.getByText("添加其他场景")).toHaveCount(0)
   await expect(page.getByText(/多个场景可以共用一个播放列表/)).toBeVisible()
-  await page.getByRole("combobox", { name: "日间工作: 播放列表" }).click()
-  await expect(page.getByRole("option", { name: /CASUAL_ANIME.*60 张壁纸/ })).toBeVisible()
+  await page.getByRole("button", { name: "日间工作: 播放列表" }).click()
+  await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toBeVisible()
   await page.keyboard.press("Escape")
   await navigation.getByRole("button", { name: /查看配置草稿/ }).click()
   await expect(page.getByText("已绑定 0 个，待绑定 5 个")).toBeVisible()
   await expect(page.getByText("配置项缺失")).toBeVisible()
   await page.getByRole("alert").getByRole("button", { name: "场景绑定", exact: true }).click()
   await expect(page.getByText("至少启用并绑定一个场景。")).toBeVisible()
-  await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toHaveAttribute("aria-invalid", "true")
-  await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toBeFocused()
+  await expect(page.getByRole("button", { name: "日间工作: 播放列表" })).toHaveAttribute("aria-invalid", "true")
+  await expect(page.getByRole("button", { name: "日间工作: 播放列表" })).toHaveAttribute("aria-describedby", "scene-error-day_work")
+  await expect(page.locator("#scene-error-day_work")).toContainText("请为此场景选择播放列表。")
+  await expect(page.getByRole("button", { name: "日间工作: 播放列表" })).toBeFocused()
+})
+
+test("场景绑定按三组折叠分区展示卡片，未启用场景在组内灰显", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, scenes: { day_work: "CASUAL_ANIME" } })
+  await page.route("**/api/scenes", async (route) => {
+    await route.fulfill({ json: { scenes: [
+      "day_work", "day_leisure", "night_work", "night_leisure",
+      "spring", "summer", "autumn", "winter",
+      "sunset", "rain",
+    ].map((id) => ({ id })) } })
+  })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+
+  await expect(page.getByRole("button", { name: /季节氛围/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /日常情境/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /天气氛围/ })).toBeVisible()
+  await expect(page.getByText("已启用 0/4", { exact: true })).toBeVisible()
+  await expect(page.getByText("已启用 1/4", { exact: true })).toBeVisible()
+  await expect(page.getByText("已启用 0/2", { exact: true })).toBeVisible()
+  await expect(page.getByText("添加其他场景")).toHaveCount(0)
+  await expect(page.getByRole("checkbox", { name: "黄昏" })).toBeVisible()
+  await expect(page.getByRole("checkbox", { name: "雨天" })).toBeVisible()
+
+  const groupHeaders = page.getByRole("button", { name: /^(季节氛围|日常情境|天气氛围)/ })
+  await expect(groupHeaders).toHaveText([/^季节氛围/, /^日常情境/, /^天气氛围/])
+  const sunsetCard = page.getByRole("checkbox", { name: "黄昏" }).locator("xpath=ancestor::div[@data-disabled]")
+  await expect(sunsetCard).toHaveCSS("opacity", "0.6")
+  const dayWorkCard = page.getByRole("checkbox", { name: "日间工作" }).locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]")
+  await expect(dayWorkCard).not.toHaveCSS("opacity", "0.6")
+})
+
+test("启用场景在卡片内弹出选播单，绑定后仅显示播单名", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, scenes: {} })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+
+  await page.getByRole("checkbox", { name: "雨天" }).click()
+  const pickerTrigger = page.getByRole("button", { name: "雨天: 播放列表" })
+  await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toBeVisible()
+  await expect(page.getByRole("option", { name: /60/ })).toHaveCount(0)
+
+  await page.getByRole("option", { name: "CASUAL_ANIME" }).click()
+  await expect(pickerTrigger).toContainText("CASUAL_ANIME")
+  await expect(pickerTrigger).not.toContainText("60")
+  await expect(page.getByText("60 张壁纸", { exact: true })).toBeVisible()
+  await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toHaveCount(0)
 })
 
 test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", async ({ page }) => {
@@ -460,7 +509,7 @@ test("未添加的活动文字跨分类保留，保存前要求处理", async ({
   expect((await request).postDataJSON().activity.work_processes).toEqual(["Photoshop.exe"])
 })
 
-test("场景重新启用恢复本次绑定，首次启用要求选播单", async ({ page }) => {
+test("重新启用恢复上次绑定并弹出选择器，首次启用要求选播单", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, scenes: { day_work: "CASUAL_ANIME", rain: "RAIN" } })
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
     await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [
@@ -470,12 +519,19 @@ test("场景重新启用恢复本次绑定，首次启用要求选播单", async
   })
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+
   await page.getByRole("checkbox", { name: "雨天" }).click()
-  await page.getByRole("button", { name: /添加其他场景/ }).click()
   await page.getByRole("checkbox", { name: "雨天" }).click()
-  await expect(page.getByRole("combobox", { name: "雨天: 播放列表" })).toContainText("RAIN")
+  await expect(page.getByRole("option", { name: "RAIN" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("option", { name: "RAIN" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "雨天: 播放列表" })).toContainText("RAIN")
+  await expect(page.getByText("20 张壁纸", { exact: true })).toBeVisible()
+
   await page.getByRole("checkbox", { name: "日间休闲" }).click()
-  await expect(page.getByRole("combobox", { name: "日间休闲: 播放列表" })).toContainText("选择播放列表")
+  await expect(page.getByRole("option", { name: "RAIN" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("button", { name: "日间休闲: 播放列表" })).toContainText("选择播放列表")
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
 })
 
@@ -525,7 +581,7 @@ test("无效时间输入与错误说明关联", async ({ page }) => {
   await expect(page.locator("#timing-error-startup_grace_seconds")).toContainText("请输入不小于 0 的整数")
 })
 
-test("播单较多时可搜索，选中后清空搜索词", async ({ page }) => {
+test("选择器内搜索过滤播单，重开后搜索词已清空", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
     await route.fulfill({ json: {
@@ -539,11 +595,15 @@ test("播单较多时可搜索，选中后清空搜索词", async ({ page }) => 
   })
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
-  await page.getByRole("searchbox", { name: "搜索播放列表" }).fill("RAIN")
-  await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toContainText("CASUAL_ANIME")
-  await page.getByRole("combobox", { name: "日间工作: 播放列表" }).click()
-  await expect(page.getByRole("option", { name: /RAIN.*20 张壁纸/ })).toBeVisible()
-  await expect(page.getByRole("option", { name: /OTHER_0/ })).toHaveCount(0)
-  await page.getByRole("option", { name: /RAIN.*20 张壁纸/ }).click()
-  await expect(page.getByRole("searchbox", { name: "搜索播放列表" })).toHaveValue("")
+
+  await page.getByRole("button", { name: "日间工作: 播放列表" }).click()
+  await page.getByRole("combobox", { name: "搜索播放列表" }).fill("RAIN")
+  await expect(page.getByRole("option", { name: "RAIN" })).toBeVisible()
+  await expect(page.getByRole("option", { name: "OTHER_0" })).toHaveCount(0)
+  await page.getByRole("option", { name: "RAIN" }).click()
+  await expect(page.getByRole("button", { name: "日间工作: 播放列表" })).toContainText("RAIN")
+
+  await page.getByRole("button", { name: "日间工作: 播放列表" }).click()
+  await expect(page.getByRole("combobox", { name: "搜索播放列表" })).toHaveValue("")
+  await expect(page.getByRole("option", { name: "OTHER_0" })).toBeVisible()
 })
