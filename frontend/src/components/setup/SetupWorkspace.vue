@@ -243,19 +243,23 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
 
 function updateNativeBridgeAvailability(): void {
   hasNativeBridge.value = Boolean(window.pywebview?.api)
+  if (window.pywebview?.api) void window.pywebview.api.page_ready()
 }
 
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener("beforeunload", handleBeforeUnload)
   window.addEventListener("pywebviewready", updateNativeBridgeAvailability)
+  // ui/webview.py 用同名事件把被守卫拦截的原生 × / Alt+F4 转发给页面。
+  window.addEventListener("tunalo:native-close-request", requestClose)
   updateNativeBridgeAvailability()
-  await loadSceneCatalog()
-  await scan.scan()
+  void loadSceneCatalog()
+  void scan.scan()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener("beforeunload", handleBeforeUnload)
   window.removeEventListener("pywebviewready", updateNativeBridgeAvailability)
+  window.removeEventListener("tunalo:native-close-request", requestClose)
 })
 
 async function loadSceneCatalog(): Promise<void> {

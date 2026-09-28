@@ -87,6 +87,7 @@ beforeEach(() => {
 afterEach(() => {
   mountedWrapper?.unmount()
   mountedWrapper = null
+  delete (window as { pywebview?: unknown }).pywebview
 })
 
 test("saving shows a server field error in its owning setup step", async () => {
@@ -256,4 +257,33 @@ test("a failed Scene catalog load can be retried from the Scene step", async () 
 
   expect(wrapper.text()).not.toContain("Scene catalog unavailable")
   expect(wrapper.text()).toContain("Day work")
+})
+
+test("a native close request closes the window when the draft is clean", async () => {
+  const close = vi.fn().mockResolvedValue(undefined)
+  ;(window as { pywebview?: unknown }).pywebview = { api: { close, page_ready: vi.fn().mockResolvedValue(undefined) } }
+
+  mountWorkspace(profile)
+  await flushPromises()
+
+  window.dispatchEvent(new CustomEvent("tunalo:native-close-request"))
+  await flushPromises()
+
+  expect(close).toHaveBeenCalledTimes(1)
+})
+
+test("a native close request asks before discarding unsaved changes", async () => {
+  const close = vi.fn().mockResolvedValue(undefined)
+  ;(window as { pywebview?: unknown }).pywebview = { api: { close, page_ready: vi.fn().mockResolvedValue(undefined) } }
+  const wrapper = mountWorkspace(profile)
+  await flushPromises()
+
+  await wrapper.findAll("button").find((button) => button.text().includes("Scheduling feel"))!.trigger("click")
+  await wrapper.findAll("button").find((button) => button.text().trim() === "Current first")!.trigger("click")
+
+  window.dispatchEvent(new CustomEvent("tunalo:native-close-request"))
+  await flushPromises()
+
+  expect(close).not.toHaveBeenCalled()
+  expect(document.body.textContent).toContain("Discard unsaved changes?")
 })
