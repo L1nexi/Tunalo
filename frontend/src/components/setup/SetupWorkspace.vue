@@ -7,14 +7,13 @@ import {
   ClipboardCheckIcon,
   CloudSunIcon,
   LayersIcon,
-  MapPinIcon,
   MonitorIcon,
   MoonIcon,
   SlidersHorizontalIcon,
   SunIcon,
   TriangleAlertIcon,
 } from "@lucide/vue"
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, toRef, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, toRef, watch } from "vue"
 import { toast } from "vue-sonner"
 
 import type { Locale, Profile, SceneCatalogItem, ValidationIssue } from "@/api/profile"
@@ -44,10 +43,10 @@ import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, ZH_WEATHER_SAVE_PROMPT } from "@/setup/copy"
-import { evaluateSteps, STEP_ORDER, stepForIssue } from "@/setup/flow"
-import type { StepId } from "@/setup/flow"
-import { buildProfile, createProfileDraft, profileFingerprint, validationIssueField } from "@/setup/model"
-import type { ProfileDraft } from "@/setup/model"
+import { evaluateSteps, stepFingerprint, STEP_ORDER, stepForIssue } from "@/setup/flow"
+import type { EditableStepId, StepId } from "@/setup/flow"
+import { buildProfile, createProfileDraft, emptyPendingActivity, profileFingerprint, validationIssueField } from "@/setup/model"
+import type { ActivityField, ProfileDraft } from "@/setup/model"
 import { usePlaylistScan } from "@/setup/usePlaylistScan"
 import { themeMode } from "@/theme"
 
@@ -60,13 +59,16 @@ const mode = computed<"setup" | "settings">(() => props.initialProfile === null 
 const locale = ref<Locale>(props.initialProfile?.language ?? props.initialLocale)
 const copy = computed(() => COPY[locale.value])
 const draft = reactive<ProfileDraft>(createProfileDraft(props.initialProfile, locale.value))
-const baseline = ref(profileFingerprint(draft))
+const savedDraft = ref<ProfileDraft>(createProfileDraft(props.initialProfile, locale.value))
+const baseline = ref(profileFingerprint(savedDraft.value))
+const pendingActivity = reactive(emptyPendingActivity())
+const rememberedScenes = reactive<ProfileDraft["scenes"]>({})
 const scan = usePlaylistScan(toRef(draft, "wallpaper_engine_path"))
 
 const currentIndex = ref(0)
 const previousSectionIndex = ref(0)
 const activeStep = computed<StepId>(() => STEP_ORDER[currentIndex.value] ?? "wallpaper")
-const stepError = ref<"validation" | "fieldValidation" | null>(null)
+const stepError = ref<"validation" | "fieldValidation" | "pendingActivity" | null>(null)
 const validationIssues = ref<ValidationIssue[]>([])
 const submissionFailure = shallowRef<unknown>(null)
 const catalogFailure = shallowRef<unknown>(null)
@@ -77,6 +79,7 @@ const locationDetectionError = ref("")
 const locationDetectionCity = ref<string | null>(null)
 const validatingWeather = ref(false)
 const weatherValidationStatus = ref<"idle" | "success" | "error">("idle")
+const weatherTestedAt = ref<number | null>(null)
 const weatherValidationError = ref("")
 const weatherValidationFailure = shallowRef<unknown>(null)
 const verifiedWeatherKey = ref<string | null>(null)
@@ -90,7 +93,6 @@ const sceneCatalog = ref<SceneCatalogItem[]>([])
 const stepIcons: Record<StepId, Component> = {
   wallpaper: MonitorIcon,
   weather: CloudSunIcon,
-  location: MapPinIcon,
   scenes: LayersIcon,
   scheduling: SlidersHorizontalIcon,
   activity: AppWindowIcon,
@@ -104,15 +106,17 @@ const themeLabel = computed(() => ({
   dark: copy.value.nav.themeDark,
 })[themeMode.value])
 const missingSteps = computed(() => steps.value.filter((step) => step.id !== "review" && !isStepValid(step.id)))
+const pendingActivityFields = computed(() => (Object.keys(pendingActivity) as ActivityField[])
+  .filter((field) => pendingActivity[field].trim().length > 0))
+const changedSteps = computed(() => new Set(STEP_ORDER.filter((id): id is EditableStepId => id !== "review")
+  .filter((id) => stepFingerprint(draft, id) !== stepFingerprint(savedDraft.value, id)
+    || (id === "activity" && pendingActivityFields.value.length > 0))))
+const nextMissingStep = computed(() => missingSteps.value[0] ?? null)
 const activeHeading = computed(() => {
   const content = copy.value
   switch (activeStep.value) {
     case "wallpaper": return { title: content.wallpaper.title, description: content.wallpaper.description }
     case "weather": return { title: content.weather.title, description: content.weather.description }
-    case "location": return {
-      title: content.location.title,
-      description: mode.value === "setup" ? content.location.setupDescription : content.location.settingsDescription,
-    }
     case "scenes": return { title: content.scenes.title, description: content.scenes.description }
     case "scheduling": return { title: content.preferences.title, description: content.preferences.description }
     case "activity": return { title: content.activity.title, description: content.activity.description }
@@ -124,7 +128,7 @@ const activeHeading = computed(() => {
 })
 const evaluation = computed(() => evaluateSteps(draft, scan.ready.value, scan.usablePlaylists.value))
 const allValid = computed(() => Object.values(evaluation.value.validity).every(Boolean))
-const isDirty = computed(() => profileFingerprint(draft) !== baseline.value)
+const isDirty = computed(() => profileFingerprint(draft) !== baseline.value || pendingActivityFields.value.length > 0)
 const stepErrorText = computed(() => stepError.value ? copy.value.errors[stepError.value] : "")
 const submissionError = computed(() => submissionFailure.value ? describeError(submissionFailure.value) : "")
 const catalogError = computed(() => catalogFailure.value ? describeError(catalogFailure.value) : "")
@@ -145,9 +149,27 @@ function isStepValid(id: StepId): boolean {
   return id === "review" ? allValid.value : evaluation.value.validity[id]
 }
 
+function stepStatus(id: StepId): string {
+  if (id === "review") return ""
+  if (mode.value === "settings") return changedSteps.value.has(id) ? copy.value.nav.changed : ""
+  if (!isStepValid(id)) return copy.value.nav.pending
+  if ((id === "scheduling" || id === "activity") && !changedSteps.value.has(id)) return copy.value.nav.defaultReady
+  return copy.value.nav.complete
+}
+
 function clearStepFeedback(id: StepId): void {
   validationIssues.value = validationIssues.value.filter((issue) => stepForIssue(issue.path) !== id)
   if (activeStep.value === id) stepError.value = null
+  submissionFailure.value = null
+}
+
+function clearWeatherFieldFeedback(field: "api_key" | "location"): void {
+  validationIssues.value = validationIssues.value.filter((issue) =>
+    !(issue.path[0] === "weather" && issue.path[1] === field))
+  if (activeStep.value === "weather" && isStepValid("weather") &&
+    !validationIssues.value.some((issue) => stepForIssue(issue.path) === "weather")) {
+    stepError.value = null
+  }
   submissionFailure.value = null
 }
 
@@ -165,7 +187,8 @@ function updateApiKey(value: string): void {
   weatherValidationStatus.value = verifiedWeatherKey.value !== null && value.trim() === verifiedWeatherKey.value ? "success" : "idle"
   weatherValidationError.value = ""
   weatherValidationFailure.value = null
-  clearStepFeedback("weather")
+  if (value.trim() !== verifiedWeatherKey.value) weatherTestedAt.value = null
+  clearWeatherFieldFeedback("api_key")
 }
 
 function updateLocation(value: ProfileDraft["weather"]["location"]): void {
@@ -173,7 +196,7 @@ function updateLocation(value: ProfileDraft["weather"]["location"]): void {
   locationDetectionStatus.value = "idle"
   locationDetectionError.value = ""
   locationDetectionCity.value = null
-  clearStepFeedback("location")
+  clearWeatherFieldFeedback("location")
 }
 
 function updateScenes(value: ProfileDraft["scenes"]): void {
@@ -193,7 +216,18 @@ function updateDisturbance(value: ProfileDraft["disturbance"]): void {
 
 function updateActivity(value: ProfileDraft["activity"]): void {
   draft.activity = value
+  const keepPendingWarning = stepError.value === "pendingActivity" && pendingActivityFields.value.length > 0
   clearStepFeedback("activity")
+  if (keepPendingWarning) stepError.value = "pendingActivity"
+}
+
+function updatePendingActivity(field: ActivityField, value: string): void {
+  pendingActivity[field] = value
+  if (stepError.value === "pendingActivity" && pendingActivityFields.value.length === 0) stepError.value = null
+}
+
+function rememberScene(id: keyof ProfileDraft["scenes"], playlist: string): void {
+  rememberedScenes[id] = playlist
 }
 
 watch(locale, (value, previous) => {
@@ -323,6 +357,7 @@ async function testWeatherKey(): Promise<void> {
     if (draft.weather.api_key.trim() === apiKey) {
       verifiedWeatherKey.value = apiKey
       weatherValidationStatus.value = "success"
+      weatherTestedAt.value = Date.now()
     }
   } catch (error) {
     if (draft.weather.api_key.trim() === apiKey) {
@@ -331,6 +366,7 @@ async function testWeatherKey(): Promise<void> {
       weatherValidationStatus.value = verifiedWeatherKey.value === apiKey ? "success" : "error"
       weatherValidationError.value = describeWeatherTestError(error)
       weatherValidationFailure.value = error
+      if (verifiedWeatherKey.value !== apiKey) weatherTestedAt.value = Date.now()
     }
   } finally {
     validatingWeather.value = false
@@ -345,6 +381,7 @@ function applyValidationIssues(error: unknown): boolean {
   if (error.payload.issues.some((issue) => issue.path[0] === "disturbance")) timingOpen.value = true
   stepError.value = "fieldValidation"
   submissionFailure.value = null
+  void focusStep(true)
   return true
 }
 
@@ -372,12 +409,23 @@ function navigateTo(index: number): void {
   currentIndex.value = index
   stepError.value = null
   submissionFailure.value = null
+  void focusStep(false)
 }
 
 function navigateToStep(id: StepId): void {
   const needsAttention = activeStep.value === "review" && !isStepValid(id)
   navigateTo(STEP_ORDER.indexOf(id))
   if (needsAttention) stepError.value = "validation"
+  if (needsAttention) void focusStep(true)
+}
+
+async function focusStep(errorFirst: boolean): Promise<void> {
+  await nextTick()
+  const target = errorFirst
+    ? [...document.querySelectorAll<HTMLElement>("#setup-step-content [aria-invalid='true']")]
+      .find((element) => element.getClientRects().length > 0)
+    : null
+  ;(target ?? document.getElementById("setup-step-heading"))?.focus()
 }
 
 function setLocale(value: unknown): void {
@@ -397,12 +445,21 @@ async function closeWindow(): Promise<void> {
 }
 
 async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
+  if (submitting.value || locating.value) return
+  if (pendingActivityFields.value.length > 0) {
+    navigateToStep("activity")
+    stepError.value = "pendingActivity"
+    void focusStep(true)
+    return
+  }
   if (!allValid.value) {
     const invalidIndex = STEP_ORDER.findIndex((id) => !isStepValid(id))
     currentIndex.value = Math.max(0, invalidIndex)
     stepError.value = "validation"
+    void focusStep(true)
     return
   }
+  if (mode.value === "settings" && !isDirty.value) return
 
   const hasVerifiedKey = verifiedWeatherKey.value === draft.weather.api_key.trim()
   if (!allowUnverifiedWeather && !hasVerifiedKey && isSoftWeatherFailure(weatherValidationFailure.value)) {
@@ -420,7 +477,9 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
       ? await createInitialProfile(profile, skipWeatherValidation)
       : await applyProfile(profile, skipWeatherValidation)
     Object.assign(draft, createProfileDraft(committed, locale.value))
+    savedDraft.value = createProfileDraft(committed, locale.value)
     baseline.value = profileFingerprint(draft)
+    for (const id of Object.keys(rememberedScenes) as Array<keyof ProfileDraft["scenes"]>) delete rememberedScenes[id]
     validationIssues.value = []
     stepError.value = null
     weatherValidationFailure.value = null
@@ -451,7 +510,7 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
           <p class="mt-1 text-sm leading-5 text-muted-foreground">{{ copy.mode[mode] }}</p>
         </header>
 
-        <nav class="flex gap-1 overflow-x-auto pb-1 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto" :aria-label="mode === 'setup' ? copy.nav.setupNavigation : copy.nav.settingsNavigation">
+        <nav :inert="submitting" class="flex gap-1 overflow-x-auto pb-1 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto" :aria-label="mode === 'setup' ? copy.nav.setupNavigation : copy.nav.settingsNavigation">
           <p class="hidden px-3 pb-1 text-xs font-medium text-muted-foreground md:block">{{ mode === 'setup' ? copy.nav.setupNavigation : copy.nav.settingsNavigation }}</p>
           <Button
             v-for="(step, index) in steps"
@@ -459,15 +518,24 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             type="button"
             :variant="currentIndex === index ? 'secondary' : 'ghost'"
             :aria-current="currentIndex === index ? 'page' : undefined"
-            class="min-w-44 justify-start px-3 text-left md:min-w-0"
+            :class="['min-w-44 justify-start px-3 text-left md:min-w-0', currentIndex === index ? 'border-l-2 border-l-foreground font-semibold' : '']"
             @click="navigateTo(index)"
           >
             <component :is="step.icon" data-icon="inline-start" />
             <span class="min-w-0 flex-1 truncate font-medium">{{ step.id === 'review' ? (mode === 'setup' ? copy.nav.reviewSetup : copy.nav.reviewSettings) : step.title }}</span>
+            <span v-if="stepStatus(step.id)" class="shrink-0 text-xs text-muted-foreground">{{ stepStatus(step.id) }}</span>
           </Button>
         </nav>
 
-        <div class="mt-auto flex items-center justify-between border-t border-sidebar-border pt-3">
+        <div v-if="mode === 'setup' && nextMissingStep" class="text-sm" role="status">
+          {{ copy.nav.nextRequired }}
+          <Button type="button" variant="link" class="h-auto px-1" :disabled="submitting" @click="navigateToStep(nextMissingStep.id)">{{ nextMissingStep.title }}</Button>
+        </div>
+        <p v-else-if="mode === 'settings'" class="text-sm text-muted-foreground" role="status">
+          {{ isDirty ? copy.nav.unsaved : copy.nav.saved }}
+        </p>
+
+        <div :inert="submitting" class="mt-auto flex items-center justify-between border-t border-sidebar-border pt-3">
           <ToggleGroup type="single" size="sm" :spacing="1" class="shrink-0 rounded-xl border border-sidebar-border bg-muted/40 p-0.5" :model-value="locale" :aria-label="copy.nav.languageLabel" @update:model-value="setLocale">
             <ToggleGroupItem value="zh" class="rounded-lg data-[state=on]:bg-background" aria-label="中文">中</ToggleGroupItem>
             <ToggleGroupItem value="en" class="rounded-lg data-[state=on]:bg-background" aria-label="English">EN</ToggleGroupItem>
@@ -489,10 +557,10 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
 
       <Card class="min-w-0 min-h-[32rem] md:h-full md:min-h-0">
         <CardHeader class="shrink-0">
-          <CardTitle><h1 class="text-[1.375rem] leading-7 font-semibold tracking-tight">{{ activeHeading.title }}</h1></CardTitle>
+          <CardTitle><h1 id="setup-step-heading" tabindex="-1" class="text-[1.375rem] leading-7 font-semibold tracking-tight focus:outline-none">{{ activeHeading.title }}</h1></CardTitle>
           <CardDescription v-if="activeHeading.description">{{ activeHeading.description }}</CardDescription>
         </CardHeader>
-        <CardContent class="min-h-0 flex-1 overflow-y-auto pt-0 pb-6">
+        <CardContent id="setup-step-content" :inert="submitting" :aria-busy="submitting" class="min-h-0 flex-1 overflow-y-auto pt-0 pb-6">
           <Alert v-if="stepErrorText" variant="destructive" class="mb-6">
             <TriangleAlertIcon />
             <AlertTitle>{{ copy.common.needsAttention }}</AlertTitle>
@@ -519,37 +587,45 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             @scan="scanWallpaper"
             @choose="chooseWallpaperEngine"
           />
-          <WeatherKeyStep
-            v-else-if="activeStep === 'weather'"
-            :locale="locale"
-            :api-key="draft.weather.api_key"
-            :invalid="Boolean(stepError) && !isStepValid('weather')"
-            :errors="issuesByStep.weather['weather.api_key'] ?? []"
-            :validating="validatingWeather"
-            :validation-status="weatherValidationStatus"
-            :validation-error="weatherValidationError"
-            @update:api-key="updateApiKey"
-            @validate="testWeatherKey"
-            @open-key-page="openExternal('https://home.openweathermap.org/api_keys')"
-          />
-          <LocationStep
-            v-else-if="activeStep === 'location'"
-            :locale="locale"
-            :location="draft.weather.location"
-            :locating="locating"
-            :detection-status="locationDetectionStatus"
-            :detection-error="locationDetectionError"
-            :detection-city="locationDetectionCity"
-            :attempted="Boolean(stepError)"
-            :errors="issuesByStep.location"
-            @update:location="updateLocation"
-            @detect="detectCity"
-          />
+          <div v-else-if="activeStep === 'weather'" class="flex flex-col gap-8">
+            <WeatherKeyStep
+              :locale="locale"
+              :api-key="draft.weather.api_key"
+              :invalid="Boolean(stepError) && !draft.weather.api_key.trim()"
+              :errors="issuesByStep.weather['weather.api_key'] ?? []"
+              :validating="validatingWeather"
+              :validation-status="weatherValidationStatus"
+              :validation-error="weatherValidationError"
+              @update:api-key="updateApiKey"
+              @validate="testWeatherKey"
+              @open-key-page="openExternal('https://home.openweathermap.org/api_keys')"
+            />
+            <section class="flex flex-col gap-4 border-t pt-6" :aria-label="copy.location.title">
+              <div>
+                <h2 class="text-base font-semibold">{{ copy.location.title }}</h2>
+                <p class="text-sm text-muted-foreground">{{ mode === 'setup' ? copy.location.setupDescription : copy.location.settingsDescription }}</p>
+              </div>
+              <LocationStep
+                :locale="locale"
+                :location="draft.weather.location"
+                :locating="locating"
+                :detection-status="locationDetectionStatus"
+                :detection-error="locationDetectionError"
+                :detection-city="locationDetectionCity"
+                :attempted="Boolean(stepError)"
+                :errors="issuesByStep.weather"
+                @update:location="updateLocation"
+                @detect="detectCity"
+                @open-map="openExternal('https://www.openstreetmap.org')"
+              />
+            </section>
+          </div>
           <SceneBindingsStep
             v-else-if="activeStep === 'scenes'"
             :locale="locale"
             :mode="mode"
             :scenes="draft.scenes"
+            :remembered-scenes="rememberedScenes"
             :catalog="sceneCatalog"
             :playlists="scan.usablePlaylists.value"
             :catalog-error="catalogError"
@@ -557,6 +633,7 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             :attempted="Boolean(stepError)"
             :errors="issuesByStep.scenes.scenes ?? []"
             @update:scenes="updateScenes"
+            @remember-scene="rememberScene"
             @retry-catalog="loadSceneCatalog"
             @open-wallpaper="navigateToStep('wallpaper')"
           />
@@ -575,17 +652,23 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             v-else-if="activeStep === 'activity'"
             :locale="locale"
             :activity="draft.activity"
+            :pending="pendingActivity"
+            :show-pending="stepError === 'pendingActivity'"
             :conflicts="evaluation.conflicts"
             :errors="issuesByStep.activity.activity ?? []"
             @update:activity="updateActivity"
+            @update:pending="updatePendingActivity"
           />
           <ReviewStep
             v-else
             :locale="locale"
             :draft="draft"
+            :saved-draft="savedDraft"
+            :mode="mode"
             :valid="allValid"
             :missing-steps="missingSteps"
             :weather-status="weatherValidationStatus"
+            :weather-tested-at="weatherTestedAt"
             :weather-error="weatherValidationError"
             :validating-weather="validatingWeather"
             @validate-weather="testWeatherKey"
@@ -598,11 +681,11 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
           <Button v-if="activeStep === 'review'" variant="outline" :disabled="submitting" @click="navigateTo(previousSectionIndex)">{{ copy.nav.backToSettings }}</Button>
           <Button v-else variant="ghost" :disabled="submitting" @click="requestClose">{{ mode === 'setup' ? copy.common.cancel : copy.common.close }}</Button>
 
-          <Button v-if="activeStep !== 'review'" :disabled="submitting" @click="navigateToStep('review')">
+          <Button v-if="activeStep !== 'review'" :variant="mode === 'settings' ? 'outline' : 'default'" :disabled="submitting" @click="navigateToStep('review')">
             {{ mode === 'setup' ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
             <ChevronRightIcon data-icon="inline-end" />
           </Button>
-          <Button v-else :disabled="submitting || !allValid" @click="submitProfile()">
+          <Button v-if="mode === 'settings' || activeStep === 'review'" :disabled="submitting || locating || !allValid || (mode === 'settings' && !isDirty)" @click="submitProfile()">
             <Spinner v-if="submitting" data-icon="inline-start" />
             <CheckIcon v-else data-icon="inline-start" />
             {{ submitting
@@ -616,12 +699,12 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
     <AlertDialog v-model:open="closeDialogOpen">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{{ mode === "setup" ? copy.common.cancel : copy.common.close }}</AlertDialogTitle>
-          <AlertDialogDescription v-if="copy.nav.settingsDescription">{{ copy.nav.settingsDescription }}</AlertDialogDescription>
+          <AlertDialogTitle>{{ copy.nav.discardTitle }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ mode === "setup" ? copy.nav.discardSetupDescription : copy.nav.discardSettingsDescription }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{{ copy.common.back }}</AlertDialogCancel>
-          <AlertDialogAction @click="closeWindow">{{ copy.common.close }}</AlertDialogAction>
+          <AlertDialogCancel>{{ copy.nav.keepEditing }}</AlertDialogCancel>
+          <AlertDialogAction @click="closeWindow">{{ copy.nav.discardChanges }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
+import { ExternalLinkIcon, MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale } from "@/api/profile"
@@ -28,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:location": [value: Location]
   detect: []
+  openMap: []
 }>()
 
 const copy = computed(() => COPY[props.locale])
@@ -42,6 +43,14 @@ const longitudeInvalid = computed(() =>
 
 function messages(...fields: string[]): string[] {
   return fields.flatMap((field) => props.errors[field] ?? [])
+}
+
+function coordinateErrors(field: Coordinate): string[] {
+  const invalid = field === "latitude" ? latitudeInvalid.value : longitudeInvalid.value
+  return [
+    ...(props.attempted && invalid ? [field === "latitude" ? copy.value.location.invalidLatitude : copy.value.location.invalidLongitude] : []),
+    ...messages("weather.location", `weather.location.${field}`),
+  ]
 }
 
 function setCoordinate(field: Coordinate, value: string | number): void {
@@ -62,6 +71,11 @@ function setCoordinate(field: Coordinate, value: string | number): void {
         {{ locating ? copy.location.detecting : copy.location.detect }}
       </Button>
       <p class="text-sm text-muted-foreground">{{ copy.location.detectHint }}</p>
+      <p class="text-sm text-muted-foreground">{{ copy.location.manualHelp }}</p>
+      <Button type="button" variant="link" class="h-auto px-0" @click="emit('openMap')">
+        <ExternalLinkIcon data-icon="inline-start" />
+        {{ copy.location.openMap }}
+      </Button>
     </div>
 
     <Alert v-if="detectionStatus === 'success'">
@@ -75,7 +89,7 @@ function setCoordinate(field: Coordinate, value: string | number): void {
 
     <FieldGroup>
       <div class="grid gap-5 sm:grid-cols-2">
-        <Field :data-invalid="(attempted && latitudeInvalid) || messages('weather.location', 'weather.location.latitude').length > 0">
+        <Field :data-invalid="coordinateErrors('latitude').length > 0">
           <FieldLabel for="latitude">{{ copy.location.latitudeLabel }}</FieldLabel>
           <Input
             id="latitude"
@@ -85,13 +99,13 @@ function setCoordinate(field: Coordinate, value: string | number): void {
             max="90"
             step="0.0001"
             :placeholder="copy.location.latitudePlaceholder"
-            :aria-invalid="(attempted && latitudeInvalid) || messages('weather.location', 'weather.location.latitude').length > 0"
+            :aria-invalid="coordinateErrors('latitude').length > 0"
+            :aria-describedby="coordinateErrors('latitude').length ? 'latitude-error' : undefined"
             @update:model-value="(value: string | number) => setCoordinate('latitude', value)"
           />
-          <FieldError v-if="attempted && latitudeInvalid" :errors="[copy.location.invalidLatitude]" />
-          <FieldError v-if="messages('weather.location.latitude').length" :errors="messages('weather.location.latitude')" />
+          <FieldError v-if="coordinateErrors('latitude').length" id="latitude-error" :errors="coordinateErrors('latitude')" />
         </Field>
-        <Field :data-invalid="(attempted && longitudeInvalid) || messages('weather.location', 'weather.location.longitude').length > 0">
+        <Field :data-invalid="coordinateErrors('longitude').length > 0">
           <FieldLabel for="longitude">{{ copy.location.longitudeLabel }}</FieldLabel>
           <Input
             id="longitude"
@@ -101,11 +115,11 @@ function setCoordinate(field: Coordinate, value: string | number): void {
             max="180"
             step="0.0001"
             :placeholder="copy.location.longitudePlaceholder"
-            :aria-invalid="(attempted && longitudeInvalid) || messages('weather.location', 'weather.location.longitude').length > 0"
+            :aria-invalid="coordinateErrors('longitude').length > 0"
+            :aria-describedby="coordinateErrors('longitude').length ? 'longitude-error' : undefined"
             @update:model-value="(value: string | number) => setCoordinate('longitude', value)"
           />
-          <FieldError v-if="attempted && longitudeInvalid" :errors="[copy.location.invalidLongitude]" />
-          <FieldError v-if="messages('weather.location.longitude').length" :errors="messages('weather.location.longitude')" />
+          <FieldError v-if="coordinateErrors('longitude').length" id="longitude-error" :errors="coordinateErrors('longitude')" />
         </Field>
       </div>
       <FieldError v-if="messages('weather.location').length" :errors="messages('weather.location')" />

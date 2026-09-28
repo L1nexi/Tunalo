@@ -30,6 +30,18 @@ export interface ProfileDraft {
   }
 }
 
+export type ActivityField = keyof ProfileDraft["activity"]
+export type PendingActivity = Record<ActivityField, string>
+
+export function emptyPendingActivity(): PendingActivity {
+  return {
+    work_processes: "",
+    leisure_processes: "",
+    work_title_keywords: "",
+    leisure_title_keywords: "",
+  }
+}
+
 export const DISTURBANCE_PRESETS = {
   eager: {
     startup_grace_seconds: 5,

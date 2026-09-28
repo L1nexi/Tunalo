@@ -32,7 +32,7 @@ test("server validation paths map to setup fields", () => {
 test("server validation paths map to the owning setup step", () => {
   expect(stepForIssue(["wallpaper_engine_path"])).toBe("wallpaper")
   expect(stepForIssue(["weather", "api_key"])).toBe("weather")
-  expect(stepForIssue(["weather", "location"])).toBe("location")
+  expect(stepForIssue(["weather", "location"])).toBe("weather")
   expect(stepForIssue(["scenes"])).toBe("scenes")
   expect(stepForIssue(["disturbance", "startup_grace_seconds"])).toBe("scheduling")
   expect(stepForIssue(["activity"])).toBe("activity")

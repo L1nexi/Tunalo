@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PlusIcon, XIcon } from "@lucide/vue"
-import { ref } from "vue"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -16,10 +15,12 @@ const props = defineProps<{
   addLabel: string
   removeLabel: string
   emptyLabel: string
+  invalid?: boolean
+  errorId?: string
 }>()
 
 const values = defineModel<string[]>({ required: true })
-const input = ref("")
+const input = defineModel<string>("pending", { required: true })
 
 function addValue(): void {
   const value = input.value.trim()
@@ -42,6 +43,8 @@ function removeValue(value: string): void {
         :id="props.id"
         v-model="input"
         :placeholder="props.placeholder"
+        :aria-invalid="props.invalid || undefined"
+        :aria-describedby="props.invalid ? props.errorId : undefined"
         @keydown.enter.prevent="addValue"
       />
       <InputGroupAddon align="inline-end">

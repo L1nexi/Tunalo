@@ -43,6 +43,7 @@ const showApiKey = ref(false)
             :placeholder="copy.weather.keyPlaceholder"
             autocomplete="off"
             :aria-invalid="invalid || errors.length > 0"
+            :aria-describedby="invalid || errors.length ? 'weather-api-key-error' : undefined"
             @update:model-value="(value: string | number) => emit('update:apiKey', String(value))"
           />
           <InputGroupAddon align="inline-end">
@@ -53,7 +54,7 @@ const showApiKey = ref(false)
           </InputGroupAddon>
         </InputGroup>
         <FieldDescription>{{ copy.weather.keyDescription }}</FieldDescription>
-        <FieldError v-if="errors.length" :errors="errors" />
+        <FieldError v-if="invalid || errors.length" id="weather-api-key-error" :errors="[...(invalid ? [copy.weather.keyRequired] : []), ...errors]" />
       </Field>
     </FieldGroup>
 
@@ -69,7 +70,7 @@ const showApiKey = ref(false)
       </Button>
     </div>
 
-    <Alert v-if="validationStatus === 'success'">
+    <Alert v-if="validationStatus === 'success'" class="border-emerald-600/30 text-emerald-800 dark:text-emerald-300">
       <CheckCircle2Icon />
       <AlertDescription>{{ copy.weather.validationSuccess }}</AlertDescription>
     </Alert>
@@ -78,8 +79,8 @@ const showApiKey = ref(false)
       <AlertDescription>{{ validationError }}</AlertDescription>
     </Alert>
 
-    <div class="max-w-2xl rounded-lg border bg-muted/30 p-4">
-      <h2 class="font-medium">{{ copy.weather.guideTitle }}</h2>
+    <details class="max-w-2xl rounded-lg border bg-muted/30 p-4">
+      <summary class="cursor-pointer font-medium">{{ copy.weather.guideTitle }}</summary>
       <ol class="mt-3 flex flex-col gap-4 text-sm leading-relaxed">
         <li v-for="(step, index) in copy.weather.guideSteps" :key="step.title" class="flex gap-3">
           <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">{{ index + 1 }}</span>
@@ -91,7 +92,7 @@ const showApiKey = ref(false)
           </div>
         </li>
       </ol>
-    </div>
+    </details>
 
     <Alert v-if="copy.weather.validationOnSubmit">
       <CloudSunIcon />

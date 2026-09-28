@@ -106,10 +106,8 @@ test("saving shows a server field error in its owning setup step", async () => {
   const wrapper = mountWorkspace(profile)
   await flushPromises()
 
-  const reviewButton = wrapper.findAll("button").find((button) => button.text().includes("Review and save"))
-  expect(reviewButton).toBeDefined()
-  await reviewButton!.trigger("click")
-
+  await wrapper.findAll("button").find((button) => button.text().includes("Weather service"))!.trigger("click")
+  await wrapper.get("#weather-api-key").setValue("replacement-key")
   const saveButton = wrapper.findAll("button").find((button) => button.text().trim() === "Save and apply")
   expect(saveButton).toBeDefined()
   await saveButton!.trigger("click")
@@ -129,7 +127,7 @@ test("first-run setup can inspect other categories but cannot save incomplete se
   const wrapper = mountWorkspace(null)
   await flushPromises()
 
-  await wrapper.findAll("button").find((button) => button.text().trim() === "Weather service")!.trigger("click")
+  await wrapper.findAll("button").find((button) => button.text().includes("Weather service"))!.trigger("click")
   expect(wrapper.get("h1").text()).toBe("Connect weather")
 
   await wrapper.findAll("button").find((button) => button.text().trim() === "Review and finish")!.trigger("click")
@@ -159,7 +157,8 @@ test("editing one step keeps server errors that belong to another step", async (
   const wrapper = mountWorkspace(profile)
   await flushPromises()
 
-  await wrapper.findAll("button").find((button) => button.text().includes("Review and save"))!.trigger("click")
+  await wrapper.findAll("button").find((button) => button.text().includes("Weather service"))!.trigger("click")
+  await wrapper.get("#weather-api-key").setValue("replacement-key")
   await wrapper.findAll("button").find((button) => button.text().trim() === "Save and apply")!.trigger("click")
   await flushPromises()
 
@@ -169,6 +168,30 @@ test("editing one step keeps server errors that belong to another step", async (
   expect(wrapper.get("h1").text()).toBe("Recognize activity")
   expect(wrapper.text()).toContain("Activity targets conflict")
   expect(wrapper.text()).not.toContain("This API key is invalid.")
+})
+
+test("editing the weather key keeps the location error in the same section", async () => {
+  api.applyProfile.mockRejectedValue(new ApiError(422, {
+    error: "profile_invalid",
+    issues: [
+      { path: ["weather", "api_key"], code: "weather_api_key_invalid", message: "invalid key" },
+      { path: ["weather", "location", "latitude"], code: "weather_location_invalid", message: "invalid location" },
+    ],
+  }))
+
+  const wrapper = mountWorkspace(profile)
+  await flushPromises()
+  await wrapper.findAll("button").find((button) => button.text().includes("Weather service"))!.trigger("click")
+  await wrapper.get("#weather-api-key").setValue("replacement-key")
+  await wrapper.findAll("button").find((button) => button.text().trim() === "Save and apply")!.trigger("click")
+  await flushPromises()
+  expect(wrapper.text()).toContain("This API key is invalid.")
+  expect(wrapper.text()).toContain("OpenWeatherMap could not use this location.")
+
+  await wrapper.get("#weather-api-key").setValue("third-key")
+  expect(wrapper.text()).not.toContain("This API key is invalid.")
+  expect(wrapper.text()).toContain("OpenWeatherMap could not use this location.")
+  expect(wrapper.get("#latitude").attributes("aria-describedby")).toBe("latitude-error")
 })
 
 test("an older playlist scan cannot replace results for a newer path", async () => {

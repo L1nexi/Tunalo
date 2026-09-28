@@ -19,11 +19,22 @@ const zh = {
     location: { title: "天气位置" },
     scenes: { title: "场景绑定" },
     scheduling: { title: "调度风格" },
-    activity: { title: "活动进程检测" },
+    activity: { title: "活动识别" },
     review: { title: "查看配置草稿" },
   },
   nav: {
     settingsDescription: "",
+    discardTitle: "放弃未保存的修改？",
+    discardSetupDescription: "当前设置草稿不会保存，首次设置将取消。",
+    discardSettingsDescription: "当前运行设置不会改变，本次修改将丢失。",
+    keepEditing: "继续编辑",
+    discardChanges: "放弃修改",
+    changed: "已修改",
+    pending: "待填写",
+    defaultReady: "可沿用默认",
+    nextRequired: "下一项需要完成：",
+    unsaved: "有未保存的修改",
+    saved: "所有修改已保存",
     languageLabel: "语言",
     themeLabel: "外观",
     themeSystem: "跟随系统",
@@ -78,6 +89,7 @@ const zh = {
     zeroItem: "未找到壁纸",
     scanAgain: "重新扫描",
     manualHint: "如果自动检测失败，请手动选择 wallpaper64.exe。",
+    scanRequired: "请扫描并确认至少一个可用播放列表。",
   },
   weather: {
     title: "连接天气服务",
@@ -86,6 +98,7 @@ const zh = {
     keyLabel: "OpenWeatherMap API Key",
     keyDescription: "保存天气设置时会联网校验 API Key 有效性。",
     keyPlaceholder: "粘贴 API Key",
+    keyRequired: "请先填写 API Key。",
     getKey: "获取 API Key",
     guideTitle: "如何获取 API Key",
     guideSteps: [
@@ -115,7 +128,7 @@ const zh = {
     validationOnSubmit: "",
   },
   location: {
-    title: "设置经纬度",
+    title: "确认天气地点",
     setupDescription:
       "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
     settingsDescription:
@@ -126,7 +139,9 @@ const zh = {
     detected: (city: string | null) =>
       city ? `城市：${city}，已填入预估经纬度。` : "已填入预估经纬度，请核对。",
     detectionUnavailable:
-      "无法连接到 ipapi.co。请重试或手动填写经纬度。",
+      "无法连接到 ipapi.co。可在地图上查找地点坐标，再将纬度和经度分别填入下方。",
+    manualHelp: "打开 OpenStreetMap，搜索所在地，在目标位置右键选择“显示地址”，从左侧复制纬度和经度；南纬和西经使用负数。",
+    openMap: "打开地图查找坐标",
     latitudeLabel: "纬度",
     longitudeLabel: "经度",
     latitudePlaceholder: "-90 到 90",
@@ -149,15 +164,30 @@ const zh = {
     required: "至少启用并绑定一个场景。",
     unavailable: "场景绑定需要至少一个包含壁纸的播放列表。",
     groups: { context: "日常情境", season: "季节氛围", weather: "天气氛围" },
+    activeTitle: "已启用与待绑定",
+    inactiveTitle: (count: number) => `添加其他场景（${count}）`,
+    pendingBindings: "请为待绑定的场景选择播放列表。",
+    searchPlaylist: "搜索播放列表",
+    noPlaylistMatch: "没有匹配的播放列表。",
+    matchExplanation: "天气、时段、季节和活动会共同参与场景匹配；同时成立时由匹配结果决定候选场景，不按此处的列表顺序固定优先。",
   },
   preferences: {
     title: "调整调度风格",
     description: "",
     responseTitle: "响应风格",
     responseDescription:
-      "调节调度器以更偏向长期背景氛围，或是更偏向当前天气和活动。",
+      "决定匹配场景时更看重长期情境，还是当前天气与活动；不改变允许切换的时机。",
+    responseExplanations: {
+      background: "季节与时段相对更有影响；天气和活动仍参与匹配。",
+      background_leaning: "与平衡档相比，长期情境的影响更大。",
+      balanced: "长期情境与当前天气、活动共同参与匹配。",
+      current_leaning: "与平衡档相比，当前天气和活动的影响更大。",
+      current: "五档中最重视当前天气和活动；仍结合时段与季节。",
+    },
     disturbanceTitle: "防打扰程度",
     disturbanceDescription: "调节调度器执行壁纸切换时的防打扰程度。",
+    timingSummary: (startup: number | null, idle: number | null, deferral: number | null, cycle: number | null) =>
+      `启动等待 ${startup ?? "—"} 秒；空闲等待 ${idle ?? "—"} 秒；场景切换最长延后 ${deferral ?? "—"} 分钟；同场景轮换最短间隔 ${cycle ?? "—"} 分钟。`,
     fineTune: "自定义防打扰设置",
     startupGrace: "启动等待",
     idleBeforeSwitch: "空闲等待",
@@ -174,13 +204,17 @@ const zh = {
     leisureTitle: "休闲场景规则",
     processLabel: "进程名",
     titleKeywordLabel: "窗口标题关键词",
-    processPlaceholder: "输入进程名，按 Enter 添加",
-    keywordPlaceholder: "输入关键词，按 Enter 添加",
+    processPlaceholder: "例如 Photoshop.exe",
+    keywordPlaceholder: "例如 项目计划",
+    processHelp: "填写可执行文件名，例如 Photoshop.exe；按回车或点“添加”。",
+    titleHelp: "填写窗口标题中会出现的文字，例如“项目计划”；按回车或点“添加”。",
     add: "添加",
     empty: "暂未添加",
     conflictTitle: "存在冲突规则",
     conflictDescription: (values: string) =>
       `这些项目同时出现在工作和休闲场景规则中：${values}`,
+    matchingHelp: "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。两类规则都未命中时，不据此判断为工作或休闲。",
+    pendingWarning: "输入框中有尚未添加的文字。请按回车或点“添加”，或者清空后再保存。",
   },
   review: {
     title: "查看配置草稿",
@@ -188,17 +222,25 @@ const zh = {
     missingTitle: "配置项缺失",
     missingDescription: "保存配置前需完成以下配置项。",
     wallpaper: "Wallpaper Engine 路径",
-    weather: "天气服务可用性",
+    weather: "本次草稿的天气测试",
     location: "经纬度",
-    scenes: "已启用场景",
+    scenes: "场景绑定",
     response: "响应风格",
     disturbance: "防打扰程度",
     activity: "活动识别规则",
-    weatherUntested: "尚未测试",
+    weatherUntested: "当前草稿密钥尚未手动测试",
     weatherPassed: "API Key 可用性测试通过",
     weatherFailed: "API Key 可用性测试未通过",
-    weatherNote: "",
-    sceneCount: (count: number) => `${count} 个场景`,
+    weatherNote: "此结果仅针对当前草稿密钥的联网测试，不代表已运行配置的实时健康状态。",
+    testedAt: (date: string) => `测试时间：${date}`,
+    sceneCount: (bound: number, pending: number) => `已绑定 ${bound} 个，待绑定 ${pending} 个`,
+    changesTitle: "本次修改",
+    noChanges: "所有修改已保存。",
+    currentDetails: "查看当前草稿全部设置",
+    edit: "修改",
+    disabled: "未启用",
+    awaitingPlaylist: "待绑定播放列表",
+    secretChanged: "已更改（内容不显示）",
     activityCount: (windows: number, processes: number) =>
       `窗口名规则 ${windows} 条，进程名规则 ${processes} 条`,
     coordinates: (latitude: number, longitude: number) =>
@@ -212,6 +254,7 @@ const zh = {
   },
   errors: {
     validation: "请完成当前配置项的全部必填内容。",
+    pendingActivity: "请先处理尚未添加的活动规则文字。",
     fieldValidation: "配置存在无效字段，请按下方提示修正。",
     profileAlreadyExists: "配置已存在。请关闭窗口后从托盘重新打开设置。",
     applyTimeout: "调度器暂时没有完成应用，请重试。",
@@ -283,6 +326,17 @@ const en: typeof zh = {
   },
   nav: {
     settingsDescription: "Changes stay in this draft until you save them.",
+    discardTitle: "Discard unsaved changes?",
+    discardSetupDescription: "This draft will not be saved and initial setup will be cancelled.",
+    discardSettingsDescription: "The running settings will stay as they are. These edits will be lost.",
+    keepEditing: "Keep editing",
+    discardChanges: "Discard changes",
+    changed: "Changed",
+    pending: "Needs input",
+    defaultReady: "Default ready",
+    nextRequired: "Next to complete:",
+    unsaved: "You have unsaved changes",
+    saved: "All changes saved",
     languageLabel: "Language",
     themeLabel: "Appearance",
     themeSystem: "System",
@@ -339,6 +393,7 @@ const en: typeof zh = {
     scanAgain: "Scan again",
     manualHint:
       "If automatic detection fails, choose wallpaper64.exe manually.",
+    scanRequired: "Scan and confirm at least one usable playlist.",
   },
   weather: {
     title: "Connect weather",
@@ -348,6 +403,7 @@ const en: typeof zh = {
     keyDescription:
       "Enter a valid Current Weather API key. Weather changes are checked online before saving.",
     keyPlaceholder: "Paste API key",
+    keyRequired: "Enter an API key first.",
     getKey: "Get an API key",
     guideTitle: "How to get an API key",
     guideSteps: [
@@ -385,7 +441,7 @@ const en: typeof zh = {
       "This test checks the API key without saving your draft. Setup and weather changes also validate the key and location before saving.",
   },
   location: {
-    title: "Set coordinates",
+    title: "Confirm weather location",
     setupDescription:
       "Weather, sunrise, and sunset use only latitude and longitude. No city name is needed. Coordinates stay on this device.",
     settingsDescription:
@@ -397,7 +453,9 @@ const en: typeof zh = {
     detected: (city: string | null) =>
       city ? `City: ${city}. Estimated coordinates filled in.` : "Estimated coordinates filled in. Check that they are accurate.",
     detectionUnavailable:
-      "Enter latitude and longitude manually, or try again after checking the issue.",
+      "Find your location on a map, then enter its latitude and longitude below, or retry after checking the issue.",
+    manualHelp: "Open OpenStreetMap, search your location, right-click the point and choose Show address. Copy the latitude and longitude from the left panel; use negative values for south and west.",
+    openMap: "Open map for coordinates",
     latitudeLabel: "Latitude",
     longitudeLabel: "Longitude",
     latitudePlaceholder: "-90 to 90",
@@ -427,6 +485,12 @@ const en: typeof zh = {
       season: "Seasonal atmosphere",
       weather: "Weather atmosphere",
     },
+    activeTitle: "Enabled and awaiting playlists",
+    inactiveTitle: (count: number) => `Add other Scenes (${count})`,
+    pendingBindings: "Choose a playlist for every pending Scene.",
+    searchPlaylist: "Search playlists",
+    noPlaylistMatch: "No matching playlists.",
+    matchExplanation: "Weather, time, season, and activity all contribute to Scene matching. The list order does not set a fixed priority when several apply.",
   },
   preferences: {
     title: "Tune scheduling",
@@ -434,10 +498,19 @@ const en: typeof zh = {
       "Response style sets what matters most. Interruption level controls when a switch is appropriate.",
     responseTitle: "Response style",
     responseDescription:
-      "Choose whether long-term atmosphere or current weather and activity should carry more weight.",
+      "Choose what matters more when matching Scenes: longer-term context or current weather and activity. This does not change when switches are allowed.",
+    responseExplanations: {
+      background: "Season and time have relatively more influence; weather and activity still contribute.",
+      background_leaning: "Longer-term context has more influence than in Balanced.",
+      balanced: "Longer-term context, current weather, and activity all contribute.",
+      current_leaning: "Current weather and activity have more influence than in Balanced.",
+      current: "Current weather and activity have the most influence of the five choices; time and season still contribute.",
+    },
     disturbanceTitle: "Interruption level",
     disturbanceDescription:
       "Choose a preset, or expand the exact timing values.",
+    timingSummary: (startup: number | null, idle: number | null, deferral: number | null, cycle: number | null) =>
+      `Startup wait ${startup ?? "—"} s; idle wait ${idle ?? "—"} s; maximum Scene deferral ${deferral ?? "—"} min; minimum same-Scene rotation ${cycle ?? "—"} min.`,
     fineTune: "Fine-tune timing",
     startupGrace: "Startup wait",
     idleBeforeSwitch: "Idle wait",
@@ -457,11 +530,15 @@ const en: typeof zh = {
     titleKeywordLabel: "Window title keywords",
     processPlaceholder: "Enter a process and press Enter",
     keywordPlaceholder: "Enter a keyword and press Enter",
+    processHelp: "Enter an executable name, such as Photoshop.exe, then press Enter or Add.",
+    titleHelp: "Enter text found in a window title, such as Project plan, then press Enter or Add.",
     add: "Add",
     empty: "Nothing added",
     conflictTitle: "Conflicting rules",
     conflictDescription: (values: string) =>
       `These items appear in both work and leisure: ${values}`,
+    matchingHelp: "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. When no rule matches, activity does not identify work or leisure.",
+    pendingWarning: "Text is still waiting in an activity field. Press Enter or Add, or clear it before saving.",
   },
   review: {
     title: "Review and save",
@@ -470,18 +547,26 @@ const en: typeof zh = {
     missingTitle: "Needed before saving",
     missingDescription: "Complete these settings in any order.",
     wallpaper: "Wallpaper Engine path",
-    weather: "Weather service availability",
+    weather: "Weather test for this draft",
     location: "Location",
-    scenes: "Enabled Scenes",
+    scenes: "Scene assignments",
     response: "Response style",
     disturbance: "Interruption level",
     activity: "Activity rules",
-    weatherUntested: "Not tested",
+    weatherUntested: "This draft key has not been tested manually",
     weatherPassed: "This draft passed the connection test",
     weatherFailed: "This test failed",
     weatherNote:
-      "This test checks the API key; saving also validates the location.",
-    sceneCount: (count: number) => `${count} Scenes`,
+      "This online test checks the current draft key. It is not the live health of the running configuration; saving also validates the location.",
+    testedAt: (date: string) => `Tested: ${date}`,
+    sceneCount: (bound: number, pending: number) => `${bound} assigned, ${pending} awaiting playlists`,
+    changesTitle: "Changes to apply",
+    noChanges: "All changes saved.",
+    currentDetails: "Review all draft settings",
+    edit: "Edit",
+    disabled: "Disabled",
+    awaitingPlaylist: "Playlist needed",
+    secretChanged: "Changed (value hidden)",
     activityCount: (windows: number, processes: number) =>
       `${windows} window rules, ${processes} process names`,
     coordinates: (latitude: number, longitude: number) =>
@@ -495,6 +580,7 @@ const en: typeof zh = {
   },
   errors: {
     validation: "Complete the required fields on this page first.",
+    pendingActivity: "Finish or clear the text waiting in an activity field.",
     fieldValidation:
       "The server found fields that need changes. Follow the messages below.",
     profileAlreadyExists:

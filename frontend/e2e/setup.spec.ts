@@ -49,8 +49,10 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
 
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await expect(navigation).toBeVisible()
+  await expect(navigation.locator("button")).toHaveCount(6)
+  await expect(page.getByText("下一项需要完成：")).toBeVisible()
   await expect(page.getByText("1 / 7")).toHaveCount(0)
-  await navigation.getByRole("button", { name: /天气位置/ }).click()
+  await navigation.getByRole("button", { name: /天气服务/ }).click()
   await expect(page.getByRole("spinbutton", { name: "纬度" })).toBeVisible()
   await expect(page.getByRole("textbox", { name: "城市名称" })).toHaveCount(0)
   await navigation.getByRole("button", { name: /Wallpaper Engine/ }).click()
@@ -62,7 +64,7 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
 
   await navigation.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("test-key")
-  await navigation.getByRole("button", { name: /天气位置/ }).click()
+  await navigation.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("spinbutton", { name: "纬度" }).fill("31.2304")
   await page.getByRole("spinbutton", { name: "经度" }).fill("121.4737")
   await navigation.getByRole("button", { name: /场景绑定/ }).click()
@@ -70,16 +72,18 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   for (const name of ["日间工作", "日间休闲", "夜间工作", "夜间休闲", "雨天"]) {
     await expect(page.getByRole("checkbox", { name })).toBeChecked()
   }
-  await expect(page.getByText("推荐", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("添加其他场景", { exact: false })).toBeVisible()
   await expect(page.getByText(/多个场景可以共用一个播放列表/)).toBeVisible()
   await page.getByRole("combobox", { name: "日间工作: 播放列表" }).click()
   await expect(page.getByRole("option", { name: /CASUAL_ANIME.*60 张壁纸/ })).toBeVisible()
   await page.keyboard.press("Escape")
   await navigation.getByRole("button", { name: /查看配置草稿/ }).click()
+  await expect(page.getByText("已绑定 0 个，待绑定 5 个")).toBeVisible()
   await expect(page.getByText("配置项缺失")).toBeVisible()
   await page.getByRole("alert").getByRole("button", { name: "场景绑定", exact: true }).click()
   await expect(page.getByText("至少启用并绑定一个场景。")).toBeVisible()
   await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toHaveAttribute("aria-invalid", "true")
+  await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toBeFocused()
 })
 
 test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", async ({ page }) => {
@@ -102,6 +106,7 @@ test("天气页测试 Key 时说明代理失败原因", async ({ page }) => {
   await page.goto("/?locale=zh")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await expect(page.getByText("如何获取 API Key")).toBeVisible()
+  await page.getByText("如何获取 API Key").click()
   await expect(page.getByText(/Generate/)).toBeVisible()
   await expect(page.getByText("确认该 Key 的 Status 为 Active，再粘贴 Key 到上方输入框。")).toBeVisible()
   await page.getByRole("button", { name: "测试连接" }).click()
@@ -139,9 +144,10 @@ test("经纬度估算失败说明原因，仍可手填坐标", async ({ page }) 
     await route.fulfill({ status: 503, json: { error: "location_detection_unavailable", reason: "proxy_error" } })
   })
   await page.goto("/?locale=zh")
-  await page.getByRole("button", { name: /天气位置/ }).click()
+  await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByText(/代理连接失败/)).toBeVisible()
+  await expect(page.getByRole("button", { name: "打开地图查找坐标" })).toBeVisible()
   await page.getByRole("spinbutton", { name: "纬度" }).fill("39.9042")
   await expect(page.getByRole("spinbutton", { name: "纬度" })).toHaveValue("39.9042")
 })
@@ -152,13 +158,14 @@ test("经纬度估算不需要城市名称", async ({ page }) => {
     await route.fulfill({ json: { location: { latitude: 47.498253, longitude: 19.03978 } } })
   })
   await page.goto("/?locale=zh")
-  await page.getByRole("button", { name: /天气位置/ }).click()
+  await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByRole("spinbutton", { name: "纬度" })).toHaveValue("47.498253")
   await expect(page.getByRole("spinbutton", { name: "经度" })).toHaveValue("19.03978")
   await expect(page.getByRole("textbox", { name: "城市名称" })).toHaveCount(0)
   await page.getByRole("button", { name: "查看配置草稿" }).last().click()
-  await expect(page.getByText("纬度 47.498253，经度 19.03978")).toBeVisible()
+  await page.getByText("查看当前草稿全部设置").click()
+  await expect(page.getByText("纬度 47.498253，经度 19.03978", { exact: true })).toBeVisible()
 })
 
 test("经纬度估算显示 IP 返回的城市，手动修改后清除提示", async ({ page }) => {
@@ -167,7 +174,7 @@ test("经纬度估算显示 IP 返回的城市，手动修改后清除提示", a
     await route.fulfill({ json: { location: { city: "Budapest", latitude: 47.498253, longitude: 19.03978 } } })
   })
   await page.goto("/?locale=zh")
-  await page.getByRole("button", { name: /天气位置/ }).click()
+  await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByText("城市：Budapest，已填入预估经纬度。")).toBeVisible()
   await page.getByRole("spinbutton", { name: "纬度" }).fill("47.5")
@@ -177,6 +184,8 @@ test("经纬度估算显示 IP 返回的城市，手动修改后清除提示", a
 test("保存成功提示出现在窗口顶部", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /调度风格/ }).click()
+  await page.getByRole("button", { name: "当前优先" }).click()
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /查看配置草稿/ }).click()
   const saveRequest = page.waitForRequest((request) => request.url().endsWith("/api/profile") && request.method() === "PUT")
   await page.getByRole("button", { name: "保存并应用" }).click()
@@ -205,16 +214,18 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   })
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /查看配置草稿/ }).click()
+  await page.getByText("查看当前草稿全部设置").click()
 
   await expect(page.getByText("Wallpaper Engine 路径")).toBeVisible()
   await expect(page.getByText(configuredProfile.wallpaper_engine_path)).toBeVisible()
-  await expect(page.getByText("天气服务可用性")).toBeVisible()
-  await expect(page.getByText("尚未测试")).toBeVisible()
+  await expect(page.getByText("本次草稿的天气测试")).toBeVisible()
+  await expect(page.getByText("当前草稿密钥尚未手动测试")).toBeVisible()
   await expect(page.getByText("纬度 31.2304，经度 121.4737")).toBeVisible()
   await expect(page.getByText("窗口名规则 2 条，进程名规则 2 条")).toBeVisible()
 
   await page.getByRole("button", { name: "测试连接" }).click()
   await expect(page.getByText("API Key 可用性测试通过")).toBeVisible()
+  await expect(page.getByText(/^测试时间：/)).toBeVisible()
 })
 
 test("桌面布局使用宽屏空间，窄窗口没有外层纵向滚动", async ({ page }) => {
@@ -275,7 +286,7 @@ test("四个防打扰时间项通过问号说明，活动规则保留中立活�
     await expect(page.getByText(hint, { exact: false })).toBeVisible()
   }
 
-  await navigation.getByRole("button", { name: "活动进程检测" }).click()
+  await navigation.getByRole("button", { name: "活动识别" }).click()
   await expect(page.getByText("休闲指有意进行的娱乐活动。对于不具明确指向性活动，无需进行场景规则配置。")).toBeVisible()
 })
 
@@ -399,4 +410,140 @@ test("语言与外观位于侧栏底部，主题选择可保留并跟随系统",
   await page.getByRole("combobox", { name: "外观: 跟随系统" }).click()
   await page.getByRole("option", { name: "浅色" }).click()
   await expect(page.locator("html")).not.toHaveClass(/dark/)
+})
+
+test("保存期间锁定编辑，返回的配置与本次提交一致", async ({ page }) => {
+  await mockSetupApi(page, true)
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  await page.route("**/api/profile", async (route) => {
+    if (route.request().method() === "GET") return route.fallback()
+    await gate
+    await route.fulfill({ json: { status: "applied", profile: route.request().postDataJSON() } })
+  })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("button", { name: "当前优先" }).click()
+  const request = page.waitForRequest((item) => item.url().endsWith("/api/profile") && item.method() === "PUT")
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  try {
+    expect((await request).postDataJSON().matching.response_style).toBe("current")
+    await expect(page.getByRole("button", { name: "正在保存" })).toBeVisible()
+    expect(await page.locator("nav").evaluate((element) => element.hasAttribute("inert"))).toBe(true)
+    expect(await page.locator("#setup-step-content").evaluate((element) => element.hasAttribute("inert"))).toBe(true)
+  } finally {
+    release()
+  }
+  await expect(page.getByText("已保存并生效")).toBeVisible()
+  await expect(page.getByRole("button", { name: "当前优先" })).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
+})
+
+test("未添加的活动文字跨分类保留，保存前要求处理", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  const navigation = page.getByRole("navigation", { name: "设置项" })
+  await navigation.getByRole("button", { name: "活动识别" }).click()
+  await page.locator("#work-processes").fill("Photoshop.exe")
+  await page.locator("#work-title-keywords").fill("项目计划")
+  await navigation.getByRole("button", { name: "调度风格" }).click()
+  await navigation.getByRole("button", { name: /活动识别/ }).click()
+  await expect(page.locator("#work-processes")).toHaveValue("Photoshop.exe")
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  await expect(page.locator("#work-processes")).toHaveAttribute("aria-invalid", "true")
+  await expect(page.getByText("请先处理尚未添加的活动规则文字。")).toBeVisible()
+  await page.locator("#work-processes").press("Enter")
+  await expect(page.locator("#work-title-keywords")).toHaveAttribute("aria-invalid", "true")
+  await page.locator("#work-title-keywords").press("Enter")
+  const request = page.waitForRequest((item) => item.url().endsWith("/api/profile") && item.method() === "PUT")
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  expect((await request).postDataJSON().activity.work_processes).toEqual(["Photoshop.exe"])
+})
+
+test("场景重新启用恢复本次绑定，首次启用要求选播单", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, scenes: { day_work: "CASUAL_ANIME", rain: "RAIN" } })
+  await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
+    await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [
+      { name: "CASUAL_ANIME", item_count: 60 },
+      { name: "RAIN", item_count: 20 },
+    ] } })
+  })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+  await page.getByRole("checkbox", { name: "雨天" }).click()
+  await page.getByRole("button", { name: /添加其他场景/ }).click()
+  await page.getByRole("checkbox", { name: "雨天" }).click()
+  await expect(page.getByRole("combobox", { name: "雨天: 播放列表" })).toContainText("RAIN")
+  await page.getByRole("checkbox", { name: "日间休闲" }).click()
+  await expect(page.getByRole("combobox", { name: "日间休闲: 播放列表" })).toContainText("选择播放列表")
+  await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
+})
+
+test("日常设置直接保存并列出具体修改，未修改时禁用保存", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.route("**/api/profile", async (route) => {
+    if (route.request().method() === "GET") return route.fallback()
+    await route.fulfill({ json: { status: "applied", profile: route.request().postDataJSON() } })
+  })
+  await page.goto("/?locale=zh")
+  await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("button", { name: "当前优先" }).click()
+  await expect(page.getByText("有未保存的修改")).toBeVisible()
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
+  await expect(page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" })).toHaveAttribute("aria-current", "page")
+  await expect(page.getByText("平衡 → 当前优先")).toBeVisible()
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  await expect(page.getByText("所有修改已保存。", { exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
+})
+
+test("关闭确认说明修改后果，窄窗口档位仍可选择", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.setViewportSize({ width: 900, height: 600 })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await expect(page.getByRole("combobox", { name: "响应风格" })).toBeVisible()
+  await page.getByRole("combobox", { name: "响应风格" }).click()
+  await page.getByRole("option", { name: "当前优先" }).click()
+  await page.getByRole("button", { name: "关闭" }).click()
+  const dialog = page.getByRole("alertdialog", { name: "放弃未保存的修改？" })
+  await expect(dialog).toContainText("当前运行设置不会改变，本次修改将丢失。")
+  await expect(dialog.getByRole("button", { name: "继续编辑" })).toBeVisible()
+  await expect(dialog.getByRole("button", { name: "放弃修改" })).toBeVisible()
+})
+
+test("无效时间输入与错误说明关联", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("button", { name: "自定义防打扰设置" }).click()
+  const startup = page.getByRole("spinbutton", { name: "启动等待" })
+  await startup.fill("-1")
+  await expect(startup).toHaveAttribute("aria-invalid", "true")
+  await expect(startup).toHaveAttribute("aria-describedby", "timing-error-startup_grace_seconds")
+  await expect(page.locator("#timing-error-startup_grace_seconds")).toContainText("请输入不小于 0 的整数")
+})
+
+test("播单较多时可搜索，选中后清空搜索词", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
+    await route.fulfill({ json: {
+      wallpaper_engine_path: profile.wallpaper_engine_path,
+      playlists: [
+        { name: "CASUAL_ANIME", item_count: 60 },
+        ...Array.from({ length: 8 }, (_, index) => ({ name: `OTHER_${index}`, item_count: 2 })),
+        { name: "RAIN", item_count: 20 },
+      ],
+    } })
+  })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+  await page.getByRole("searchbox", { name: "搜索播放列表" }).fill("RAIN")
+  await expect(page.getByRole("combobox", { name: "日间工作: 播放列表" })).toContainText("CASUAL_ANIME")
+  await page.getByRole("combobox", { name: "日间工作: 播放列表" }).click()
+  await expect(page.getByRole("option", { name: /RAIN.*20 张壁纸/ })).toBeVisible()
+  await expect(page.getByRole("option", { name: /OTHER_0/ })).toHaveCount(0)
+  await page.getByRole("option", { name: /RAIN.*20 张壁纸/ }).click()
+  await expect(page.getByRole("searchbox", { name: "搜索播放列表" })).toHaveValue("")
 })

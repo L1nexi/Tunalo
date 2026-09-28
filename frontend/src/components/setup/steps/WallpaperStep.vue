@@ -45,6 +45,7 @@ const copy = computed(() => COPY[props.locale])
             :model-value="path"
             :placeholder="copy.wallpaper.pathPlaceholder"
             :aria-invalid="invalid || errors.length > 0"
+            :aria-describedby="invalid || errors.length ? 'wallpaper-path-error' : undefined"
             @update:model-value="(value: string | number) => emit('update:path', String(value))"
           />
           <InputGroupAddon align="inline-end">
@@ -55,7 +56,7 @@ const copy = computed(() => COPY[props.locale])
           </InputGroupAddon>
         </InputGroup>
         <FieldDescription>{{ copy.wallpaper.pathDescription }}</FieldDescription>
-        <FieldError v-if="errors.length" :errors="errors" />
+        <FieldError v-if="invalid || errors.length" id="wallpaper-path-error" :errors="[...(invalid ? [copy.wallpaper.scanRequired] : []), ...errors]" />
       </Field>
     </FieldGroup>
 

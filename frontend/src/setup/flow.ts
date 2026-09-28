@@ -5,7 +5,6 @@ import type { ProfileDraft } from "./model.ts"
 export const STEP_ORDER = [
   "wallpaper",
   "weather",
-  "location",
   "scenes",
   "scheduling",
   "activity",
@@ -20,10 +19,20 @@ export interface StepEvaluation {
   conflicts: string[]
 }
 
+export function stepFingerprint(draft: ProfileDraft, id: EditableStepId): string {
+  switch (id) {
+    case "wallpaper": return JSON.stringify(draft.wallpaper_engine_path)
+    case "weather": return JSON.stringify(draft.weather)
+    case "scenes": return JSON.stringify(draft.scenes)
+    case "scheduling": return JSON.stringify([draft.matching, draft.disturbance])
+    case "activity": return JSON.stringify(draft.activity)
+  }
+}
+
 export function stepForIssue(path: Array<string | number>): StepId {
   const root = path[0]
   if (root === "wallpaper_engine_path") return "wallpaper"
-  if (root === "weather") return path[1] === "location" ? "location" : "weather"
+  if (root === "weather") return "weather"
   if (root === "scenes") return "scenes"
   if (root === "matching" || root === "disturbance") return "scheduling"
   if (root === "activity") return "activity"
@@ -55,8 +64,7 @@ export function evaluateSteps(
   return {
     validity: {
       wallpaper: wallpaperReady,
-      weather: draft.weather.api_key.trim().length > 0,
-      location: locationValid,
+      weather: draft.weather.api_key.trim().length > 0 && locationValid,
       scenes: scenesValid,
       scheduling:
         Object.values(draft.disturbance).every(isNonNegativeInteger) &&
