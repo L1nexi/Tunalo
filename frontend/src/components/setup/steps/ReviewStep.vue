@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
+import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale, SceneId } from "@/api/profile"
@@ -18,9 +18,9 @@ const props = defineProps<{
   mode: "setup" | "settings"
   valid: boolean
   missingSteps: Array<{ id: StepId, title: string }>
-  weatherStatus: "idle" | "success" | "error"
-  weatherTestedAt: number | null
-  weatherError: string
+  weatherKeyState: "untested" | "valid" | "invalid" | "quota"
+  weatherTestedAtText: string
+  weatherConnectionError: string
   validatingWeather: boolean
 }>()
 
@@ -37,17 +37,28 @@ const locationSummary = computed(() => {
   return copy.value.review.coordinates(location.latitude, location.longitude)
 })
 const weatherSummary = computed(() => {
-  if (props.weatherStatus === "success") return copy.value.review.weatherPassed
-  if (props.weatherStatus === "error") return copy.value.review.weatherFailed
+  if (props.weatherKeyState === "valid") return copy.value.weather.keyValid
+  if (props.weatherKeyState === "invalid") return copy.value.errors.issueCodes.weather_api_key_invalid
+  if (props.weatherKeyState === "quota") return copy.value.errors.issueCodes.weather_api_quota_exceeded
   return copy.value.review.weatherUntested
+})
+const weatherStatusIcon = computed(() => {
+  if (props.weatherKeyState === "valid") return CheckCircle2Icon
+  if (props.weatherKeyState === "invalid") return CircleXIcon
+  if (props.weatherKeyState === "quota") return TriangleAlertIcon
+  return CircleDashedIcon
+})
+const weatherStatusClass = computed(() => {
+  if (props.weatherKeyState === "valid") return "text-success"
+  if (props.weatherKeyState === "invalid") return "text-destructive"
+  if (props.weatherKeyState === "quota") return "text-warning"
+  return "text-muted-foreground"
 })
 const sceneSummary = computed(() => {
   const assignments = Object.values(props.draft.scenes)
   return copy.value.review.sceneCount(assignments.filter(Boolean).length, assignments.filter((value) => !value).length)
 })
 const sceneIds = computed(() => Object.keys(props.draft.scenes) as SceneId[])
-const testTime = computed(() => props.weatherTestedAt === null ? "" :
-  copy.value.review.testedAt(new Date(props.weatherTestedAt).toLocaleString(props.locale === "zh" ? "zh-CN" : "en-US")))
 const changes = computed(() => {
   const before = props.savedDraft
   const after = props.draft
@@ -134,10 +145,16 @@ const rows = computed(() => [
         <dd class="min-w-0">
           <div v-if="row.id === 'weather'" class="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-sm font-medium" role="status">{{ row.value }}</p>
-              <p v-if="weatherError" class="mt-1 text-sm" :class="weatherStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'">{{ weatherError }}</p>
+              <p class="flex items-center gap-2 text-sm font-medium" role="status">
+                <component :is="weatherStatusIcon" :class="weatherStatusClass" />
+                <span>{{ row.value }}</span>
+              </p>
+              <p v-if="weatherConnectionError" class="mt-1 flex items-start gap-2 text-sm text-warning">
+                <TriangleAlertIcon class="mt-0.5 shrink-0" />
+                <span class="min-w-0">{{ weatherConnectionError }}</span>
+              </p>
               <p v-if="copy.review.weatherNote" class="mt-1 text-xs text-muted-foreground">{{ copy.review.weatherNote }}</p>
-              <p v-if="testTime" class="mt-1 text-xs text-muted-foreground">{{ testTime }}</p>
+              <p v-if="weatherTestedAtText" class="mt-1 text-xs text-muted-foreground">{{ weatherTestedAtText }}</p>
             </div>
             <Button size="sm" variant="outline" :disabled="validatingWeather || !draft.weather.api_key.trim()" @click="emit('validateWeather')">
               <Spinner v-if="validatingWeather" data-icon="inline-start" />

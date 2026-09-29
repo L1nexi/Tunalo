@@ -78,7 +78,7 @@ const locationDetectionStatus = ref<"idle" | "success" | "error">("idle")
 const locationDetectionError = ref("")
 const locationDetectionCity = ref<string | null>(null)
 const validatingWeather = ref(false)
-const weatherValidationStatus = ref<"idle" | "success" | "error">("idle")
+const weatherFailureKind = ref<null | "invalid" | "quota" | "connection">(null)
 const weatherTestedAt = ref<number | null>(null)
 const weatherValidationError = ref("")
 const weatherValidationFailure = shallowRef<unknown>(null)
@@ -184,7 +184,7 @@ function updatePath(value: string): void {
 
 function updateApiKey(value: string): void {
   draft.weather.api_key = value
-  weatherValidationStatus.value = verifiedWeatherKey.value !== null && value.trim() === verifiedWeatherKey.value ? "success" : "idle"
+  weatherFailureKind.value = null
   weatherValidationError.value = ""
   weatherValidationFailure.value = null
   if (value.trim() !== verifiedWeatherKey.value) weatherTestedAt.value = null
@@ -348,27 +348,32 @@ function isSoftWeatherFailure(error: unknown): boolean {
 async function testWeatherKey(): Promise<void> {
   const apiKey = draft.weather.api_key.trim()
   if (!apiKey) {
-    weatherValidationStatus.value = "error"
     weatherValidationError.value = copy.value.weather.validationMissing
     return
   }
   validatingWeather.value = true
-  weatherValidationStatus.value = verifiedWeatherKey.value === apiKey ? "success" : "idle"
   weatherValidationError.value = ""
   weatherValidationFailure.value = null
+  weatherFailureKind.value = null
   try {
     await validateWeatherKey(apiKey)
     if (draft.weather.api_key.trim() === apiKey) {
       verifiedWeatherKey.value = apiKey
-      weatherValidationStatus.value = "success"
       weatherTestedAt.value = Date.now()
     }
   } catch (error) {
     if (draft.weather.api_key.trim() === apiKey) {
-      const keyRejected = error instanceof ApiError && error.payload.issues?.some((issue) => issue.code === "weather_api_key_invalid")
-      if (keyRejected) verifiedWeatherKey.value = null
-      weatherValidationStatus.value = verifiedWeatherKey.value === apiKey ? "success" : "error"
-      weatherValidationError.value = describeWeatherTestError(error)
+      const issueCodes = error instanceof ApiError
+        ? (error.payload.issues ?? []).map((issue) => issue.code)
+        : []
+      if (issueCodes.includes("weather_api_key_invalid")) {
+        weatherFailureKind.value = "invalid"
+        verifiedWeatherKey.value = null
+      } else if (issueCodes.includes("weather_api_quota_exceeded")) {
+        weatherFailureKind.value = "quota"
+      } else {
+        weatherFailureKind.value = "connection"
+      }
       weatherValidationFailure.value = error
       if (verifiedWeatherKey.value !== apiKey) weatherTestedAt.value = Date.now()
     }
@@ -376,6 +381,25 @@ async function testWeatherKey(): Promise<void> {
     validatingWeather.value = false
   }
 }
+
+const weatherKeyState = computed<"untested" | "valid" | "invalid" | "quota">(() => {
+  if (weatherFailureKind.value === "invalid") return "invalid"
+  if (weatherFailureKind.value === "quota") return "quota"
+  if (verifiedWeatherKey.value !== null && draft.weather.api_key.trim() === verifiedWeatherKey.value) return "valid"
+  return "untested"
+})
+
+const weatherConnectionError = computed(() => {
+  if (weatherFailureKind.value !== "connection") return ""
+  const error = weatherValidationFailure.value
+  const reason = error instanceof ApiError && error.payload.error === "weather_validation_unavailable"
+    ? describeNetworkFailure(error)
+    : ""
+  return copy.value.weather.connectionFailed(reason || copy.value.errors.generic)
+})
+
+const weatherTestedAtText = computed(() => weatherTestedAt.value === null ? "" :
+  copy.value.weather.testedAt(new Date(weatherTestedAt.value).toLocaleString(locale.value === "zh" ? "zh-CN" : "en-US")))
 
 function applyValidationIssues(error: unknown): boolean {
   if (!(error instanceof ApiError) || !error.payload.issues?.length) return false
@@ -528,14 +552,16 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             <component :is="step.icon" data-icon="inline-start" />
             <span class="min-w-0 flex-1 truncate font-medium">{{ step.id === 'review' ? (mode === 'setup' ? copy.nav.reviewSetup : copy.nav.reviewSettings) : step.title }}</span>
             <span v-if="stepStatus(step.id)" class="shrink-0 text-xs text-muted-foreground">{{ stepStatus(step.id) }}</span>
+            <span
+              v-if="step.id === nextMissingStep?.id"
+              data-next-required="true"
+              aria-hidden="true"
+              class="size-1.5 shrink-0 rounded-full bg-foreground"
+            />
           </Button>
         </nav>
 
-        <div v-if="mode === 'setup' && nextMissingStep" class="text-sm" role="status">
-          {{ copy.nav.nextRequired }}
-          <Button type="button" variant="link" class="h-auto px-1" :disabled="submitting" @click="navigateToStep(nextMissingStep.id)">{{ nextMissingStep.title }}</Button>
-        </div>
-        <p v-else-if="mode === 'settings'" class="text-sm text-muted-foreground" role="status">
+        <p v-if="mode === 'settings'" class="text-sm text-muted-foreground" role="status">
           {{ isDirty ? copy.nav.unsaved : copy.nav.saved }}
         </p>
 
@@ -598,7 +624,9 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
               :invalid="Boolean(stepError) && !draft.weather.api_key.trim()"
               :errors="issuesByStep.weather['weather.api_key'] ?? []"
               :validating="validatingWeather"
-              :validation-status="weatherValidationStatus"
+              :key-state="weatherKeyState"
+              :tested-at-text="weatherTestedAtText"
+              :connection-error="weatherConnectionError"
               :validation-error="weatherValidationError"
               @update:api-key="updateApiKey"
               @validate="testWeatherKey"
@@ -671,9 +699,9 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             :mode="mode"
             :valid="allValid"
             :missing-steps="missingSteps"
-            :weather-status="weatherValidationStatus"
-            :weather-tested-at="weatherTestedAt"
-            :weather-error="weatherValidationError"
+            :weather-key-state="weatherKeyState"
+            :weather-tested-at-text="weatherTestedAtText"
+            :weather-connection-error="weatherConnectionError"
             :validating-weather="validatingWeather"
             @validate-weather="testWeatherKey"
             @open-step="navigateToStep"

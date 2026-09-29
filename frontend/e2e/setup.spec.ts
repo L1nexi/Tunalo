@@ -50,7 +50,7 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await expect(navigation).toBeVisible()
   await expect(navigation.locator("button")).toHaveCount(6)
-  await expect(page.getByText("下一项需要完成：")).toBeVisible()
+  await expect(navigation.getByRole("button", { name: /天气服务/ }).locator("[data-next-required]")).toBeVisible()
   await expect(page.getByText("1 / 7")).toHaveCount(0)
   await navigation.getByRole("button", { name: /天气服务/ }).click()
   await expect(page.getByRole("spinbutton", { name: "纬度" })).toBeVisible()
@@ -163,6 +163,9 @@ test("天气页测试 Key 时说明代理失败原因", async ({ page }) => {
   await expect(page.getByText(/Generate/)).toBeVisible()
   await expect(page.getByText("确认该 Key 的 Status 为 Active，再粘贴 Key 到上方输入框。")).toBeVisible()
   await page.getByRole("button", { name: "测试连接" }).click()
+  const statusBlock = page.getByRole("status")
+  await expect(statusBlock.locator("p", { hasText: "尚未验证 API Key" })).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: /连接天气服务失败/ })).toBeVisible()
   await expect(page.getByText(/代理连接失败/)).toBeVisible()
 })
 
@@ -175,6 +178,7 @@ test("无效 Key 的提示不推测激活状态", async ({ page }) => {
   await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "测试连接" }).click()
   await expect(page.getByText("无效的 API Key。", { exact: true })).toBeVisible()
+  await expect(page.getByText(/连接天气服务失败/)).toHaveCount(0)
 })
 
 test("天气页测试当前草稿 Key 后显示成功", async ({ page }) => {
@@ -188,7 +192,9 @@ test("天气页测试当前草稿 Key 后显示成功", async ({ page }) => {
   const keyTestRequest = page.waitForRequest((request) => request.url().endsWith("/api/weather-key-validations") && request.method() === "POST")
   await page.getByRole("button", { name: "测试连接" }).click()
   expect((await keyTestRequest).postDataJSON()).toEqual({ api_key: "another-key" })
-  await expect(page.getByText("API Key 联网测试通过。")).toBeVisible()
+  const statusBlock = page.getByRole("status")
+  await expect(statusBlock.locator("p", { hasText: "API Key 有效" })).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: /验证时间：/ })).toBeVisible()
 })
 
 test("经纬度估算失败说明原因，仍可手填坐标", async ({ page }) => {
@@ -277,8 +283,9 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   await expect(page.getByText("窗口名规则 2 条，进程名规则 2 条")).toBeVisible()
 
   await page.getByRole("button", { name: "测试连接" }).click()
-  await expect(page.getByText("API Key 可用性测试通过")).toBeVisible()
-  await expect(page.getByText(/^测试时间：/)).toBeVisible()
+  const weatherRow = page.locator("dd").filter({ has: page.getByRole("button", { name: "测试连接" }) })
+  await expect(weatherRow.locator("p", { hasText: "API Key 有效" })).toBeVisible()
+  await expect(weatherRow.locator("p", { hasText: /^验证时间：/ })).toBeVisible()
 })
 
 test("桌面布局使用宽屏空间，窄窗口没有外层纵向滚动", async ({ page }) => {
@@ -360,10 +367,12 @@ test("已验证的当前 API Key 可直接保存，后续网络故障不抹去�
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("another-key")
   await page.getByRole("button", { name: "测试连接" }).click()
-  await expect(page.getByText("API Key 联网测试通过。")).toBeVisible()
+  const statusBlock = page.getByRole("status")
+  await expect(statusBlock.locator("p", { hasText: "API Key 有效" })).toBeVisible()
   await page.getByRole("button", { name: "测试连接" }).click()
-  await expect(page.getByText("API Key 联网测试通过。")).toBeVisible()
-  await expect(page.getByText(/连接超时/)).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: "API Key 有效" })).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: /连接天气服务失败/ })).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: /连接超时/ })).toBeVisible()
 
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
   const saveRequest = page.waitForRequest((request) => request.url().includes("allow_unverified_weather=1") && request.method() === "PUT")

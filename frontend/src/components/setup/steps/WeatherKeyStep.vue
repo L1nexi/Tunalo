@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2Icon, CloudSunIcon, ExternalLinkIcon, EyeIcon, EyeOffIcon, GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
+import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, CloudSunIcon, ExternalLinkIcon, EyeIcon, EyeOffIcon, GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed, ref } from "vue"
 
 import type { Locale } from "@/api/profile"
@@ -16,7 +16,9 @@ const props = defineProps<{
   invalid: boolean
   errors: string[]
   validating: boolean
-  validationStatus: "idle" | "success" | "error"
+  keyState: "untested" | "valid" | "invalid" | "quota"
+  testedAtText: string
+  connectionError: string
   validationError: string
 }>()
 
@@ -28,6 +30,12 @@ const emit = defineEmits<{
 
 const copy = computed(() => COPY[props.locale])
 const showApiKey = ref(false)
+const keyStateText = computed(() => {
+  if (props.keyState === "valid") return copy.value.weather.keyValid
+  if (props.keyState === "invalid") return copy.value.errors.issueCodes.weather_api_key_invalid
+  if (props.keyState === "quota") return copy.value.errors.issueCodes.weather_api_quota_exceeded
+  return copy.value.weather.keyUntested
+})
 </script>
 
 <template>
@@ -70,14 +78,38 @@ const showApiKey = ref(false)
       </Button>
     </div>
 
-    <Alert v-if="validationStatus === 'success'" class="border-emerald-600/30 text-emerald-800 dark:text-emerald-300">
-      <CheckCircle2Icon />
-      <AlertDescription>{{ copy.weather.validationSuccess }}</AlertDescription>
-    </Alert>
-    <Alert v-if="validationError" :variant="validationStatus === 'error' ? 'destructive' : 'default'">
+    <Alert v-if="validationError" variant="destructive">
       <TriangleAlertIcon />
       <AlertDescription>{{ validationError }}</AlertDescription>
     </Alert>
+
+    <div
+      v-if="keyState !== 'untested' || connectionError"
+      class="flex flex-col gap-1.5 rounded-lg border bg-card p-3"
+      role="status"
+    >
+      <p v-if="keyState === 'valid'" class="flex items-center gap-2 text-sm">
+        <CheckCircle2Icon class="text-success" />
+        <span>{{ keyStateText }}</span>
+        <span v-if="testedAtText" class="text-muted-foreground">{{ testedAtText }}</span>
+      </p>
+      <p v-else-if="keyState === 'invalid'" class="flex items-center gap-2 text-sm text-destructive">
+        <CircleXIcon />
+        <span>{{ keyStateText }}</span>
+      </p>
+      <p v-else-if="keyState === 'quota'" class="flex items-center gap-2 text-sm text-warning">
+        <TriangleAlertIcon />
+        <span>{{ keyStateText }}</span>
+      </p>
+      <p v-else class="flex items-center gap-2 text-sm text-muted-foreground">
+        <CircleDashedIcon />
+        <span>{{ keyStateText }}</span>
+      </p>
+      <p v-if="connectionError" class="flex items-start gap-2 text-sm text-warning">
+        <TriangleAlertIcon class="mt-0.5 shrink-0" />
+        <span class="min-w-0">{{ connectionError }}</span>
+      </p>
+    </div>
 
     <details class="max-w-2xl rounded-lg border bg-muted/30 p-4">
       <summary class="cursor-pointer font-medium">{{ copy.weather.guideTitle }}</summary>
