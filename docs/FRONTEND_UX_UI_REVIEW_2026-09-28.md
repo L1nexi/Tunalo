@@ -36,12 +36,12 @@
 
 ### 2.2 应先于视觉润色解决的四个问题
 
-| 编号 | 优先级 | 已复现的问题 | 用户受到的影响 | 建议 |
-| --- | --- | --- | --- | --- |
-| UX-01 | 高 | 保存期间仍可修改，响应回来后覆盖新修改 | 点击保存后切到调度风格，选择“当前优先”；保存完成时又恢复为提交前的“平衡”。用户刚做的操作消失了。 | 保存期间统一锁定编辑，明确显示正在应用。现阶段采用这个简单方案即可。 |
-| UX-02 | 高 | 活动规则中尚未点“添加”的文字，切换分类后消失 | 输入了进程名，但没有按回车，前往另一页后输入被清空，也没有提醒。 | 将待添加文字保留在整个设置草稿中；保存时处理这些待添加内容，或明确提示尚未加入规则。 |
-| UX-03 | 高 | 重新启用场景会悄悄改变播单 | 雨天原来绑定 `RAIN`，取消勾选再勾选，变成列表第一个 `CASUAL_ANIME`。勾选动作承担了用户没有表达的选择。 | 本次编辑中保留原绑定；第一次启用时要求选择，不默认采用第一个播单。 |
-| UX-04 | 高 | 关闭确认框没有说明后果 | 中文弹窗只有“关闭／返回／关闭”，用户无法判断是在退出、取消操作，还是放弃修改。 | 标题改为“放弃未保存的修改？”，正文说明当前运行设置不会改变，按钮用“继续编辑”和“放弃修改”。 |
+| 编号  | 优先级 | 已复现的问题                                 | 用户受到的影响                                                                                         | 建议                                                                                       |
+| ----- | ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| UX-01 | 高     | 保存期间仍可修改，响应回来后覆盖新修改       | 点击保存后切到调度风格，选择“当前优先”；保存完成时又恢复为提交前的“平衡”。用户刚做的操作消失了。       | 保存期间统一锁定编辑，明确显示正在应用。现阶段采用这个简单方案即可。                       |
+| UX-02 | 高     | 活动规则中尚未点“添加”的文字，切换分类后消失 | 输入了进程名，但没有按回车，前往另一页后输入被清空，也没有提醒。                                       | 将待添加文字保留在整个设置草稿中；保存时处理这些待添加内容，或明确提示尚未加入规则。       |
+| UX-03 | 高     | 重新启用场景会悄悄改变播单                   | 雨天原来绑定 `RAIN`，取消勾选再勾选，变成列表第一个 `CASUAL_ANIME`。勾选动作承担了用户没有表达的选择。 | 本次编辑中保留原绑定；第一次启用时要求选择，不默认采用第一个播单。                         |
+| UX-04 | 高     | 关闭确认框没有说明后果                       | 中文弹窗只有“关闭／返回／关闭”，用户无法判断是在退出、取消操作，还是放弃修改。                         | 标题改为“放弃未保存的修改？”，正文说明当前运行设置不会改变，按钮用“继续编辑”和“放弃修改”。 |
 
 #### UX-01：保存响应覆盖后续编辑
 
@@ -221,14 +221,14 @@
 
 ### 3.8 UI-07：不同页面的视觉结构，尚未反映它们各自的内容
 
-| 页面 | 当前视觉问题 | 更合适的处理方向 |
-| --- | --- | --- |
-| Wallpaper Engine | 路径、按钮、成功提示、兼容建议、表格纵向堆叠，连接状态占据较多空间 | 成功状态收成紧凑摘要，让播单列表成为主体 |
-| 天气服务 | 输入框铺满，教程单独限宽，两套右边界；教程又是最大色块 | 统一内容宽度，将填写区与帮助区建立明确主次 |
-| 天气位置 | 两个短数值占据整行宽度，内容体量很小 | 使用紧凑表单，将估算结果与坐标集中组织 |
-| 场景绑定 | 重复行框密集，分类标题与分组间距消耗高度 | 用列表节奏组织，增强组间差异、减少行内装饰 |
-| 活动识别 | 两个分组框与胶囊输入框叠加，空状态反复出现 | 保留工作／休闲双栏关系，简化外框与空状态表现 |
-| 配置检查 | 所有行近乎同权，长路径形成最醒目的黑色文字块 | 按信息重要性分组，技术路径降权，关键选择加强 |
+| 页面             | 当前视觉问题                                                       | 更合适的处理方向                             |
+| ---------------- | ------------------------------------------------------------------ | -------------------------------------------- |
+| Wallpaper Engine | 路径、按钮、成功提示、兼容建议、表格纵向堆叠，连接状态占据较多空间 | 成功状态收成紧凑摘要，让播单列表成为主体     |
+| 天气服务         | 输入框铺满，教程单独限宽，两套右边界；教程又是最大色块             | 统一内容宽度，将填写区与帮助区建立明确主次   |
+| 天气位置         | 两个短数值占据整行宽度，内容体量很小                               | 使用紧凑表单，将估算结果与坐标集中组织       |
+| 场景绑定         | 重复行框密集，分类标题与分组间距消耗高度                           | 用列表节奏组织，增强组间差异、减少行内装饰   |
+| 活动识别         | 两个分组框与胶囊输入框叠加，空状态反复出现                         | 保留工作／休闲双栏关系，简化外框与空状态表现 |
+| 配置检查         | 所有行近乎同权，长路径形成最醒目的黑色文字块                       | 按信息重要性分组，技术路径降权，关键选择加强 |
 
 这些调整大多可以在保留现有功能和顺序的前提下完成。调度风格页的留白、选中态与窄窗口排布分别见 UI-02、UI-05 和 UX-11。
 
@@ -244,15 +244,15 @@
 
 下表用于少量样稿的对照，数值尚非定稿，也不要求所有页面机械套用同一宽度。
 
-| 项目 | 当前 | 建议先尝试 |
-| --- | --- | --- |
-| 侧栏宽度 | 256–288 像素 | 约 224 像素 |
-| 普通表单宽度 | 随主面板铺满 | 640–760 像素 |
-| 主内容内边距 | 20 像素 | 28–32 像素 |
-| 常用控件高度 | 32 像素 | 36 像素 |
-| 输入框圆角 | 16 像素 | 6–8 像素 |
-| 主要容器圆角 | 14／24 像素混用 | 按容器层级收敛 |
-| 页面标题 | 22 像素 | 24 像素，并适当降低品牌名字号 |
+| 项目         | 当前            | 建议先尝试                    |
+| ------------ | --------------- | ----------------------------- |
+| 侧栏宽度     | 256–288 像素    | 约 224 像素                   |
+| 普通表单宽度 | 随主面板铺满    | 640–760 像素                  |
+| 主内容内边距 | 20 像素         | 28–32 像素                    |
+| 常用控件高度 | 32 像素         | 36 像素                       |
+| 输入框圆角   | 16 像素         | 6–8 像素                      |
+| 主要容器圆角 | 14／24 像素混用 | 按容器层级收敛                |
+| 页面标题     | 22 像素         | 24 像素，并适当降低品牌名字号 |
 
 ## 4. 建议推进顺序与保留项
 
@@ -285,57 +285,57 @@
 
 截图已从临时检查目录复制到本文对应的资源目录，不依赖 `.pytest_tmp/` 的保留。以下 20 张为有效审查截图，不包含检查脚本调试阶段的空白页。
 
-| 编号 | 页面或状态 | 文件 |
-| --- | --- | --- |
-| 01 | 日常设置：Wallpaper Engine 连接与扫描结果 | [01-connection.png](assets/frontend-review-2026-09-28/01-connection.png) |
-| 02 | 天气服务 | [02-weather.png](assets/frontend-review-2026-09-28/02-weather.png) |
-| 03 | 天气位置 | [03-location.png](assets/frontend-review-2026-09-28/03-location.png) |
-| 04 | 场景绑定 | [04-scenes.png](assets/frontend-review-2026-09-28/04-scenes.png) |
-| 05 | 调度风格 | [05-scheduling.png](assets/frontend-review-2026-09-28/05-scheduling.png) |
-| 06 | 活动识别 | [06-activity.png](assets/frontend-review-2026-09-28/06-activity.png) |
-| 07 | 日常配置检查 | [07-review.png](assets/frontend-review-2026-09-28/07-review.png) |
-| 08 | 未保存时的关闭确认 | [08-unsaved-close.png](assets/frontend-review-2026-09-28/08-unsaved-close.png) |
-| 09 | 模拟定位失败 | [09-location-error.png](assets/frontend-review-2026-09-28/09-location-error.png) |
-| 10 | 模拟天气测试失败 | [10-weather-error.png](assets/frontend-review-2026-09-28/10-weather-error.png) |
-| 11 | 深色场景绑定 | [11-scenes-dark.png](assets/frontend-review-2026-09-28/11-scenes-dark.png) |
-| 12 | 1920 × 1080 视口的位置页 | [12-location-wide.png](assets/frontend-review-2026-09-28/12-location-wide.png) |
-| 13 | 900 × 600 视口的调度风格页 | [13-scheduling-small.png](assets/frontend-review-2026-09-28/13-scheduling-small.png) |
-| 14 | 首次设置的连接页 | [14-first-connection.png](assets/frontend-review-2026-09-28/14-first-connection.png) |
-| 15 | 首次设置的缺失项检查 | [15-first-missing.png](assets/frontend-review-2026-09-28/15-first-missing.png) |
-| 16 | 首次设置尚未绑定的场景 | [16-first-scenes-missing.png](assets/frontend-review-2026-09-28/16-first-scenes-missing.png) |
-| 17 | 保存响应覆盖后续编辑后的结果 | [17-save-overwrites-new-edit.png](assets/frontend-review-2026-09-28/17-save-overwrites-new-edit.png) |
-| 18 | 场景页滚动后切换到天气页 | [18-weather-after-scrolling.png](assets/frontend-review-2026-09-28/18-weather-after-scrolling.png) |
-| 19 | 深色天气服务 | [19-weather-dark.png](assets/frontend-review-2026-09-28/19-weather-dark.png) |
-| 20 | 深色调度风格 | [20-scheduling-dark.png](assets/frontend-review-2026-09-28/20-scheduling-dark.png) |
+| 编号 | 页面或状态                                | 文件                                                                                                 |
+| ---- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 01   | 日常设置：Wallpaper Engine 连接与扫描结果 | [01-connection.png](assets/frontend-review-2026-09-28/01-connection.png)                             |
+| 02   | 天气服务                                  | [02-weather.png](assets/frontend-review-2026-09-28/02-weather.png)                                   |
+| 03   | 天气位置                                  | [03-location.png](assets/frontend-review-2026-09-28/03-location.png)                                 |
+| 04   | 场景绑定                                  | [04-scenes.png](assets/frontend-review-2026-09-28/04-scenes.png)                                     |
+| 05   | 调度风格                                  | [05-scheduling.png](assets/frontend-review-2026-09-28/05-scheduling.png)                             |
+| 06   | 活动识别                                  | [06-activity.png](assets/frontend-review-2026-09-28/06-activity.png)                                 |
+| 07   | 日常配置检查                              | [07-review.png](assets/frontend-review-2026-09-28/07-review.png)                                     |
+| 08   | 未保存时的关闭确认                        | [08-unsaved-close.png](assets/frontend-review-2026-09-28/08-unsaved-close.png)                       |
+| 09   | 模拟定位失败                              | [09-location-error.png](assets/frontend-review-2026-09-28/09-location-error.png)                     |
+| 10   | 模拟天气测试失败                          | [10-weather-error.png](assets/frontend-review-2026-09-28/10-weather-error.png)                       |
+| 11   | 深色场景绑定                              | [11-scenes-dark.png](assets/frontend-review-2026-09-28/11-scenes-dark.png)                           |
+| 12   | 1920 × 1080 视口的位置页                  | [12-location-wide.png](assets/frontend-review-2026-09-28/12-location-wide.png)                       |
+| 13   | 900 × 600 视口的调度风格页                | [13-scheduling-small.png](assets/frontend-review-2026-09-28/13-scheduling-small.png)                 |
+| 14   | 首次设置的连接页                          | [14-first-connection.png](assets/frontend-review-2026-09-28/14-first-connection.png)                 |
+| 15   | 首次设置的缺失项检查                      | [15-first-missing.png](assets/frontend-review-2026-09-28/15-first-missing.png)                       |
+| 16   | 首次设置尚未绑定的场景                    | [16-first-scenes-missing.png](assets/frontend-review-2026-09-28/16-first-scenes-missing.png)         |
+| 17   | 保存响应覆盖后续编辑后的结果              | [17-save-overwrites-new-edit.png](assets/frontend-review-2026-09-28/17-save-overwrites-new-edit.png) |
+| 18   | 场景页滚动后切换到天气页                  | [18-weather-after-scrolling.png](assets/frontend-review-2026-09-28/18-weather-after-scrolling.png)   |
+| 19   | 深色天气服务                              | [19-weather-dark.png](assets/frontend-review-2026-09-28/19-weather-dark.png)                         |
+| 20   | 深色调度风格                              | [20-scheduling-dark.png](assets/frontend-review-2026-09-28/20-scheduling-dark.png)                   |
 
 除 12、13 外，截图视口均为 1200 × 780 像素。截图 18 属于排查记录：场景页滚动后切到天气页，实测滚动位置回到 0，未据此提出滚动位置遗留的问题。
 
 ### 5.2 交互与视觉测量
 
-| 文件 | 内容 |
-| --- | --- |
-| [observations.json](assets/frontend-review-2026-09-28/observations.json) | 无修改仍可保存、活动输入丢失、场景重绑、关闭弹窗文本、错误跳转焦点及浏览器控制台记录 |
-| [additional-observations.json](assets/frontend-review-2026-09-28/additional-observations.json) | 保存期间编辑及响应覆盖、分类切换滚动位置、无效时间字段的错误说明关联 |
-| [visual-measurements.json](assets/frontend-review-2026-09-28/visual-measurements.json) | 元素边界、字号、行高、内边距、圆角、颜色、实际中文字体与占位文字对比度 |
+| 文件                                                                                           | 内容                                                                                 |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [observations.json](assets/frontend-review-2026-09-28/observations.json)                       | 无修改仍可保存、活动输入丢失、场景重绑、关闭弹窗文本、错误跳转焦点及浏览器控制台记录 |
+| [additional-observations.json](assets/frontend-review-2026-09-28/additional-observations.json) | 保存期间编辑及响应覆盖、分类切换滚动位置、无效时间字段的错误说明关联                 |
+| [visual-measurements.json](assets/frontend-review-2026-09-28/visual-measurements.json)         | 元素边界、字号、行高、内边距、圆角、颜色、实际中文字体与占位文字对比度               |
 
 记录中的 503 来自模拟天气与定位失败，404 来自首次设置无配置的模拟响应；不能单独将这些控制台条目列为真实服务缺陷。视觉测量中 `toggle-group-item` 的通用选择器首先匹配侧栏语言控件，其尺寸不代表调度风格的五档控件。
 
 ### 5.3 主要代码位置
 
-| 文件 | 审查关联 |
-| --- | --- |
-| [SetupWorkspace.vue](../frontend/src/components/setup/SetupWorkspace.vue) | 双模式导航、草稿、保存、关闭确认、外框与滚动区域 |
-| [ActivityListInput.vue](../frontend/src/components/setup/ActivityListInput.vue) | 待添加规则输入与标签 |
-| [SceneBindingsStep.vue](../frontend/src/components/setup/steps/SceneBindingsStep.vue) | 场景启停、绑定选择与列表分组 |
-| [ReviewStep.vue](../frontend/src/components/setup/steps/ReviewStep.vue) | 配置摘要、数量显示和缺失项入口 |
-| [SchedulingStep.vue](../frontend/src/components/setup/steps/SchedulingStep.vue) | 五档选择、自定义时间字段与响应式排布 |
-| [WeatherKeyStep.vue](../frontend/src/components/setup/steps/WeatherKeyStep.vue) | 密钥输入、测试反馈和帮助区域 |
-| [LocationStep.vue](../frontend/src/components/setup/steps/LocationStep.vue) | 坐标、估算反馈与表单宽度 |
-| [ActivityRulesStep.vue](../frontend/src/components/setup/steps/ActivityRulesStep.vue) | 工作与休闲分组的双栏表现 |
-| [copy.ts](../frontend/src/setup/copy.ts) | 导航、草稿、状态、提示与档位文案 |
-| [style.css](../frontend/src/style.css) | 字体、语义色、深浅主题与圆角变量 |
-| [Card.vue](../frontend/src/components/ui/card/Card.vue) | 主面板内边距、间距与圆角 |
-| [SelectTrigger.vue](../frontend/src/components/ui/select/SelectTrigger.vue) | 下拉控件高度、圆角、禁用与错误状态 |
+| 文件                                                                                  | 审查关联                                         |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [SetupWorkspace.vue](../frontend/src/components/setup/SetupWorkspace.vue)             | 双模式导航、草稿、保存、关闭确认、外框与滚动区域 |
+| [ActivityListInput.vue](../frontend/src/components/setup/ActivityListInput.vue)       | 待添加规则输入与标签                             |
+| [SceneBindingsStep.vue](../frontend/src/components/setup/steps/SceneBindingsStep.vue) | 场景启停、绑定选择与列表分组                     |
+| [ReviewStep.vue](../frontend/src/components/setup/steps/ReviewStep.vue)               | 配置摘要、数量显示和缺失项入口                   |
+| [SchedulingStep.vue](../frontend/src/components/setup/steps/SchedulingStep.vue)       | 五档选择、自定义时间字段与响应式排布             |
+| [WeatherKeyStep.vue](../frontend/src/components/setup/steps/WeatherKeyStep.vue)       | 密钥输入、测试反馈和帮助区域                     |
+| [LocationStep.vue](../frontend/src/components/setup/steps/LocationStep.vue)           | 坐标、估算反馈与表单宽度                         |
+| [ActivityRulesStep.vue](../frontend/src/components/setup/steps/ActivityRulesStep.vue) | 工作与休闲分组的双栏表现                         |
+| [copy.ts](../frontend/src/setup/copy.ts)                                              | 导航、草稿、状态、提示与档位文案                 |
+| [style.css](../frontend/src/style.css)                                                | 字体、语义色、深浅主题与圆角变量                 |
+| [Card.vue](../frontend/src/components/ui/card/Card.vue)                               | 主面板内边距、间距与圆角                         |
+| [SelectTrigger.vue](../frontend/src/components/ui/select/SelectTrigger.vue)           | 下拉控件高度、圆角、禁用与错误状态               |
 
 代码行号只用于定位审查时的基线；后续修改时以相应函数和组件的当前实现为准。
 
@@ -353,7 +353,7 @@
 **场景绑定重构（2026-09-29）**：用户在一阶段验收中指出场景页三个交互问题——页面级“搜索播放列表”用途不明；“添加其他场景”展开后与激活区形态脱节，观感似未加载完成；绑定播单后行按有效性重排、内容跳动。经确认，场景绑定不再使用表单行布局，改为卡片式（迭代 UX-08 的一阶段方案）：
 
 - 场景按季节氛围、日常情境、天气氛围三个可折叠分组展示，组头显示“已启用 x/n”摘要，默认全部展开；每个场景在分组内有固定位置，启用与绑定不再引起重排，“添加其他场景”区与页面级搜索移除。
-- 每个场景一张横向卡片：场景名、启停复选框，以及与匹配权重一致的一句情境说明。启用即弹出卡片内的播单选择器；首次启用必须明确选择，重新启用恢复本次编辑记住的绑定并弹出选择器供确认。
+- 每个场景一张横向卡片：场景名、启停复选框，以及与匹配权重一致的一句情境说明。勾选只激活卡片，播单经卡内选择器显式打开；首次启用必须明确选择，重新启用恢复本次编辑记住的绑定并直接显示在卡上。
 - 播单选项只显示名称，壁纸数量降为卡片内次要行“n 张壁纸”；搜索内置于选择器，关闭后清空搜索词。无效绑定仍延后到提交时提示，错误说明与选择器保持 aria 关联，错误跳转聚焦到对应卡片。
 - 实现引入 shadcn-vue 的 Combobox 组件（基于 reka-ui）。验证：26 个 Edge 浏览器交互测试（含重写后的场景用例）、10 个单元测试、前端 type-check 与构建全部通过；布局观感经浏览器截图核对，深浅主题各自成立。视觉参数定稿仍归第二阶段。
 

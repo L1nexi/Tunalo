@@ -118,13 +118,17 @@ test("场景绑定按三组折叠分区展示卡片，未启用场景在组内�
   await expect(dayWorkCard).not.toHaveCSS("opacity", "0.6")
 })
 
-test("启用场景在卡片内弹出选播单，绑定后仅显示播单名", async ({ page }) => {
+test("勾选只激活场景卡，播单经卡内选择器显式绑定", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, scenes: {} })
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
 
   await page.getByRole("checkbox", { name: "雨天" }).click()
   const pickerTrigger = page.getByRole("button", { name: "雨天: 播放列表" })
+  await expect(pickerTrigger).toContainText("选择播放列表")
+  await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toHaveCount(0)
+
+  await pickerTrigger.click()
   await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toBeVisible()
   await expect(page.getByRole("option", { name: /60/ })).toHaveCount(0)
 
@@ -509,7 +513,7 @@ test("未添加的活动文字跨分类保留，保存前要求处理", async ({
   expect((await request).postDataJSON().activity.work_processes).toEqual(["Photoshop.exe"])
 })
 
-test("重新启用恢复上次绑定并弹出选择器，首次启用要求选播单", async ({ page }) => {
+test("重新启用恢复上次绑定且不弹选择器，首次启用不默认绑定", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, scenes: { day_work: "CASUAL_ANIME", rain: "RAIN" } })
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
     await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [
@@ -522,15 +526,11 @@ test("重新启用恢复上次绑定并弹出选择器，首次启用要求选�
 
   await page.getByRole("checkbox", { name: "雨天" }).click()
   await page.getByRole("checkbox", { name: "雨天" }).click()
-  await expect(page.getByRole("option", { name: "RAIN" })).toBeVisible()
-  await page.keyboard.press("Escape")
   await expect(page.getByRole("option", { name: "RAIN" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "雨天: 播放列表" })).toContainText("RAIN")
   await expect(page.getByText("20 张壁纸", { exact: true })).toBeVisible()
 
   await page.getByRole("checkbox", { name: "日间休闲" }).click()
-  await expect(page.getByRole("option", { name: "RAIN" })).toBeVisible()
-  await page.keyboard.press("Escape")
   await expect(page.getByRole("button", { name: "日间休闲: 播放列表" })).toContainText("选择播放列表")
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
 })
