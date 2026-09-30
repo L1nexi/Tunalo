@@ -65,6 +65,7 @@ const savedDraft = ref<ProfileDraft>(createProfileDraft(props.initialProfile, lo
 const baseline = ref(profileFingerprint(savedDraft.value))
 const pendingActivity = reactive(emptyPendingActivity())
 const rememberedScenes = reactive<ProfileDraft["scenes"]>({})
+const pathTouched = ref(false)
 const scan = usePlaylistScan(toRef(draft, "wallpaper_engine_path"))
 
 const currentIndex = ref(0)
@@ -182,6 +183,7 @@ function setTheme(value: unknown): void {
 }
 
 function updatePath(value: string): void {
+  pathTouched.value = true
   draft.wallpaper_engine_path = value
   clearStepFeedback("wallpaper")
 }
@@ -257,7 +259,17 @@ onMounted(() => {
   window.addEventListener("tunalo:native-close-request", requestClose)
   updateNativeBridgeAvailability()
   void loadSceneCatalog()
-  void scan.scan()
+  void scan.scan().then(() => {
+    // 挂载扫描会把后端自动探测到的 Wallpaper Engine 路径回填进草稿；这不是用户的编辑，
+    // 把它并入脏标记基线（合并进已保存档案而非当前草稿，避免吞掉扫描期间的其他编辑），
+    // 从未编辑过的窗口点 × 时不再误弹"放弃修改"确认。
+    if (!pathTouched.value) {
+      baseline.value = profileFingerprint({
+        ...savedDraft.value,
+        wallpaper_engine_path: draft.wallpaper_engine_path,
+      })
+    }
+  })
 })
 
 onBeforeUnmount(() => {

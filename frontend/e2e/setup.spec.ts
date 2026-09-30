@@ -616,6 +616,27 @@ test("关闭确认说明修改后果，窄窗口档位仍可选择", async ({ pa
   await expect(dialog.getByRole("button", { name: "放弃修改" })).toBeVisible()
 })
 
+test("首启自动探测回填的 Wallpaper Engine 路径不算未保存修改", async ({ page }) => {
+  await mockSetupApi(page, false)
+  await page.goto("/?locale=zh")
+
+  // 挂载扫描会自动探测并回填 Wallpaper Engine 路径；播放列表表格可见即回填已发生。
+  await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
+
+  await page.getByRole("button", { name: "取消" }).click()
+  await expect(page.getByRole("alertdialog", { name: "放弃未保存的修改？" })).toHaveCount(0)
+})
+
+test("回填后用户再编辑路径，关闭仍需确认", async ({ page }) => {
+  await mockSetupApi(page, false)
+  await page.goto("/?locale=zh")
+  await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
+
+  await page.getByRole("textbox", { name: "Wallpaper Engine 可执行文件" }).fill("D:\\Other\\wallpaper64.exe")
+  await page.getByRole("button", { name: "取消" }).click()
+  await expect(page.getByRole("alertdialog", { name: "放弃未保存的修改？" })).toBeVisible()
+})
+
 test("无效时间输入与错误说明关联", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh")
