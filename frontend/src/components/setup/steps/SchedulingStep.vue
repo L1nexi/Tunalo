@@ -97,9 +97,9 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
           v-for="style in (Object.keys(RESPONSE_STYLE_LABELS[locale]) as ResponseStyle[])"
           :key="style"
           :value="style"
-          class="min-w-28 flex-1 data-[state=on]:border-foreground data-[state=on]:shadow-xs data-[state=on]:font-semibold"
+          class="min-w-28 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
         >
-          <CheckIcon v-if="matching.response_style === style" data-icon="inline-start" />
+          <CheckIcon v-if="matching.response_style === style" class="text-primary" data-icon="inline-start" />
           {{ RESPONSE_STYLE_LABELS[locale][style] }}
         </ToggleGroupItem>
       </ToggleGroup>
@@ -132,9 +132,9 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
           v-for="choice in (Object.keys(DISTURBANCE_PRESETS) as DisturbancePreset[])"
           :key="choice"
           :value="choice"
-          class="min-w-24 flex-1 data-[state=on]:border-foreground data-[state=on]:shadow-xs data-[state=on]:font-semibold"
+          class="min-w-24 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
         >
-          <CheckIcon v-if="preset === choice" data-icon="inline-start" />
+          <CheckIcon v-if="preset === choice" class="text-primary" data-icon="inline-start" />
           {{ DISTURBANCE_LABELS[locale][choice] }}
         </ToggleGroupItem>
       </ToggleGroup>

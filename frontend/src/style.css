@@ -54,7 +54,10 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.145 0 0);
+    /* 品牌强调色"暮紫"：色相 292，避开语义红 25°/琥珀 60°/绿 163°；浅色取暗档、深色取亮档。
+       字面 oklch 而非 var(--color-violet-*)：Tailwind v4 只发射被工具类引用的主题变量，
+       且官方刻度饱和度 0.25+ 过鲜（2026-09-30 对比稿定稿，见 docs §6）。 */
+    --primary: oklch(0.55 0.13 292);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.967 0 0);
     --secondary-foreground: oklch(0.21 0 0);
@@ -67,7 +70,7 @@
     --warning: oklch(0.666 0.155 60);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: oklch(0.61 0.13 292);
     --chart-1: oklch(0.865 0 0);
     --chart-2: oklch(0.715 0 0);
     --chart-3: oklch(0.609 0 0);
@@ -94,7 +97,7 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
+    --primary: oklch(0.75 0.11 292);
     --primary-foreground: oklch(0.145 0 0);
     --secondary: oklch(0.274 0 0);
     --secondary-foreground: oklch(0.985 0 0);
@@ -107,7 +110,7 @@
     --warning: oklch(0.828 0.16 76);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    --ring: oklch(0.68 0.11 292);
     --chart-1: oklch(0.865 0 0);
     --chart-2: oklch(0.715 0 0);
     --chart-3: oklch(0.609 0 0);

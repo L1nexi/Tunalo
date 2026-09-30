@@ -538,7 +538,7 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
     <div class="mx-auto grid w-full max-w-[100rem] gap-4 md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]">
       <aside class="flex min-w-0 flex-col gap-4 rounded-xl bg-sidebar p-4 text-sidebar-foreground ring-1 ring-sidebar-border md:h-full md:min-h-0 md:overflow-hidden">
         <header class="flex items-center gap-2.5 px-1">
-          <TunaloMark class="size-7 shrink-0 text-foreground" />
+          <TunaloMark class="size-7 shrink-0 text-primary" />
           <div class="flex min-w-0 flex-col">
             <p class="text-lg leading-7 font-semibold tracking-tight">{{ copy.appName }}</p>
             <p class="text-sm leading-5 text-muted-foreground">{{ copy.mode[mode] }}</p>
@@ -555,7 +555,7 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             :aria-current="currentIndex === index ? 'page' : undefined"
             :class="[cn('min-w-44 justify-start border-l-2 px-3 text-left md:min-w-0',
               currentIndex === index
-                ? 'border-l-foreground bg-background font-semibold shadow-xs ring-1 ring-sidebar-border'
+                ? 'border-l-primary bg-primary/10 font-semibold dark:bg-primary/18'
                 : 'border-l-transparent hover:bg-sidebar-accent')]"
             @click="navigateTo(index)"
           >
