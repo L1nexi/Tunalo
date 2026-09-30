@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
   <legend
     data-slot="field-legend"
     :data-variant="variant"
-    :class="cn('mb-3 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base', props.class)"
+    :class="cn('mb-3 font-semibold data-[variant=label]:text-sm data-[variant=legend]:text-base', props.class)"
   >
     <slot />
   </legend>

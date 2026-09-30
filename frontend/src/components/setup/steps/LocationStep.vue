@@ -88,7 +88,7 @@ function setCoordinate(field: Coordinate, value: string | number): void {
     </Alert>
 
     <FieldGroup>
-      <div class="grid gap-5 sm:grid-cols-2">
+      <div class="grid gap-5 sm:max-w-md sm:grid-cols-2">
         <Field :data-invalid="coordinateErrors('latitude').length > 0">
           <FieldLabel for="latitude">{{ copy.location.latitudeLabel }}</FieldLabel>
           <Input

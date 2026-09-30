@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckIcon, FolderOpenIcon, LayersIcon, RefreshCwIcon, TriangleAlertIcon } from "@lucide/vue"
+import { CheckCircle2Icon, FolderOpenIcon, LayersIcon, RefreshCwIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale, PlaylistScanResult } from "@/api/profile"
@@ -89,11 +89,11 @@ const copy = computed(() => COPY[props.locale])
     </Empty>
 
     <div v-else-if="status === 'success'" class="flex flex-col gap-4">
-      <Alert>
-        <CheckIcon />
-        <AlertTitle>{{ copy.wallpaper.found }}</AlertTitle>
-        <AlertDescription>{{ copy.wallpaper.foundDescription(usableCount) }}</AlertDescription>
-      </Alert>
+      <p class="flex flex-wrap items-center gap-2 text-sm" role="status">
+        <CheckCircle2Icon class="text-success" />
+        <span class="font-medium">{{ copy.wallpaper.found }}</span>
+        <span class="text-muted-foreground">{{ copy.wallpaper.foundDescription(usableCount) }}</span>
+      </p>
       <p class="text-sm text-muted-foreground">{{ copy.wallpaper.englishNames }}</p>
       <div class="overflow-hidden rounded-lg border">
         <Table class="table-fixed">

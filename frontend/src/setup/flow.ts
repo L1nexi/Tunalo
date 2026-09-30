@@ -14,6 +14,9 @@ export const STEP_ORDER = [
 export type StepId = (typeof STEP_ORDER)[number]
 export type EditableStepId = Exclude<StepId, "review">
 
+// 双栏/多列布局的步骤，主内容区允许比普通表单页（760px）更宽。
+export const WIDE_STEPS: ReadonlySet<StepId> = new Set(["scenes", "activity"])
+
 export interface StepEvaluation {
   validity: Record<EditableStepId, boolean>
   conflicts: string[]

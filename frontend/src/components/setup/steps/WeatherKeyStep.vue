@@ -111,7 +111,7 @@ const keyStateText = computed(() => {
       </p>
     </div>
 
-    <details class="max-w-2xl rounded-lg border bg-muted/30 p-4">
+    <details class="rounded-lg border bg-muted/30 p-4">
       <summary class="cursor-pointer font-medium">{{ copy.weather.guideTitle }}</summary>
       <ol class="mt-3 flex flex-col gap-4 text-sm leading-relaxed">
         <li v-for="(step, index) in copy.weather.guideSteps" :key="step.title" class="flex gap-3">

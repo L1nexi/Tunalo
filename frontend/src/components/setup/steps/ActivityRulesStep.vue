@@ -48,8 +48,8 @@ function setList(field: keyof Activity, values: string[]): void {
 
 <template>
   <section class="flex flex-col gap-6">
-    <p v-if="locale === 'zh'" class="text-sm text-muted-foreground">{{ ZH_ACTIVITY_NOTE }}</p>
-    <p class="text-sm text-muted-foreground">{{ copy.activity.matchingHelp }}</p>
+    <p v-if="locale === 'zh'" class="text-sm leading-relaxed text-muted-foreground">{{ ZH_ACTIVITY_NOTE }}</p>
+    <p class="text-sm leading-relaxed text-muted-foreground">{{ copy.activity.matchingHelp }}</p>
     <Alert v-if="conflicts.length" variant="destructive">
       <TriangleAlertIcon />
       <AlertTitle>{{ copy.activity.conflictTitle }}</AlertTitle>
@@ -63,7 +63,7 @@ function setList(field: keyof Activity, values: string[]): void {
     </Alert>
 
     <div class="grid gap-6 lg:grid-cols-2">
-      <FieldSet v-for="group in groups" :key="group.id" class="rounded-xl border p-4">
+      <FieldSet v-for="group in groups" :key="group.id" class="gap-5">
         <FieldLegend>{{ group.title }}</FieldLegend>
         <FieldGroup>
           <Field>

@@ -102,24 +102,45 @@ const changes = computed(() => {
   add("review", copy.value.nav.languageLabel, languageName(before.language), languageName(after.language))
   return list
 })
-const rows = computed(() => [
-  { id: "wallpaper", label: copy.value.review.wallpaper, value: props.draft.wallpaper_engine_path || copy.value.common.notSet },
-  { id: "weather", label: copy.value.review.weather, value: weatherSummary.value },
-  { id: "location", label: copy.value.review.location, value: locationSummary.value },
-  { id: "scenes", label: copy.value.review.scenes, value: sceneSummary.value },
-  { id: "response", label: copy.value.review.response, value: RESPONSE_STYLE_LABELS[props.locale][props.draft.matching.response_style] },
-  { id: "disturbance", label: copy.value.review.disturbance, value: preset.value === "custom" ? copy.value.common.custom : DISTURBANCE_LABELS[props.locale][preset.value] },
-  { id: "activity", label: copy.value.review.activity, value: copy.value.review.activityCount(
-    props.draft.activity.work_title_keywords.length + props.draft.activity.leisure_title_keywords.length,
-    props.draft.activity.work_processes.length + props.draft.activity.leisure_processes.length,
-  ) },
+// 检查页按分类分组展示；deEmphasized 组内的取值为技术细节（路径），降权为普通文本，关键选择保持强调。
+const reviewGroups = computed(() => [
+  {
+    id: "wallpaper" as const,
+    deEmphasized: true,
+    rows: [{ id: "wallpaper", label: copy.value.review.wallpaper, value: props.draft.wallpaper_engine_path || copy.value.common.notSet }],
+  },
+  {
+    id: "weather" as const,
+    rows: [
+      { id: "weather", label: copy.value.review.weather, value: weatherSummary.value },
+      { id: "location", label: copy.value.review.location, value: locationSummary.value },
+    ],
+  },
+  {
+    id: "scenes" as const,
+    rows: [{ id: "scenes", label: copy.value.review.scenes, value: sceneSummary.value }],
+  },
+  {
+    id: "scheduling" as const,
+    rows: [
+      { id: "response", label: copy.value.review.response, value: RESPONSE_STYLE_LABELS[props.locale][props.draft.matching.response_style] },
+      { id: "disturbance", label: copy.value.review.disturbance, value: preset.value === "custom" ? copy.value.common.custom : DISTURBANCE_LABELS[props.locale][preset.value] },
+    ],
+  },
+  {
+    id: "activity" as const,
+    rows: [{ id: "activity", label: copy.value.review.activity, value: copy.value.review.activityCount(
+      props.draft.activity.work_title_keywords.length + props.draft.activity.leisure_title_keywords.length,
+      props.draft.activity.work_processes.length + props.draft.activity.leisure_processes.length,
+    ) }],
+  },
 ])
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
-      <h2 id="changes-heading" class="mb-3 font-semibold">{{ copy.review.changesTitle }}</h2>
+      <h2 id="changes-heading" class="mb-3 text-base font-semibold">{{ copy.review.changesTitle }}</h2>
       <p v-if="changes.length === 0" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
       <ul v-else class="divide-y rounded-lg border">
         <li v-for="(change, index) in changes" :key="`${change.id}-${index}`" class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
@@ -135,42 +156,47 @@ const rows = computed(() => [
 
     <details :open="mode === 'setup' || undefined">
       <summary v-if="mode === 'settings'" class="cursor-pointer text-sm font-medium">{{ copy.review.currentDetails }}</summary>
-      <dl class="mt-3 rounded-xl border">
-      <div
-        v-for="row in rows"
-        :key="row.id"
-        class="grid min-w-0 gap-1 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
-      >
-        <dt class="text-sm text-muted-foreground">{{ row.label }}</dt>
-        <dd class="min-w-0">
-          <div v-if="row.id === 'weather'" class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="flex items-center gap-2 text-sm font-medium" role="status">
-                <component :is="weatherStatusIcon" :class="weatherStatusClass" />
-                <span>{{ row.value }}</span>
-              </p>
-              <p v-if="weatherConnectionError" class="mt-1 flex items-start gap-2 text-sm text-warning">
-                <TriangleAlertIcon class="mt-0.5 shrink-0" />
-                <span class="min-w-0">{{ weatherConnectionError }}</span>
-              </p>
-              <p v-if="copy.review.weatherNote" class="mt-1 text-xs text-muted-foreground">{{ copy.review.weatherNote }}</p>
-              <p v-if="weatherTestedAtText" class="mt-1 text-xs text-muted-foreground">{{ weatherTestedAtText }}</p>
+      <div class="mt-3 flex flex-col gap-6">
+        <section v-for="group in reviewGroups" :key="group.id" class="flex flex-col gap-3">
+          <h3 class="text-base font-semibold">{{ copy.steps[group.id].title }}</h3>
+          <dl class="rounded-lg border">
+            <div
+              v-for="row in group.rows"
+              :key="row.id"
+              class="grid min-w-0 gap-1 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+            >
+              <dt class="text-sm text-muted-foreground">{{ row.label }}</dt>
+              <dd class="min-w-0">
+                <div v-if="row.id === 'weather'" class="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="flex items-center gap-2 text-sm font-medium" role="status">
+                      <component :is="weatherStatusIcon" :class="weatherStatusClass" />
+                      <span>{{ row.value }}</span>
+                    </p>
+                    <p v-if="weatherConnectionError" class="mt-1 flex items-start gap-2 text-sm text-warning">
+                      <TriangleAlertIcon class="mt-0.5 shrink-0" />
+                      <span class="min-w-0">{{ weatherConnectionError }}</span>
+                    </p>
+                    <p v-if="copy.review.weatherNote" class="mt-1 text-xs text-muted-foreground">{{ copy.review.weatherNote }}</p>
+                    <p v-if="weatherTestedAtText" class="mt-1 text-xs text-muted-foreground">{{ weatherTestedAtText }}</p>
+                  </div>
+                  <Button size="sm" variant="outline" :disabled="validatingWeather || !draft.weather.api_key.trim()" @click="emit('validateWeather')">
+                    <Spinner v-if="validatingWeather" data-icon="inline-start" />
+                    <GaugeIcon v-else data-icon="inline-start" />
+                    {{ validatingWeather ? copy.weather.validating : copy.weather.validate }}
+                  </Button>
+                </div>
+                <div v-else class="text-sm [overflow-wrap:anywhere]" :class="group.deEmphasized ? 'font-normal text-muted-foreground' : 'font-medium'">
+                  {{ row.value }}
+                  <ul v-if="row.id === 'scenes'" class="mt-1 text-sm font-normal text-muted-foreground">
+                    <li v-for="id in sceneIds" :key="id">{{ SCENE_LABELS[locale][id] }}：{{ draft.scenes[id] || copy.common.notSet }}</li>
+                  </ul>
+                </div>
+              </dd>
             </div>
-            <Button size="sm" variant="outline" :disabled="validatingWeather || !draft.weather.api_key.trim()" @click="emit('validateWeather')">
-              <Spinner v-if="validatingWeather" data-icon="inline-start" />
-              <GaugeIcon v-else data-icon="inline-start" />
-              {{ validatingWeather ? copy.weather.validating : copy.weather.validate }}
-            </Button>
-          </div>
-          <div v-else class="text-sm font-medium [overflow-wrap:anywhere]">
-            {{ row.value }}
-            <ul v-if="row.id === 'scenes'" class="mt-1 text-sm font-normal text-muted-foreground">
-              <li v-for="id in sceneIds" :key="id">{{ SCENE_LABELS[locale][id] }}：{{ draft.scenes[id] || copy.common.notSet }}</li>
-            </ul>
-          </div>
-        </dd>
+          </dl>
+        </section>
       </div>
-      </dl>
     </details>
 
     <Alert v-if="!valid" variant="destructive">

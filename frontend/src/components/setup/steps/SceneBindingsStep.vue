@@ -153,8 +153,9 @@ function setPlaylist(sceneId: SceneId, value: unknown): void {
 
 function cardClass(card: SceneCard): string {
   return cn(
-    "flex min-w-0 flex-col gap-2 rounded-lg border p-3",
-    !card.enabled && "opacity-60",
+    "flex min-w-0 flex-col gap-2 rounded-lg p-3",
+    // 未启用场景退为安静的填充块，只有启用的卡保留轮廓，减少组内的边框密度。
+    card.enabled ? "border bg-card" : "bg-muted/40 opacity-60",
     props.attempted && card.bindingInvalid && "border-destructive",
   );
 }
@@ -183,7 +184,7 @@ function cardClass(card: SceneCard): string {
       }}</Button>
     </Alert>
 
-    <p class="text-sm text-muted-foreground">
+    <p class="text-sm leading-relaxed text-muted-foreground">
       {{ copy.scenes.matchExplanation }}
     </p>
 
@@ -200,7 +201,7 @@ function cardClass(card: SceneCard): string {
           <ChevronDownIcon
             class="transition-transform group-data-[state=closed]:-rotate-90"
           />
-          <span class="text-sm font-medium">{{ group.title }}</span>
+          <span class="text-base font-semibold">{{ group.title }}</span>
           <span class="text-sm text-muted-foreground">{{
             copy.scenes.groupSummary(
               groupEnabledCount(group),

@@ -25,6 +25,7 @@ import SceneBindingsStep from "@/components/setup/steps/SceneBindingsStep.vue"
 import SchedulingStep from "@/components/setup/steps/SchedulingStep.vue"
 import WallpaperStep from "@/components/setup/steps/WallpaperStep.vue"
 import WeatherKeyStep from "@/components/setup/steps/WeatherKeyStep.vue"
+import TunaloMark from "@/components/TunaloMark.vue"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,12 +44,13 @@ import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, ZH_WEATHER_SAVE_PROMPT } from "@/setup/copy"
-import { evaluateSteps, stepFingerprint, STEP_ORDER, stepForIssue } from "@/setup/flow"
+import { evaluateSteps, stepFingerprint, STEP_ORDER, stepForIssue, WIDE_STEPS } from "@/setup/flow"
 import type { EditableStepId, StepId } from "@/setup/flow"
 import { buildProfile, createProfileDraft, emptyPendingActivity, profileFingerprint, validationIssueField } from "@/setup/model"
 import type { ActivityField, ProfileDraft } from "@/setup/model"
 import { usePlaylistScan } from "@/setup/usePlaylistScan"
 import { themeMode } from "@/theme"
+import { cn } from "@/lib/utils"
 
 const props = defineProps<{
   initialProfile: Profile | null
@@ -133,6 +135,8 @@ const stepErrorText = computed(() => stepError.value ? copy.value.errors[stepErr
 const submissionError = computed(() => submissionFailure.value ? describeError(submissionFailure.value) : "")
 const catalogError = computed(() => catalogFailure.value ? describeError(catalogFailure.value) : "")
 const scanDetail = computed(() => scan.error.value ? describeScanError(scan.error.value) : "")
+// 表单页限宽到 760px，宽步骤（WIDE_STEPS）允许更宽；左对齐基线，右边界随内容收束。
+const stepContentClass = computed(() => WIDE_STEPS.has(activeStep.value) ? "max-w-4xl" : "max-w-[47.5rem]")
 
 const issuesByStep = computed<Record<StepId, Record<string, string[]>>>(() => {
   const grouped = Object.fromEntries(STEP_ORDER.map((id) => [id, {}])) as Record<StepId, Record<string, string[]>>
@@ -531,11 +535,14 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
 
 <template>
   <main class="min-h-[100dvh] bg-muted/40 p-4 text-foreground md:h-[100dvh] md:overflow-hidden">
-    <div class="mx-auto grid w-full max-w-[100rem] gap-4 md:h-full md:min-h-0 md:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
-      <aside class="flex min-w-0 flex-col gap-5 rounded-xl bg-sidebar p-4 text-sidebar-foreground ring-1 ring-sidebar-border md:h-full md:min-h-0 md:overflow-hidden">
-        <header>
-          <p class="text-2xl leading-8 font-semibold tracking-tight">{{ copy.appName }}</p>
-          <p class="mt-1 text-sm leading-5 text-muted-foreground">{{ copy.mode[mode] }}</p>
+    <div class="mx-auto grid w-full max-w-[100rem] gap-4 md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]">
+      <aside class="flex min-w-0 flex-col gap-4 rounded-xl bg-sidebar p-4 text-sidebar-foreground ring-1 ring-sidebar-border md:h-full md:min-h-0 md:overflow-hidden">
+        <header class="flex items-center gap-2.5 px-1">
+          <TunaloMark class="size-7 shrink-0 text-foreground" />
+          <div class="flex min-w-0 flex-col">
+            <p class="text-lg leading-7 font-semibold tracking-tight">{{ copy.appName }}</p>
+            <p class="text-sm leading-5 text-muted-foreground">{{ copy.mode[mode] }}</p>
+          </div>
         </header>
 
         <nav :inert="submitting" class="flex gap-1 overflow-x-auto pb-1 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto" :aria-label="mode === 'setup' ? copy.nav.setupNavigation : copy.nav.settingsNavigation">
@@ -544,9 +551,12 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             v-for="(step, index) in steps"
             :key="step.id"
             type="button"
-            :variant="currentIndex === index ? 'secondary' : 'ghost'"
+            variant="ghost"
             :aria-current="currentIndex === index ? 'page' : undefined"
-            :class="['min-w-44 justify-start px-3 text-left md:min-w-0', currentIndex === index ? 'border-l-2 border-l-foreground font-semibold' : '']"
+            :class="[cn('min-w-44 justify-start border-l-2 px-3 text-left md:min-w-0',
+              currentIndex === index
+                ? 'border-l-foreground bg-background font-semibold shadow-xs ring-1 ring-sidebar-border'
+                : 'border-l-transparent hover:bg-sidebar-accent')]"
             @click="navigateTo(index)"
           >
             <component :is="step.icon" data-icon="inline-start" />
@@ -566,12 +576,12 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
         </p>
 
         <div :inert="submitting" class="mt-auto flex items-center justify-between border-t border-sidebar-border pt-3">
-          <ToggleGroup type="single" size="sm" :spacing="1" class="shrink-0 rounded-xl border border-sidebar-border bg-muted/40 p-0.5" :model-value="locale" :aria-label="copy.nav.languageLabel" @update:model-value="setLocale">
-            <ToggleGroupItem value="zh" class="rounded-lg data-[state=on]:bg-background" aria-label="中文">中</ToggleGroupItem>
-            <ToggleGroupItem value="en" class="rounded-lg data-[state=on]:bg-background" aria-label="English">EN</ToggleGroupItem>
+          <ToggleGroup type="single" size="sm" :spacing="1" class="shrink-0 rounded-md border border-sidebar-border bg-muted/40 p-0.5" :model-value="locale" :aria-label="copy.nav.languageLabel" @update:model-value="setLocale">
+            <ToggleGroupItem value="zh" class="rounded-sm data-[state=on]:bg-background" aria-label="中文">中</ToggleGroupItem>
+            <ToggleGroupItem value="en" class="rounded-sm data-[state=on]:bg-background" aria-label="English">EN</ToggleGroupItem>
           </ToggleGroup>
           <Select :model-value="themeMode" @update:model-value="setTheme">
-            <SelectTrigger class="size-9 justify-center gap-0 rounded-xl border border-sidebar-border bg-transparent p-0 hover:bg-sidebar-accent [&_svg:last-child]:hidden" :aria-label="`${copy.nav.themeLabel}: ${themeLabel}`" :title="`${copy.nav.themeLabel}: ${themeLabel}`">
+            <SelectTrigger class="size-9 justify-center gap-0 rounded-md border border-sidebar-border bg-transparent p-0 hover:bg-sidebar-accent [&_svg:last-child]:hidden" :aria-label="`${copy.nav.themeLabel}: ${themeLabel}`" :title="`${copy.nav.themeLabel}: ${themeLabel}`">
               <component :is="themeIcon" class="size-4" />
             </SelectTrigger>
             <SelectContent position="popper" align="end">
@@ -585,12 +595,13 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
         </div>
       </aside>
 
-      <Card class="min-w-0 min-h-[32rem] md:h-full md:min-h-0">
+      <Card class="min-w-0 min-h-[32rem] md:h-full md:min-h-0 [--card-spacing:--spacing(7)]">
         <CardHeader class="shrink-0">
-          <CardTitle><h1 id="setup-step-heading" tabindex="-1" class="text-[1.375rem] leading-7 font-semibold tracking-tight focus:outline-none">{{ activeHeading.title }}</h1></CardTitle>
+          <CardTitle><h1 id="setup-step-heading" tabindex="-1" class="text-2xl leading-8 font-semibold tracking-tight focus:outline-none">{{ activeHeading.title }}</h1></CardTitle>
           <CardDescription v-if="activeHeading.description">{{ activeHeading.description }}</CardDescription>
         </CardHeader>
         <CardContent id="setup-step-content" :inert="submitting" :aria-busy="submitting" class="min-h-0 flex-1 overflow-y-auto pt-0 pb-6">
+          <div class="flex w-full flex-col" :class="stepContentClass">
           <Alert v-if="stepErrorText" variant="destructive" class="mb-6">
             <TriangleAlertIcon />
             <AlertTitle>{{ copy.common.needsAttention }}</AlertTitle>
@@ -706,6 +717,7 @@ async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
             @validate-weather="testWeatherKey"
             @open-step="navigateToStep"
           />
+          </div>
         </CardContent>
 
         <Separator />

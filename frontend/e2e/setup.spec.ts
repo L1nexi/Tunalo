@@ -309,6 +309,28 @@ test("桌面布局使用宽屏空间，窄窗口没有外层纵向滚动", async
   await expect(page.getByRole("button", { name: "查看配置草稿" }).last()).toBeVisible()
 })
 
+test("侧栏收窄为 224px，表单页与场景页按内容类型限宽", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await page.goto("/?locale=zh")
+
+  // 布局契约：aside 14rem = 224px；表单内容 47.5rem = 760px；宽步骤（场景）max-w-4xl = 896px。
+  const aside = page.locator("aside")
+  const asideWidth = await aside.boundingBox()
+  expect(asideWidth).not.toBeNull()
+  expect(Math.round(asideWidth!.width)).toBe(224)
+
+  const stepContent = page.locator("#setup-step-content > div")
+  const formWidth = await stepContent.boundingBox()
+  expect(formWidth).not.toBeNull()
+  expect(Math.round(formWidth!.width)).toBe(760)
+
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+  const sceneWidth = await stepContent.boundingBox()
+  expect(sceneWidth).not.toBeNull()
+  expect(Math.round(sceneWidth!.width)).toBe(896)
+})
+
 test("长播单名称不会让场景绑定横向溢出", async ({ page }) => {
   const longName = `LONG_PLAYLIST_${"WALLPAPER_".repeat(20)}`
   await mockSetupApi(page, true, { ...profile, scenes: { day_work: longName } })
