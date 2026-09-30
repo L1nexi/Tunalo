@@ -26,7 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { FieldError, FieldLabel } from "@/components/ui/field";
+import { FieldError } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { COPY, SCENE_DESCRIPTIONS, SCENE_LABELS } from "@/setup/copy";
 import type { ProfileDraft } from "@/setup/model";
@@ -130,6 +130,14 @@ function groupEnabledCount(group: SceneGroup): number {
   return group.cards.filter((card) => card.enabled).length;
 }
 
+// 每组固定拆成两列（前一半进左列，后一半进右列）：列归属由序号决定，
+// 启停任意卡片只影响自己所在列的高度，其他卡片不会跳列重排；
+// 列内卡片紧贴堆叠，窄窗口两列叠回一列时仍保持原始顺序。
+function splitColumns(cards: SceneCard[]): SceneCard[][] {
+  const headLength = Math.ceil(cards.length / 2);
+  return [cards.slice(0, headLength), cards.slice(headLength)];
+}
+
 function toggleScene(
   sceneId: SceneId,
   enabled: boolean | "indeterminate",
@@ -153,7 +161,7 @@ function setPlaylist(sceneId: SceneId, value: unknown): void {
 
 function cardClass(card: SceneCard): string {
   return cn(
-    "flex min-w-0 flex-col gap-2 rounded-lg p-3",
+    "flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg p-3",
     // 未启用场景退为安静的填充块，只有启用的卡保留轮廓，减少组内的边框密度。
     card.enabled ? "border bg-card" : "bg-muted/40 opacity-60",
     props.attempted && card.bindingInvalid && "border-destructive",
@@ -211,19 +219,27 @@ function cardClass(card: SceneCard): string {
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div class="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2 xl:grid-cols-3">
+        <!-- 两列按内容自然高度排布，列内卡片紧贴堆叠，避免行对齐留下的空隙。 -->
+        <div class="flex flex-col gap-3 pt-2 md:flex-row md:items-start">
+          <!-- 卡片本体是复选框的原生 label：点击场景名、说明等非交互区域由浏览器直接转发切换，
+               没有第二层 JS 点击路径；卡内选择器是交互元素，规范豁免不会误触。 -->
           <div
-            v-for="card in group.cards"
-            :key="card.sceneId"
-            :class="cardClass(card)"
-            :data-disabled="card.enabled ? undefined : ''"
+            v-for="(column, columnIndex) in splitColumns(group.cards)"
+            :key="columnIndex"
+            class="flex min-w-0 flex-1 flex-col gap-3"
           >
+            <label
+              v-for="card in column"
+              :key="card.sceneId"
+              :for="`scene-${card.sceneId}`"
+              :class="cardClass(card)"
+              :data-disabled="card.enabled ? undefined : ''"
+            >
             <div class="flex items-center justify-between gap-2">
-              <FieldLabel :for="`scene-${card.sceneId}`" class="font-medium">
-                {{ card.label }}
-              </FieldLabel>
+              <span class="text-sm font-medium">{{ card.label }}</span>
               <Checkbox
                 :id="`scene-${card.sceneId}`"
+                :aria-label="card.label"
                 :model-value="card.enabled"
                 :disabled="playlists.length === 0"
                 @update:model-value="
@@ -297,6 +313,7 @@ function cardClass(card: SceneCard): string {
                 ]"
               />
             </template>
+            </label>
           </div>
         </div>
       </CollapsibleContent>

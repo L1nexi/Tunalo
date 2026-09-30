@@ -112,9 +112,9 @@ test("场景绑定按三组折叠分区展示卡片，未启用场景在组内�
 
   const groupHeaders = page.getByRole("button", { name: /^(季节氛围|日常情境|天气氛围)/ })
   await expect(groupHeaders).toHaveText([/^季节氛围/, /^日常情境/, /^天气氛围/])
-  const sunsetCard = page.getByRole("checkbox", { name: "黄昏" }).locator("xpath=ancestor::div[@data-disabled]")
+  const sunsetCard = page.getByRole("checkbox", { name: "黄昏" }).locator("xpath=ancestor::*[@data-disabled]")
   await expect(sunsetCard).toHaveCSS("opacity", "0.6")
-  const dayWorkCard = page.getByRole("checkbox", { name: "日间工作" }).locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]")
+  const dayWorkCard = page.getByRole("checkbox", { name: "日间工作" }).locator("xpath=ancestor::*[contains(@class,'rounded-lg')][1]")
   await expect(dayWorkCard).not.toHaveCSS("opacity", "0.6")
 })
 
@@ -137,6 +137,22 @@ test("勾选只激活场景卡，播单经卡内选择器显式绑定", async ({
   await expect(pickerTrigger).not.toContainText("60")
   await expect(page.getByText("60 张壁纸", { exact: true })).toBeVisible()
   await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toHaveCount(0)
+})
+
+test("点击卡片主体可切换场景，卡内选择器不承担启停", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, scenes: {} })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+
+  await page.getByText("下雨时参与匹配，雷雨时加分。").click()
+  await expect(page.getByRole("checkbox", { name: "雨天" })).toBeChecked()
+
+  await page.getByRole("button", { name: "雨天: 播放列表" }).click()
+  await expect(page.getByRole("checkbox", { name: "雨天" })).toBeChecked()
+  await page.keyboard.press("Escape")
+
+  await page.getByText("下雨时参与匹配，雷雨时加分。").click()
+  await expect(page.getByRole("checkbox", { name: "雨天" })).not.toBeChecked()
 })
 
 test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", async ({ page }) => {
