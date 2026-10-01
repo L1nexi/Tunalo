@@ -157,6 +157,18 @@ test("点击卡片主体可切换场景，卡内选择器不承担启停", async
   await expect(page.getByRole("checkbox", { name: "雨天" })).not.toBeChecked()
 })
 
+test("时间字段的变化在检查页带单位显示", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  const navigation = page.getByRole("navigation", { name: "设置项" })
+  await navigation.getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("button", { name: "自定义防打扰设置" }).click()
+  await page.getByRole("spinbutton", { name: "启动等待" }).fill("30")
+  await navigation.getByRole("button", { name: "查看配置草稿" }).click()
+
+  await expect(page.getByText("15 秒 → 30 秒")).toBeVisible()
+})
+
 test("待添加文字在检查页如实提示，不再声称全部已保存", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh")

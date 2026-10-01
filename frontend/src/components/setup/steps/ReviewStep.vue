@@ -91,8 +91,15 @@ const changes = computed(() => {
     maximum_deferral_minutes: copy.value.preferences.maximumDeferral,
     cycle_interval_minutes: copy.value.preferences.cycleInterval,
   }
+  const timingUnits: Record<keyof typeof timingLabels, string> = {
+    startup_grace_seconds: copy.value.preferences.seconds,
+    idle_before_switch_seconds: copy.value.preferences.seconds,
+    maximum_deferral_minutes: copy.value.preferences.minutes,
+    cycle_interval_minutes: copy.value.preferences.minutes,
+  }
   for (const field of Object.keys(timingLabels) as Array<keyof typeof timingLabels>) {
-    add("scheduling", timingLabels[field], before.disturbance[field], after.disturbance[field])
+    const withUnit = (value: unknown) => value === null || value === undefined ? empty : `${String(value)} ${timingUnits[field]}`
+    add("scheduling", timingLabels[field], withUnit(before.disturbance[field]), withUnit(after.disturbance[field]))
   }
   for (const field of ["work_processes", "leisure_processes", "work_title_keywords", "leisure_title_keywords"] as const) {
     const group = field.startsWith("work") ? copy.value.activity.workTitle : copy.value.activity.leisureTitle
