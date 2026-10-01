@@ -762,6 +762,7 @@ test("缺失项跳转先展开折叠的计时区，再聚焦错误字段", async
   const startup = page.getByRole("spinbutton", { name: "启动等待" })
   await expect(startup).toBeVisible()
   await expect(startup).toHaveAttribute("aria-invalid", "true")
+  await expect(startup).toBeFocused()
 })
 
 test("选择器内搜索过滤播单，重开后搜索词已清空", async ({ page }) => {

@@ -85,21 +85,15 @@ const changes = computed(() => {
   add("scheduling", copy.value.review.response,
     RESPONSE_STYLE_LABELS[props.locale][before.matching.response_style],
     RESPONSE_STYLE_LABELS[props.locale][after.matching.response_style])
-  const timingLabels = {
-    startup_grace_seconds: copy.value.preferences.startupGrace,
-    idle_before_switch_seconds: copy.value.preferences.idleBeforeSwitch,
-    maximum_deferral_minutes: copy.value.preferences.maximumDeferral,
-    cycle_interval_minutes: copy.value.preferences.cycleInterval,
-  }
-  const timingUnits: Record<keyof typeof timingLabels, string> = {
-    startup_grace_seconds: copy.value.preferences.seconds,
-    idle_before_switch_seconds: copy.value.preferences.seconds,
-    maximum_deferral_minutes: copy.value.preferences.minutes,
-    cycle_interval_minutes: copy.value.preferences.minutes,
-  }
-  for (const field of Object.keys(timingLabels) as Array<keyof typeof timingLabels>) {
-    const withUnit = (value: unknown) => value === null || value === undefined ? empty : `${String(value)} ${timingUnits[field]}`
-    add("scheduling", timingLabels[field], withUnit(before.disturbance[field]), withUnit(after.disturbance[field]))
+  const timingRows = [
+    { field: "startup_grace_seconds", label: copy.value.preferences.startupGrace, unit: copy.value.preferences.seconds },
+    { field: "idle_before_switch_seconds", label: copy.value.preferences.idleBeforeSwitch, unit: copy.value.preferences.seconds },
+    { field: "maximum_deferral_minutes", label: copy.value.preferences.maximumDeferral, unit: copy.value.preferences.minutes },
+    { field: "cycle_interval_minutes", label: copy.value.preferences.cycleInterval, unit: copy.value.preferences.minutes },
+  ] as const
+  for (const { field, label, unit } of timingRows) {
+    const withUnit = (value: unknown) => value === null || value === undefined ? empty : `${String(value)} ${unit}`
+    add("scheduling", label, withUnit(before.disturbance[field]), withUnit(after.disturbance[field]))
   }
   for (const field of ["work_processes", "leisure_processes", "work_title_keywords", "leisure_title_keywords"] as const) {
     const group = field.startsWith("work") ? copy.value.activity.workTitle : copy.value.activity.leisureTitle

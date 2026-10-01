@@ -1,5 +1,5 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, isNonNegativeInteger, sceneFingerprint } from "./model.ts"
+import { activityConflicts, hasValidTiming, sceneFingerprint } from "./model.ts"
 import type { ProfileDraft } from "./model.ts"
 
 export const STEP_ORDER = [
@@ -70,7 +70,7 @@ export function evaluateSteps(
       weather: draft.weather.api_key.trim().length > 0 && locationValid,
       scenes: scenesValid,
       scheduling:
-        Object.values(draft.disturbance).every(isNonNegativeInteger) &&
+        hasValidTiming(draft.disturbance) &&
         Boolean(draft.matching.response_style),
       activity: conflicts.length === 0,
     },

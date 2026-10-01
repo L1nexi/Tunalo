@@ -83,6 +83,11 @@ export function parseNumberInput(value: string | number): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+/** 防打扰计时值全部为不小于 0 的整数；保存可用性与错误跳转的折叠区展开共用同一规则。 */
+export function hasValidTiming(disturbance: ProfileDraft["disturbance"]): boolean {
+  return Object.values(disturbance).every(isNonNegativeInteger)
+}
+
 export function isNonNegativeInteger(value: number | null): value is number {
   return value !== null && Number.isInteger(value) && value >= 0
 }
