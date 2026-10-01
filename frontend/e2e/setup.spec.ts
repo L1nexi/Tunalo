@@ -582,6 +582,24 @@ test("重新启用恢复上次绑定且不弹选择器，首次启用不默认�
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
 })
 
+test("取消再恢复原绑定的场景不构成未保存修改", async ({ page }) => {
+  await mockSetupApi(page, true, {
+    ...profile,
+    scenes: { day_work: "CASUAL_ANIME", night_leisure: "CASUAL_ANIME" },
+  })
+  await page.goto("/?locale=zh")
+  const nav = page.getByRole("navigation", { name: "设置项" })
+  await nav.getByRole("button", { name: /场景绑定/ }).click()
+
+  // 取消后重新启用，记忆绑定原样恢复：值未变，仅 scenes 映射键序不同。
+  await page.getByText("白天、当前活动为工作时参与匹配。").click()
+  await expect(page.getByRole("checkbox", { name: "日间工作" })).not.toBeChecked()
+  await page.getByText("白天、当前活动为工作时参与匹配。").click()
+  await expect(page.getByRole("checkbox", { name: "日间工作" })).toBeChecked()
+
+  await expect(page.getByRole("status")).toHaveText(/所有修改已保存/)
+})
+
 test("日常设置直接保存并列出具体修改，未修改时禁用保存", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/profile", async (route) => {

@@ -1,5 +1,5 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, isNonNegativeInteger } from "./model.ts"
+import { activityConflicts, isNonNegativeInteger, sceneFingerprint } from "./model.ts"
 import type { ProfileDraft } from "./model.ts"
 
 export const STEP_ORDER = [
@@ -26,7 +26,7 @@ export function stepFingerprint(draft: ProfileDraft, id: EditableStepId): string
   switch (id) {
     case "wallpaper": return JSON.stringify(draft.wallpaper_engine_path)
     case "weather": return JSON.stringify(draft.weather)
-    case "scenes": return JSON.stringify(draft.scenes)
+    case "scenes": return sceneFingerprint(draft.scenes)
     case "scheduling": return JSON.stringify([draft.matching, draft.disturbance])
     case "activity": return JSON.stringify(draft.activity)
   }

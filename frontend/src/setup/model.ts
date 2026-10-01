@@ -227,6 +227,21 @@ export function activityConflicts(draft: ProfileDraft): string[] {
   ].filter(Boolean)
 }
 
+// 场景是封闭集合：序列化前按场景 ID 排序，映射键序不参与变化判定，
+// 取消再恢复原绑定不会因对象键序被误判为未保存修改。
+function sortedScenes(scenes: ProfileDraft["scenes"]): ProfileDraft["scenes"] {
+  return Object.fromEntries(
+    (Object.keys(scenes) as Array<keyof ProfileDraft["scenes"]>)
+      .sort()
+      .map((id) => [id, scenes[id]]),
+  )
+}
+
+/** 场景映射的规范化指纹，供整体与分步指纹共用同一语义。 */
+export function sceneFingerprint(scenes: ProfileDraft["scenes"]): string {
+  return JSON.stringify(sortedScenes(scenes))
+}
+
 export function profileFingerprint(draft: ProfileDraft): string {
-  return JSON.stringify(draft)
+  return JSON.stringify({ ...draft, scenes: sortedScenes(draft.scenes) })
 }

@@ -1,11 +1,13 @@
 import { expect, test } from "vitest"
 
 import {
+  createProfileDraft,
   isNonNegativeInteger,
   parseNumberInput,
+  profileFingerprint,
   validationIssueField,
 } from "../src/setup/model.ts"
-import { stepForIssue } from "../src/setup/flow.ts"
+import { stepFingerprint, stepForIssue } from "../src/setup/flow.ts"
 
 test("number input parsing preserves valid and invalid numeric edits", () => {
   expect(parseNumberInput("42")).toBe(42)
@@ -36,4 +38,20 @@ test("server validation paths map to the owning setup step", () => {
   expect(stepForIssue(["scenes"])).toBe("scenes")
   expect(stepForIssue(["disturbance", "startup_grace_seconds"])).toBe("scheduling")
   expect(stepForIssue(["activity"])).toBe("activity")
+})
+
+test("scene fingerprints ignore map key order, so restoring a binding stays clean", () => {
+  const base = createProfileDraft(null, "zh")
+  const original = {
+    ...base,
+    scenes: { day_work: "CASUAL_ANIME", night_leisure: "NIGHT_CITY" },
+  }
+  const restored = {
+    ...base,
+    scenes: { night_leisure: "NIGHT_CITY", day_work: "CASUAL_ANIME" },
+  }
+  expect(profileFingerprint(restored)).toBe(profileFingerprint(original))
+  expect(stepFingerprint(restored, "scenes")).toBe(
+    stepFingerprint(original, "scenes"),
+  )
 })
