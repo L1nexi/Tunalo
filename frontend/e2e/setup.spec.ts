@@ -441,6 +441,12 @@ test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) 
   await confirmation.getByRole("button", { name: "保存并应用" }).click()
   expect((await saveRequest).postDataJSON().weather.api_key).toBe("another-key")
   await expect(page.getByText("已保存并生效")).toBeVisible()
+  // 保存成功只清提交侧反馈；天气测试的失败事实连同真实原因一并保留，不退化成泛化兜底文案。
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
+  const statusBlock = page.getByRole("status")
+  await expect(statusBlock.locator("p", { hasText: /连接天气服务失败/ })).toBeVisible()
+  await expect(statusBlock.locator("p", { hasText: /连接超时/ })).toBeVisible()
+  await expect(page.getByText("操作失败。草稿仍然保留，请重试。")).toHaveCount(0)
 })
 
 test("保存时才遇到天气连接故障，也可确认继续保存", async ({ page }) => {

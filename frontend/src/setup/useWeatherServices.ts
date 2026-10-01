@@ -121,7 +121,8 @@ export function useWeatherServices(
   }
 
   function clearSaveFeedback(): void {
-    weatherValidationFailure.value = null
+    // 保存成功只清提交侧反馈；失败分类与失败详情是一体状态，原样保留，
+    // 状态区继续准确显示上次测试结果（含真实原因），不与本次保存结果混淆。
     weatherSaveFailure.value = ""
   }
 
