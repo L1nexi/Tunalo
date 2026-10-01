@@ -688,6 +688,22 @@ test("无效时间输入与错误说明关联", async ({ page }) => {
   await expect(page.locator("#timing-error-startup_grace_seconds")).toContainText("请输入不小于 0 的整数")
 })
 
+test("缺失项跳转先展开折叠的计时区，再聚焦错误字段", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("button", { name: "自定义防打扰设置" }).click()
+  await page.getByRole("spinbutton", { name: "启动等待" }).fill("-1")
+  await page.getByRole("button", { name: "自定义防打扰设置" }).click()
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
+
+  await page.getByRole("alert").getByRole("button", { name: "调度风格" }).click()
+
+  const startup = page.getByRole("spinbutton", { name: "启动等待" })
+  await expect(startup).toBeVisible()
+  await expect(startup).toHaveAttribute("aria-invalid", "true")
+})
+
 test("选择器内搜索过滤播单，重开后搜索词已清空", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {

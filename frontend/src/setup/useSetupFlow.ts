@@ -6,7 +6,7 @@ import { COPY } from "./copy"
 import { describeError } from "./errorMessages"
 import { evaluateSteps, STEP_ORDER, stepForIssue, WIDE_STEPS } from "./flow"
 import type { StepId } from "./flow"
-import { validationIssueField } from "./model"
+import { isNonNegativeInteger, validationIssueField } from "./model"
 import type { ActivityField, ProfileDraft } from "./model"
 import type { usePlaylistScan } from "./usePlaylistScan"
 import type { ProfileEditor } from "./useProfileDraft"
@@ -92,6 +92,15 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     const needsAttention = activeStep.value === "review" && !isStepValid(id)
     navigateTo(id)
     if (needsAttention) {
+      // 与服务端错误路径同语义：先展开错误所在的折叠区，再聚焦字段。
+      if (id === "scheduling" && [
+        draft.disturbance.startup_grace_seconds,
+        draft.disturbance.idle_before_switch_seconds,
+        draft.disturbance.maximum_deferral_minutes,
+        draft.disturbance.cycle_interval_minutes,
+      ].some((value) => !isNonNegativeInteger(value))) {
+        timingOpen.value = true
+      }
       stepError.value = "validation"
       void focusStep(true)
     }
