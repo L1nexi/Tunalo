@@ -179,6 +179,8 @@ test("待添加文字在检查页如实提示，不再声称全部已保存", as
 
   await expect(page.getByText(/尚未添加的文字/)).toBeVisible()
   await expect(page.getByText("所有修改已保存。")).toHaveCount(0)
+  // 值无变化时不得渲染空的修改列表框（dl 分组不含在此列，按 section 圈定）。
+  await expect(page.locator("section[aria-labelledby='changes-heading']").getByRole("list")).toHaveCount(0)
 })
 
 test("超长播单名在选项内截断，不横向撑破菜单", async ({ page }) => {

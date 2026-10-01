@@ -150,7 +150,7 @@ const reviewGroups = computed(() => [
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
       <h2 id="changes-heading" class="mb-3 text-base font-semibold">{{ copy.review.changesTitle }}</h2>
       <p v-if="changes.length === 0 && !hasPendingActivity" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
-      <ul v-else class="divide-y rounded-lg border">
+      <ul v-else-if="changes.length > 0" class="divide-y rounded-lg border">
         <li v-for="(change, index) in changes" :key="`${change.id}-${index}`" class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">{{ change.label }}</p>
