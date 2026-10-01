@@ -162,8 +162,9 @@ function setPlaylist(sceneId: SceneId, value: unknown): void {
 function cardClass(card: SceneCard): string {
   return cn(
     "flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg p-3",
-    // 未启用场景退为安静的填充块，只有启用的卡保留轮廓，减少组内的边框密度。
-    card.enabled ? "border bg-card" : "bg-muted/40 opacity-60",
+    // 未启用场景退为安静的填充块：底色与无描边表达选中差异，
+    // 不压整卡透明度，说明文字保持可读对比度。
+    card.enabled ? "border bg-card" : "bg-muted/40",
     props.attempted && card.bindingInvalid && "border-destructive",
   );
 }

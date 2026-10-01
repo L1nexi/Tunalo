@@ -113,9 +113,11 @@ test("场景绑定按三组折叠分区展示卡片，未启用场景在组内�
   const groupHeaders = page.getByRole("button", { name: /^(季节氛围|日常情境|天气氛围)/ })
   await expect(groupHeaders).toHaveText([/^季节氛围/, /^日常情境/, /^天气氛围/])
   const sunsetCard = page.getByRole("checkbox", { name: "黄昏" }).locator("xpath=ancestor::*[@data-disabled]")
-  await expect(sunsetCard).toHaveCSS("opacity", "0.6")
+  // 未启用卡不压整卡透明度：说明文字保持可读对比度，静音感由底色与无描边表达。
+  await expect(sunsetCard).toHaveCSS("opacity", "1")
+  await expect(sunsetCard).toHaveCSS("border-top-width", "0px")
   const dayWorkCard = page.getByRole("checkbox", { name: "日间工作" }).locator("xpath=ancestor::*[contains(@class,'rounded-lg')][1]")
-  await expect(dayWorkCard).not.toHaveCSS("opacity", "0.6")
+  await expect(dayWorkCard).toHaveCSS("border-top-width", "1px")
 })
 
 test("勾选只激活场景卡，播单经卡内选择器显式绑定", async ({ page }) => {
