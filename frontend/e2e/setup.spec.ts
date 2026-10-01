@@ -504,11 +504,24 @@ test("坐标越界或缺失时就近提示，不再等检查页", async ({ page 
   await expect(page.getByText("纬度必须在 -90 到 90 之间。")).toBeVisible()
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
 
+  // 切走再切回，编辑过的坐标仍就近提示，与保存禁用状态保持同步。
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
+  await expect(page.getByText("纬度必须在 -90 到 90 之间。")).toBeVisible()
+
   await page.getByRole("spinbutton", { name: "经度" }).fill("")
   await expect(page.getByText("请填写经度。")).toBeVisible()
 
   await page.getByRole("spinbutton", { name: "纬度" }).fill("31.2304")
   await expect(page.getByText("纬度必须在 -90 到 90 之间。")).toHaveCount(0)
+})
+
+test("首启未编辑的坐标保持安静", async ({ page }) => {
+  await mockSetupApi(page, false)
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
+  await expect(page.getByText("请填写纬度。")).toHaveCount(0)
+  await expect(page.getByText("请填写经度。")).toHaveCount(0)
 })
 
 test("保存时才遇到天气连接故障，也可确认继续保存", async ({ page }) => {

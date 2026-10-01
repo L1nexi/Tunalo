@@ -38,6 +38,9 @@ const props = defineProps<{
 const editor = useProfileDraft(props.initialProfile, props.initialLocale)
 const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale } = editor
 const copy = computed(() => COPY[locale.value])
+// 坐标是否偏离已保存基线：驱动就近纠错提示，跨步骤切换不丢失。
+const locationEdited = computed(() =>
+  JSON.stringify(draft.weather.location) !== JSON.stringify(savedDraft.value.weather.location))
 const scan = usePlaylistScan(toRef(draft, "wallpaper_engine_path"))
 const flow = useSetupFlow(editor, scan)
 const {
@@ -163,6 +166,7 @@ onMounted(() => {
                 :detection-error="locationDetectionError"
                 :detection-city="locationDetectionCity"
                 :attempted="Boolean(stepError)"
+                :edited="locationEdited"
                 :errors="issuesByStep.weather"
                 @update:location="updateLocation"
                 @detect="detectCity"

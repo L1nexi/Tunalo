@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ExternalLinkIcon, MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
-import { computed, reactive } from "vue"
+import { computed } from "vue"
 
 import type { Locale } from "@/api/profile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -22,6 +22,7 @@ const props = defineProps<{
   detectionError: string
   detectionCity: string | null
   attempted: boolean
+  edited: boolean
   errors: Record<string, string[]>
 }>()
 
@@ -32,7 +33,6 @@ const emit = defineEmits<{
 }>()
 
 const copy = computed(() => COPY[props.locale])
-const touched = reactive({ latitude: false, longitude: false })
 const latitudeInvalid = computed(() =>
   props.location.latitude === null || !Number.isFinite(props.location.latitude) ||
   props.location.latitude < -90 || props.location.latitude > 90,
@@ -49,8 +49,9 @@ function messages(...fields: string[]): string[] {
 function coordinateErrors(field: Coordinate): string[] {
   const invalid = field === "latitude" ? latitudeInvalid.value : longitudeInvalid.value
   const value = props.location[field]
-  // 就近纠错：字段被编辑过即与保存可用性同步提示，未动过的空表单保持安静。
-  const showRange = invalid && (props.attempted || touched[field])
+  // 就近纠错：坐标偏离已保存基线即与保存可用性同步提示；按基线而非局部
+  // touched 判定，提示跨步骤切换存活；未动过的空表单保持安静。
+  const showRange = invalid && (props.attempted || props.edited)
   return [
     ...(showRange ? [value === null
       ? field === "latitude" ? copy.value.location.requiredLatitude : copy.value.location.requiredLongitude
@@ -60,7 +61,6 @@ function coordinateErrors(field: Coordinate): string[] {
 }
 
 function setCoordinate(field: Coordinate, value: string | number): void {
-  touched[field] = true
   const parsed = value === "" ? null : Number(value)
   emit("update:location", {
     ...props.location,
