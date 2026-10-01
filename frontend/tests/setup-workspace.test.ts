@@ -6,11 +6,6 @@ import type { Profile } from "@/api/profile"
 import { ApiError } from "@/api/profile"
 import SetupWorkspace from "@/components/setup/SetupWorkspace.vue"
 
-vi.mock("@/theme", async () => {
-  const { ref } = await import("vue")
-  return { themeMode: ref("auto") }
-})
-
 function deferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((complete) => {
