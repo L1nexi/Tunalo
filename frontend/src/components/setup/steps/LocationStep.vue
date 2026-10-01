@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ExternalLinkIcon, MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
-import { computed } from "vue"
+import { computed, reactive } from "vue"
 
 import type { Locale } from "@/api/profile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -32,6 +32,7 @@ const emit = defineEmits<{
 }>()
 
 const copy = computed(() => COPY[props.locale])
+const touched = reactive({ latitude: false, longitude: false })
 const latitudeInvalid = computed(() =>
   props.location.latitude === null || !Number.isFinite(props.location.latitude) ||
   props.location.latitude < -90 || props.location.latitude > 90,
@@ -47,13 +48,19 @@ function messages(...fields: string[]): string[] {
 
 function coordinateErrors(field: Coordinate): string[] {
   const invalid = field === "latitude" ? latitudeInvalid.value : longitudeInvalid.value
+  const value = props.location[field]
+  // 就近纠错：字段被编辑过即与保存可用性同步提示，未动过的空表单保持安静。
+  const showRange = invalid && (props.attempted || touched[field])
   return [
-    ...(props.attempted && invalid ? [field === "latitude" ? copy.value.location.invalidLatitude : copy.value.location.invalidLongitude] : []),
+    ...(showRange ? [value === null
+      ? field === "latitude" ? copy.value.location.requiredLatitude : copy.value.location.requiredLongitude
+      : field === "latitude" ? copy.value.location.invalidLatitude : copy.value.location.invalidLongitude] : []),
     ...messages("weather.location", `weather.location.${field}`),
   ]
 }
 
 function setCoordinate(field: Coordinate, value: string | number): void {
+  touched[field] = true
   const parsed = value === "" ? null : Number(value)
   emit("update:location", {
     ...props.location,

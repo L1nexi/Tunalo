@@ -419,8 +419,7 @@ test("已验证的当前 API Key 可直接保存，后续网络故障不抹去�
   await expect(page.getByText("已保存并生效")).toBeVisible()
 })
 
-test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) => {
-  await mockSetupApi(page, true)
+test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) => {  await mockSetupApi(page, true)
   await page.route("**/api/weather-key-validations", async (route) => {
     await route.fulfill({ status: 503, json: { error: "weather_validation_unavailable", reason: "timeout" } })
   })
@@ -447,6 +446,22 @@ test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) 
   await expect(statusBlock.locator("p", { hasText: /连接天气服务失败/ })).toBeVisible()
   await expect(statusBlock.locator("p", { hasText: /连接超时/ })).toBeVisible()
   await expect(page.getByText("操作失败。草稿仍然保留，请重试。")).toHaveCount(0)
+})
+
+test("坐标越界或缺失时就近提示，不再等检查页", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
+
+  await page.getByRole("spinbutton", { name: "纬度" }).fill("121.4737")
+  await expect(page.getByText("纬度必须在 -90 到 90 之间。")).toBeVisible()
+  await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
+
+  await page.getByRole("spinbutton", { name: "经度" }).fill("")
+  await expect(page.getByText("请填写经度。")).toBeVisible()
+
+  await page.getByRole("spinbutton", { name: "纬度" }).fill("31.2304")
+  await expect(page.getByText("纬度必须在 -90 到 90 之间。")).toHaveCount(0)
 })
 
 test("保存时才遇到天气连接故障，也可确认继续保存", async ({ page }) => {

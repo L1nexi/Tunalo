@@ -150,6 +150,8 @@ const zh = {
     longitudePlaceholder: "-180 到 180",
     invalidLatitude: "纬度必须在 -90 到 90 之间。",
     invalidLongitude: "经度必须在 -180 到 180 之间。",
+    requiredLatitude: "请填写纬度。",
+    requiredLongitude: "请填写经度。",
   },
   scenes: {
     title: "绑定使用场景",
@@ -459,6 +461,8 @@ const en: typeof zh = {
     longitudePlaceholder: "-180 to 180",
     invalidLatitude: "Latitude must be between -90 and 90.",
     invalidLongitude: "Longitude must be between -180 and 180.",
+    requiredLatitude: "Latitude is required.",
+    requiredLongitude: "Longitude is required.",
   },
   scenes: {
     title: "Assign Scenes",
