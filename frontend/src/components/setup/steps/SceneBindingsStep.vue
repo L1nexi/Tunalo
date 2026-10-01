@@ -291,13 +291,13 @@ function cardClass(card: SceneCard): string {
                     copy.scenes.noPlaylistMatch
                   }}</ComboboxEmpty>
                   <ComboboxViewport>
-                  <ComboboxItem
-                    v-for="playlist in playlists"
-                    :key="playlist.name"
-                    :value="playlist.name"
-                  >
-                    <span class="min-w-0 truncate" :title="playlist.name">{{ playlist.name }}</span>
-                  </ComboboxItem>
+                    <ComboboxItem
+                      v-for="playlist in playlists"
+                      :key="playlist.name"
+                      :value="playlist.name"
+                    >
+                      <span class="min-w-0 truncate" :title="playlist.name">{{ playlist.name }}</span>
+                    </ComboboxItem>
                   </ComboboxViewport>
                 </ComboboxList>
               </Combobox>

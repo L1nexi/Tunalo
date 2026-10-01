@@ -466,7 +466,8 @@ test("已验证的当前 API Key 可直接保存，后续网络故障不抹去�
   await expect(page.getByText("已保存并生效")).toBeVisible()
 })
 
-test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) => {  await mockSetupApi(page, true)
+test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) => {
+  await mockSetupApi(page, true)
   await page.route("**/api/weather-key-validations", async (route) => {
     await route.fulfill({ status: 503, json: { error: "weather_validation_unavailable", reason: "timeout" } })
   })
