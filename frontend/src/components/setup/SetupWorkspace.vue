@@ -36,7 +36,7 @@ const props = defineProps<{
 }>()
 
 const editor = useProfileDraft(props.initialProfile, props.initialLocale)
-const { mode, locale, draft, savedDraft, isDirty, pendingActivity, rememberedScenes, rememberScene, setLocale } = editor
+const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale } = editor
 const copy = computed(() => COPY[locale.value])
 const scan = usePlaylistScan(toRef(draft, "wallpaper_engine_path"))
 const flow = useSetupFlow(editor, scan)
@@ -221,6 +221,7 @@ onMounted(() => {
             :weather-tested-at-text="weatherTestedAtText"
             :weather-connection-error="weatherConnectionError"
             :validating-weather="validatingWeather"
+            :has-pending-activity="pendingActivityFields.length > 0"
             @validate-weather="testWeatherKey"
             @open-step="navigateToStep"
           />

@@ -22,6 +22,7 @@ const props = defineProps<{
   weatherTestedAtText: string
   weatherConnectionError: string
   validatingWeather: boolean
+  hasPendingActivity: boolean
 }>()
 
 const emit = defineEmits<{
@@ -141,7 +142,7 @@ const reviewGroups = computed(() => [
   <section class="flex flex-col gap-6">
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
       <h2 id="changes-heading" class="mb-3 text-base font-semibold">{{ copy.review.changesTitle }}</h2>
-      <p v-if="changes.length === 0" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
+      <p v-if="changes.length === 0 && !hasPendingActivity" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
       <ul v-else class="divide-y rounded-lg border">
         <li v-for="(change, index) in changes" :key="`${change.id}-${index}`" class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
           <div class="min-w-0">
@@ -152,6 +153,7 @@ const reviewGroups = computed(() => [
           <Button type="button" variant="ghost" size="sm" @click="emit('openStep', change.id)">{{ copy.review.edit }}</Button>
         </li>
       </ul>
+      <p v-if="hasPendingActivity" role="status" class="text-sm text-warning">{{ copy.review.pendingInputNotice }}</p>
     </section>
 
     <details :open="mode === 'setup' || undefined">

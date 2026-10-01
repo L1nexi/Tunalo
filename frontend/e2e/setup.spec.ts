@@ -155,6 +155,18 @@ test("点击卡片主体可切换场景，卡内选择器不承担启停", async
   await expect(page.getByRole("checkbox", { name: "雨天" })).not.toBeChecked()
 })
 
+test("待添加文字在检查页如实提示，不再声称全部已保存", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  const navigation = page.getByRole("navigation", { name: "设置项" })
+  await navigation.getByRole("button", { name: "活动识别" }).click()
+  await page.locator("#work-processes").fill("Photoshop.exe")
+  await navigation.getByRole("button", { name: "查看配置草稿" }).click()
+
+  await expect(page.getByText(/尚未添加的文字/)).toBeVisible()
+  await expect(page.getByText("所有修改已保存。")).toHaveCount(0)
+})
+
 test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", async ({ page }) => {
   await mockSetupApi(page, false)
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
