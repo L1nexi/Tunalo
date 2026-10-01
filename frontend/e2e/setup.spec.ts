@@ -169,6 +169,25 @@ test("待添加文字在检查页如实提示，不再声称全部已保存", as
   await expect(page.getByText("所有修改已保存。")).toHaveCount(0)
 })
 
+test("超长播单名在选项内截断，不横向撑破菜单", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, scenes: {} })
+  await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
+    await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [
+      { name: `LONG-${"A".repeat(120)}`, item_count: 3 },
+    ] } })
+  })
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
+  await page.getByRole("checkbox", { name: "日间工作" }).click()
+  await page.getByRole("button", { name: "日间工作: 播放列表" }).click()
+  await expect(page.getByRole("option")).toBeVisible()
+
+  const overflow = await page.getByRole("option").evaluate(
+    (element) => element.scrollWidth - element.clientWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(1)
+})
+
 test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", async ({ page }) => {
   await mockSetupApi(page, false)
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
