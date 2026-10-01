@@ -67,7 +67,8 @@
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.5 0.18 25);
     --success: oklch(0.596 0.145 163.2);
-    --warning: oklch(0.666 0.155 60);
+    /* 浅色警告色按 14px 文字校准（对白底 ≥4.5:1，实测 5.0）；深色档维持原值不参与此约束。 */
+    --warning: oklch(0.55 0.12 60);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.61 0.13 292);
