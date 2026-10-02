@@ -1,34 +1,40 @@
+"""第一轮 Scene 调参热图——完全沿用 legacytuning 的出图范式。
+
+六种模式（wx-hour / act-hour / wx-act / wx-doy / act-doy / hour-doy）、同一份
+case 目录、每模式一张聚合 winner 图：场景各自配色 + "no winner" 深色、
+pcolormesh 平铺、白色虚线参考线、月份刻度。差异只在数据源：真实
+ProfileCompiler/POLICY_REGISTRY/Matcher 取代旧工具复制的管线，playlist 换成
+Scene，gamma 特性按裁定舍弃。
+"""
+
 from __future__ import annotations
 
 import math
-import os
-import re
 import sys
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from configurations.runtime_models import LegacySchedulerConfig
-from core.models.context import Context
-from core.policies import Policy, SeasonPolicy, TimePolicy, WeatherPolicy
-from core.runtime.tag_resolver import resolve_raw_tags
-from tools.tuning.models import (
-    ActivitySignal,
-    DirectActivityPolicy,
-    MatchProfile,
-    Scenario,
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.colors as mpl_colors
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+
+from configurations.runtime_models import SchedulerConfig
+from core.models.scene import SceneId
+from tools.tuning.harness import (
     build_context,
-    chill,
-    focus,
-    normalize_pow,
-    weather,
+    build_matcher,
+    coerce_activity,
+    prime_activity,
 )
 
 type HeatmapMode = Literal["wx-hour", "act-hour", "wx-act", "wx-doy", "act-doy", "hour-doy"]
-type HeatmapType = Literal["winner"]
 type AxisName = Literal["weather", "hour", "activity", "day_of_year"]
 
 WEATHER_HEATMAP_PRESETS: tuple[str | None, ...] = (
@@ -44,86 +50,14 @@ WEATHER_HEATMAP_PRESETS: tuple[str | None, ...] = (
     "heavy_storm",
     "fog",
 )
-_ACTIVITY_IDLE_EPSILON = 1e-9
 
-
-@dataclass(frozen=True)
-class HeatmapSampling:
-    hour_step: float = 0.5
-    day_step: int = 4
-    activity_step: float = 0.05
-
-    def __post_init__(self) -> None:
-        if self.hour_step <= 0 or self.hour_step > 24:
-            raise ValueError("hour_step must be in (0, 24]")
-        if self.day_step <= 0 or self.day_step > 365:
-            raise ValueError("day_step must be in [1, 365]")
-        if self.activity_step <= 0 or self.activity_step > 2:
-            raise ValueError("activity_step must be in (0, 2]")
-
-
-@dataclass(frozen=True)
-class HeatmapCell:
-    winner: str | None
-    score: float
-    gap: float
-
-
-@dataclass(frozen=True)
-class HeatmapAxis:
-    name: AxisName
-    values: tuple[float | int | str | None, ...]
-
-    @property
-    def label(self) -> str:
-        if self.name == "day_of_year":
-            return "Day of year"
-        return self.name.replace("_", " ").title()
-
-
-@dataclass(frozen=True)
-class HeatmapGrid:
-    mode: HeatmapMode
-    profile: MatchProfile
-    case_name: str
-    x_axis: HeatmapAxis
-    y_axis: HeatmapAxis
-    fixed: dict[str, object]
-    cells: tuple[tuple[HeatmapCell, ...], ...]
-
-
-@dataclass(frozen=True)
-class HeatmapFigure:
-    path: str
-    profile: str
-    mode: HeatmapMode
-    case_name: str
-    type: HeatmapType
-
-
-@dataclass(frozen=True)
-class ViewSpec:
-    mode: HeatmapMode
-    x_axis: AxisName
-    y_axis: AxisName
-    fixed: dict[str, object]
-
-
+# legacytuning 的 case 目录原样移植；季节词 haru/natsu/aki/fuyu 与跨季边界日
+# （fuyu-haru=35 等）沿用旧命名，便于和旧图对照。
 @dataclass(frozen=True)
 class HeatmapCase:
     name: str
-    mode: HeatmapMode
+    mode: str
     fixed: dict[str, object]
-
-
-_MODE_TO_AXES: dict[HeatmapMode, tuple[AxisName, AxisName]] = {
-    "wx-hour": ("hour", "weather"),
-    "act-hour": ("hour", "activity"),
-    "wx-act": ("activity", "weather"),
-    "wx-doy": ("day_of_year", "weather"),
-    "act-doy": ("day_of_year", "activity"),
-    "hour-doy": ("hour", "day_of_year"),
-}
 
 
 DEFAULT_HEATMAP_CASES: tuple[HeatmapCase, ...] = (
@@ -192,285 +126,108 @@ DEFAULT_HEATMAP_CASES: tuple[HeatmapCase, ...] = (
     HeatmapCase("hrdoy-chill-rain", "hour-doy", {"activity": "#chill", "weather": "mod_rain"}),
 )
 
-
-def activity_from_axis(value: float) -> ActivitySignal | None:
-    if abs(value) <= _ACTIVITY_IDLE_EPSILON:
-        return None
-    if value < 0:
-        return chill(abs(value))
-    return focus(value)
-
-
-class BatchEvaluator:
-    def __init__(self, config: LegacySchedulerConfig) -> None:
-        self.config = config
-        self._tag_specs = config.tags
-
-        all_tags: set[str] = set()
-        for playlist in config.playlists.values():
-            all_tags.update(playlist.tags.keys())
-        self._known_tags = all_tags
-        self._tag_to_index = {tag: i for i, tag in enumerate(sorted(all_tags))}
-        self._dim = len(all_tags)
-
-    def build_profile_playlist_vectors(
-        self,
-        profiles: Sequence[MatchProfile],
-    ) -> dict[str, list[tuple[str, list[float]]]]:
-        result: dict[str, list[tuple[str, list[float]]]] = {}
-        for profile in profiles:
-            normalized: list[tuple[str, list[float]]] = []
-            for name, playlist in self.config.playlists.items():
-                tags = playlist.tags
-                powered = {t: v**profile.gamma_playlist for t, v in tags.items() if v > 0}
-                norm = math.sqrt(sum(v * v for v in powered.values()))
-                if norm >= 1e-6:
-                    vec = [0.0] * self._dim
-                    for t, v in powered.items():
-                        if t in self._tag_to_index:
-                            vec[self._tag_to_index[t]] = v / norm
-                    normalized.append((name, vec))
-            result[profile.name] = normalized
-        return result
-
-    def resolve_context(
-        self,
-        policies: list[Policy],
-        context: Context,
-    ) -> dict[str, float]:
-        resolved: dict[str, float] = {}
-        for policy in policies:
-            evaluation = policy.evaluate(context)
-            policy_resolved, _ = resolve_raw_tags(
-                evaluation.raw_contribution,
-                known_tags=self._known_tags,
-                tag_specs=self._tag_specs,
-            )
-            for tag, weight in policy_resolved.items():
-                resolved[tag] = resolved.get(tag, 0.0) + weight
-        return resolved
-
-    def rank_with_gamma(
-        self,
-        resolved_context_vector: dict[str, float],
-        gamma_context: float,
-        profile_playlist_vectors: dict[str, list[tuple[str, list[float]]]],
-        profile_name: str,
-    ) -> tuple[str | None, float, float]:
-        context_dir = normalize_pow(resolved_context_vector, gamma_context)
-        return self._rank_with_context_dir(context_dir, profile_playlist_vectors, profile_name)
-
-    def _rank_with_context_dir(
-        self,
-        context_dir: dict[str, float],
-        profile_playlist_vectors: dict[str, list[tuple[str, list[float]]]],
-        profile_name: str,
-    ) -> tuple[str | None, float, float]:
-        if not context_dir:
-            return None, 0.0, 0.0
-
-        context_vec = [0.0] * self._dim
-        for tag, weight in context_dir.items():
-            if tag in self._tag_to_index:
-                context_vec[self._tag_to_index[tag]] = weight
-
-        scores: list[tuple[float, str]] = []
-        for name, playlist_vec in profile_playlist_vectors[profile_name]:
-            score = sum(a * b for a, b in zip(context_vec, playlist_vec))
-            scores.append((score, name))
-        scores.sort(reverse=True)
-
-        if not scores or scores[0][0] <= 0.001:
-            return None, 0.0, 0.0
-        winner = scores[0][1]
-        top_score = scores[0][0]
-        gap = top_score - scores[1][0] if len(scores) >= 2 else top_score
-        return winner, top_score, gap
-
-    def evaluate_grid(
-        self,
-        cases: Sequence[HeatmapCase],
-        profiles: Sequence[MatchProfile],
-        sampling: HeatmapSampling = HeatmapSampling(),
-    ) -> dict[str, dict[str, HeatmapGrid]]:
-        profile_pv = self.build_profile_playlist_vectors(profiles)
-        static_policies: list[Policy] = [
-            TimePolicy(self.config.policies.time),
-            SeasonPolicy(self.config.policies.season),
-            WeatherPolicy(self.config.policies.weather),
-        ]
-        result: dict[str, dict[str, HeatmapGrid]] = {}
-
-        for case in cases:
-            spec = _case2spec(case.mode, case.fixed)
-            x_axis = HeatmapAxis(spec.x_axis, _axis_values(spec.x_axis, sampling))
-            y_axis = HeatmapAxis(spec.y_axis, _axis_values(spec.y_axis, sampling))
-
-            profile_cells: dict[str, list[tuple[HeatmapCell, ...]]] = {profile.name: [] for profile in profiles}
-
-            for y_value in y_axis.values:
-                profile_rows: dict[str, list[HeatmapCell]] = {profile.name: [] for profile in profiles}
-                for x_value in x_axis.values:
-                    scenario = _scenario_for_point(spec, x_axis.name, x_value, y_axis.name, y_value)
-                    context = build_context(scenario)
-                    activity_policy = DirectActivityPolicy(self.config.policies.activity, scenario.activity)
-                    resolved = self.resolve_context([activity_policy, *static_policies], context)
-
-                    for profile in profiles:
-                        winner, score, gap = self.rank_with_gamma(
-                            resolved,
-                            profile.gamma_context,
-                            profile_pv,
-                            profile.name,
-                        )
-                        profile_rows[profile.name].append(HeatmapCell(winner, score, gap))
-
-                for profile in profiles:
-                    profile_cells[profile.name].append(tuple(profile_rows[profile.name]))
-
-            case_grids: dict[str, HeatmapGrid] = {}
-            for profile in profiles:
-                grid = HeatmapGrid(
-                    mode=case.mode,
-                    profile=profile,
-                    case_name=case.name,
-                    x_axis=x_axis,
-                    y_axis=y_axis,
-                    fixed=dict(spec.fixed),
-                    cells=tuple(profile_cells[profile.name]),
-                )
-                case_grids[profile.name] = grid
-            result[case.name] = case_grids
-
-        return result
+_MODE_TO_AXES: dict[str, tuple[AxisName, AxisName]] = {
+    "wx-hour": ("hour", "weather"),
+    "act-hour": ("hour", "activity"),
+    "wx-act": ("activity", "weather"),
+    "wx-doy": ("day_of_year", "weather"),
+    "act-doy": ("day_of_year", "activity"),
+    "hour-doy": ("hour", "day_of_year"),
+}
 
 
-def build_heatmap_grids_batch(
-    config: LegacySchedulerConfig,
-    cases: Sequence[HeatmapCase],
-    profiles: Sequence[MatchProfile],
-    *,
+@dataclass(frozen=True)
+class HeatmapSampling:
+    hour_step: float = 0.5
+    day_step: int = 4
+    activity_step: float = 0.05
+
+
+@dataclass(frozen=True)
+class HeatmapAxis:
+    name: AxisName
+    values: tuple[float | int | str | None, ...]
+
+    @property
+    def label(self) -> str:
+        if self.name == "day_of_year":
+            return "Day of year"
+        return self.name.replace("_", " ").title()
+
+
+@dataclass(frozen=True)
+class HeatmapGrid:
+    case: HeatmapCase
+    x_axis: HeatmapAxis
+    y_axis: HeatmapAxis
+    fixed: dict[str, object]
+    # 行=y 轴序、列=x 轴序；值为场景索引+1，0=no winner。
+    winner_indices: np.ndarray
+
+
+_MODE_CASES: dict[str, list[HeatmapCase]] = {}
+for _case in DEFAULT_HEATMAP_CASES:
+    _MODE_CASES.setdefault(_case.mode, []).append(_case)
+
+
+def evaluate_cases(
+    config: SchedulerConfig,
     sampling: HeatmapSampling = HeatmapSampling(),
-) -> dict[str, dict[str, HeatmapGrid]]:
-    """Build heatmap grids for all cases and profiles in one batch.
+    modes: tuple[str, ...] | None = None,
+) -> dict[str, list[tuple[HeatmapCase, HeatmapGrid]]]:
+    """Run every case of the selected modes through the real match pipeline."""
+    matcher = build_matcher(config)
+    scenes = list(SceneId)
+    index_by_scene = {scene: index + 1 for index, scene in enumerate(scenes)}
+    min_similarity = matcher.pool_params.min_similarity
 
-    Returns:
-        Nested dict: ``result[case_name][profile_name] -> HeatmapGrid``.
-    """
-    evaluator = BatchEvaluator(config)
-    return evaluator.evaluate_grid(cases, profiles, sampling)
-
-
-def generate_default_heatmaps(
-    config: LegacySchedulerConfig,
-    profiles: Sequence[MatchProfile],
-    figures_dir: Path,
-    *,
-    sampling: HeatmapSampling = HeatmapSampling(),
-    cases: Sequence[HeatmapCase] = DEFAULT_HEATMAP_CASES,
-) -> list[HeatmapFigure]:
-    """Render aggregated winner heatmaps grouped by mode.
-
-    Produces one PNG per mode per profile (12 figures for 2 profiles x 6 modes).
-    """
-    figures_dir.mkdir(parents=True, exist_ok=True)
-
-    all_grids = build_heatmap_grids_batch(config, list(cases), list(profiles), sampling=sampling)
-
-    cases_by_mode: dict[HeatmapMode, list[HeatmapCase]] = {}
-    for case in cases:
-        cases_by_mode.setdefault(case.mode, []).append(case)
-
-    ordered_modes: list[HeatmapMode] = []
-    seen_modes: set[HeatmapMode] = set()
-    for case in cases:
-        if case.mode not in seen_modes:
-            seen_modes.add(case.mode)
-            ordered_modes.append(case.mode)
-
-    figures: list[HeatmapFigure] = []
-    for profile in profiles:
-        for mode in ordered_modes:
-            mode_cases = cases_by_mode[mode]
-            grids = [all_grids[case.name][profile.name] for case in mode_cases]
-
-            profile_slug = _profile_slug(profile)
-            file_name = f"{profile_slug}-{_slug(mode)}.png"
-            output_path = figures_dir / file_name
-
-            _render_mode_figure(grids, config, output_path, mode)
-
-            for case in mode_cases:
-                figures.append(
-                    HeatmapFigure(
-                        path=f"heatmaps/{file_name}",
-                        profile=profile.name,
-                        mode=mode,
-                        case_name=case.name,
-                        type="winner",
-                    )
-                )
-
-    return figures
+    selected = modes or tuple(_MODE_CASES)
+    result: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]] = {}
+    for mode in selected:
+        grids: list[tuple[HeatmapCase, HeatmapGrid]] = []
+        for case in _MODE_CASES[mode]:
+            grid = _evaluate_case(config, matcher, case, sampling, scenes, index_by_scene, min_similarity)
+            grids.append((case, grid))
+        result[mode] = grids
+    return result
 
 
-def _render_mode_figure(
-    grids: list[HeatmapGrid],
-    config: LegacySchedulerConfig,
-    output_path: Path,
-    mode: HeatmapMode,
-) -> None:
-    """Render an aggregated figure with multiple case subplots for one mode."""
-    import matplotlib.colors as mpl_colors
-    import matplotlib.patches as patches
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    n_cases = len(grids)
-    ncols, nrows = _subplot_layout(n_cases)
-    fig_w, fig_h = _aggregated_figure_size(ncols, nrows, mode)
-
-    fig, axes_array = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h))
-    axes_flat = [axes_array] if not hasattr(axes_array, "flat") else list(axes_array.flat)
-
-    for idx, grid in enumerate(grids):
-        ax = axes_flat[idx]
-        _draw_winner_map(ax, grid, config, np, mpl_colors)
-        _style_axes(ax, grid)
-        fixed = ", ".join(f"{k}={_value_label(v)}" for k, v in sorted(grid.fixed.items()))
-        ax.set_title(f"{grid.case_name}\n{fixed}", fontsize=8, pad=4)
-
-    for idx in range(n_cases, len(axes_flat)):
-        axes_flat[idx].set_visible(False)
-
-    _add_winner_legend(fig, config, patches)
-    fig.tight_layout(rect=[0, 0.06, 1, 1])
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def _subplot_layout(n_cases: int) -> tuple[int, int]:
-    ncols = 4 if n_cases > 9 else 3
-    return ncols, math.ceil(n_cases / ncols)
-
-
-def _aggregated_figure_size(ncols: int, nrows: int, mode: HeatmapMode) -> tuple[float, float]:
-    cell_h = 5.5 if mode == "hour-doy" else 5.0
-    return (ncols * 6.0, nrows * cell_h)
-
-
-def _case2spec(mode: HeatmapMode, fixed: dict[str, object]) -> ViewSpec:
-    try:
-        axes = _MODE_TO_AXES[mode]
-    except KeyError as exc:
-        raise ValueError(f"unknown heatmap mode: {mode}") from exc
-    return ViewSpec(mode, x_axis=axes[0], y_axis=axes[1], fixed=fixed)
-
-
-def _axis_values(
-    axis_name: AxisName,
+def _evaluate_case(
+    config: SchedulerConfig,
+    matcher,
+    case: HeatmapCase,
     sampling: HeatmapSampling,
-) -> tuple[float | int | str | None, ...]:
+    scenes: list[SceneId],
+    index_by_scene: dict[SceneId, int],
+    min_similarity: float,
+) -> HeatmapGrid:
+    x_name, y_name = _MODE_TO_AXES[case.mode]
+    x_axis = HeatmapAxis(x_name, _axis_values(x_name, sampling))
+    y_axis = HeatmapAxis(y_name, _axis_values(y_name, sampling))
+    winners = np.zeros((len(y_axis.values), len(x_axis.values)), dtype=float)
+
+    for y_row, y_value in enumerate(y_axis.values):
+        for x_col, x_value in enumerate(x_axis.values):
+            values = dict(case.fixed)
+            values[x_name] = x_value
+            values[y_name] = y_value
+            activity_tag, strength = coerce_activity(values.get("activity"))
+            weather_name = values.get("weather")
+            context = build_context(
+                hour=float(values["hour"]),
+                day_of_year=int(values["day_of_year"]),
+                weather_name=None if weather_name is None else str(weather_name),
+                activity_tag=activity_tag,
+                activity_strength=strength,
+            )
+            prime_activity(matcher, config, activity_tag, strength)
+            match = matcher.match(context)
+            if match.scene_matches and match.scene_matches[0][1] > min_similarity:
+                winners[y_row, x_col] = index_by_scene[match.scene_matches[0][0]]
+    return HeatmapGrid(case=case, x_axis=x_axis, y_axis=y_axis, fixed=dict(case.fixed), winner_indices=winners)
+
+
+def _axis_values(axis_name: AxisName, sampling: HeatmapSampling) -> tuple[float | int | str | None, ...]:
     if axis_name == "weather":
         return WEATHER_HEATMAP_PRESETS
     if axis_name == "hour":
@@ -490,46 +247,70 @@ def _float_axis(start: float, stop: float, step: float) -> list[float]:
     return [round(start + index * step, 10) for index in range(count + 1)]
 
 
-def _scenario_for_point(
-    spec: ViewSpec,
-    x_name: AxisName,
-    x_value: float | int | str | None,
-    y_name: AxisName,
-    y_value: float | int | str | None,
-) -> Scenario:
-    values = dict(spec.fixed)
-    values[x_name] = x_value
-    values[y_name] = y_value
-    activity_value = values.get("activity")
-    activity = _coerce_activity(activity_value)
-    weather_value = values.get("weather")
-    weather_name = None if weather_value is None else str(weather_value)
-    hour = float(values["hour"])
-    day_of_year = int(values["day_of_year"])
-    return Scenario(
-        name=(f"heatmap {spec.mode} {x_name}={_value_label(x_value)} {y_name}={_value_label(y_value)}"),
-        hour=hour,
-        day_of_year=day_of_year,
-        weather=weather(weather_name),
-        activity=activity,
-        note="heatmap grid point",
-    )
+# ── 渲染 ────────────────────────────────────────────────────────────
+
+SCENE_COLORS: dict[SceneId, str] = {
+    SceneId.DAY_WORK: "#1f77b4",
+    SceneId.DAY_LEISURE: "#ff7f0e",
+    SceneId.NIGHT_WORK: "#2ca02c",
+    SceneId.NIGHT_LEISURE: "#d62728",
+    SceneId.SPRING: "#9467bd",
+    SceneId.SUMMER: "#8c564b",
+    SceneId.AUTUMN: "#e377c2",
+    SceneId.WINTER: "#7f7f7f",
+    SceneId.SUNSET: "#bcbd22",
+    SceneId.RAIN: "#17becf",
+}
 
 
-def _draw_winner_map(ax, grid: HeatmapGrid, config: LegacySchedulerConfig, np, mpl_colors):
-    playlists = list(config.playlists)
-    index_by_playlist = {playlist: index + 1 for index, playlist in enumerate(playlists)}
-    colors = ["#111827", *(config.playlists[name].color for name in playlists)]
-    data = np.array(
-        [[index_by_playlist.get(cell.winner, 0) for cell in row] for row in grid.cells],
-        dtype=float,
-    )
+def render_mode_figures(
+    config: SchedulerConfig,
+    grids_by_mode: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]],
+    figures_dir: Path,
+) -> list[Path]:
+    """One aggregated winner-map PNG per mode, legacytuning layout."""
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for mode, grids in grids_by_mode.items():
+        output_path = figures_dir / f"cur-{mode}.png"
+        _render_mode_figure(grids, output_path, mode)
+        written.append(output_path)
+    return written
+
+
+def _render_mode_figure(grids: list[tuple[HeatmapCase, HeatmapGrid]], output_path: Path, mode: str) -> None:
+    n_cases = len(grids)
+    ncols = 4 if n_cases > 9 else 3
+    nrows = math.ceil(n_cases / ncols)
+    fig_w, fig_h = (ncols * 6.0, nrows * (5.5 if mode == "hour-doy" else 5.0))
+
+    fig, axes_array = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h))
+    axes_flat = [axes_array] if not hasattr(axes_array, "flat") else list(axes_array.flat)
+
+    for index, (case, grid) in enumerate(grids):
+        axis = axes_flat[index]
+        _draw_winner_map(axis, grid)
+        _style_axes(axis, grid)
+        fixed = ", ".join(f"{key}={_value_label(value)}" for key, value in sorted(grid.fixed.items()))
+        axis.set_title(f"{case.name}\n{fixed}", fontsize=8, pad=4)
+    for axis in axes_flat[n_cases:]:
+        axis.set_visible(False)
+
+    _add_winner_legend(fig)
+    fig.tight_layout(rect=[0, 0.06, 1, 1])
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _draw_winner_map(ax, grid: HeatmapGrid) -> None:
+    scenes = list(SceneId)
+    colors = ["#111827", *(SCENE_COLORS[scene] for scene in scenes)]
     cmap = mpl_colors.ListedColormap(colors)
     norm = mpl_colors.BoundaryNorm(np.arange(len(colors) + 1) - 0.5, len(colors))
-    return ax.pcolormesh(
-        _axis_edges(grid.x_axis, np),
-        _axis_edges(grid.y_axis, np),
-        data,
+    ax.pcolormesh(
+        _axis_edges(grid.x_axis),
+        _axis_edges(grid.y_axis),
+        grid.winner_indices,
         cmap=cmap,
         norm=norm,
         shading="flat",
@@ -593,20 +374,7 @@ def _style_single_axis(ax, orientation: Literal["x", "y"], axis: HeatmapAxis) ->
         return
     if axis.name == "day_of_year":
         ticks = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349]
-        labels = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-        ]
+        labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         if orientation == "x":
             ax.set_xlim(1, 365)
             ax.set_xticks(ticks)
@@ -618,30 +386,30 @@ def _style_single_axis(ax, orientation: Literal["x", "y"], axis: HeatmapAxis) ->
             ax.invert_yaxis()
 
 
-def _axis_edges(axis: HeatmapAxis, np):
+def _axis_edges(axis: HeatmapAxis) -> np.ndarray:
     values = axis.values
     if axis.name == "weather":
         return np.arange(len(values) + 1)
-    numeric_values = [float(value) for value in values]
+    numeric = [float(value) for value in values]
     if axis.name == "hour":
-        step = numeric_values[1] - numeric_values[0] if len(numeric_values) > 1 else 1.0
-        return np.append(np.array(numeric_values), numeric_values[-1] + step)
+        step = numeric[1] - numeric[0] if len(numeric) > 1 else 1.0
+        return np.append(np.array(numeric), numeric[-1] + step)
     if axis.name == "activity":
-        return _midpoint_edges(numeric_values, np, -1.0, 1.0)
+        return _midpoint_edges(numeric, -1.0, 1.0)
     if axis.name == "day_of_year":
-        return _midpoint_edges(numeric_values, np, 1.0, 365.0)
+        return _midpoint_edges(numeric, 1.0, 365.0)
     raise ValueError(f"unknown heatmap axis: {axis.name}")
 
 
-def _midpoint_edges(values: list[float], np, lower: float, upper: float):
+def _midpoint_edges(values: list[float], lower: float, upper: float) -> np.ndarray:
     if len(values) == 1:
         return np.array([lower, upper])
     mids = [(left + right) / 2 for left, right in zip(values, values[1:])]
     return np.array([lower, *mids, upper])
 
 
-def _add_winner_legend(fig, config: LegacySchedulerConfig, patches) -> None:
-    handles = [patches.Patch(facecolor=playlist.color, label=name) for name, playlist in config.playlists.items()]
+def _add_winner_legend(fig) -> None:
+    handles = [patches.Patch(facecolor=color, label=scene.value) for scene, color in SCENE_COLORS.items()]
     handles.insert(0, patches.Patch(facecolor="#111827", label="no winner"))
     fig.legend(
         handles=handles,
@@ -649,7 +417,7 @@ def _add_winner_legend(fig, config: LegacySchedulerConfig, patches) -> None:
         ncol=min(5, len(handles)),
         frameon=True,
         fontsize=8,
-        title="Playlist",
+        title="Scene",
     )
 
 
@@ -661,26 +429,12 @@ def _value_label(value: object) -> str:
     return str(value)
 
 
-def _slug(value: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip()).strip("-_.")
-    return slug or "profile"
-
-
-def _profile_slug(profile: MatchProfile) -> str:
-    if profile.name == "current":
-        return "cur"
-    return f"p{_compact_gamma(profile.gamma_playlist)}c{_compact_gamma(profile.gamma_context)}"
-
-
-def _compact_gamma(value: float) -> str:
-    return f"{round(value * 100):03d}"
-
-
-def _coerce_activity(value: object) -> ActivitySignal | None:
-    if isinstance(value, ActivitySignal) or value is None:
-        return value
-    if value == "#focus":
-        return focus()
-    if value == "#chill":
-        return chill()
-    return activity_from_axis(float(value))
+__all__ = [
+    "DEFAULT_HEATMAP_CASES",
+    "HeatmapCase",
+    "HeatmapGrid",
+    "HeatmapSampling",
+    "SCENE_COLORS",
+    "evaluate_cases",
+    "render_mode_figures",
+]
