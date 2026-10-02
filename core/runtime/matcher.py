@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from configurations.runtime_models import SceneConfig, TagSpec
@@ -15,9 +16,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("Tunalo.Matcher")
 
-_MIN_SIMILARITY = 0.001
-_CLUSTER_GAP_THRESHOLD = 0.02
-_MAX_CLUSTER_SIZE = 3
+
+@dataclass(frozen=True)
+class PoolParams:
+    """场景池聚类参数：入池分数下限、相邻分差阈值、池大小上限。
+
+    属于运行时机制，不进 Profile；调参工具经由构造参数扫描这些值。
+    """
+
+    min_similarity: float = 0.001
+    cluster_gap_threshold: float = 0.02
+    max_cluster_size: int = 3
 
 
 class Matcher:
@@ -26,8 +35,10 @@ class Matcher:
         scene_configs: dict[SceneId, SceneConfig],
         policies: list[Policy],
         tag_specs: dict[str, TagSpec] | None = None,
+        pool_params: PoolParams | None = None,
     ):
         self.policies = policies
+        self.pool_params = pool_params or PoolParams()
         self._tag_specs: dict[str, TagSpec] = tag_specs or {}
         self._item_counts: dict[SceneId, int] = {scene_id: config.item_count for scene_id, config in scene_configs.items()}
 
@@ -102,11 +113,11 @@ class Matcher:
 
                 # Gap-based clustering
                 for i, (score, scene_id) in enumerate(raw_scores):
-                    if score < _MIN_SIMILARITY:
+                    if score < self.pool_params.min_similarity:
                         break
-                    if i >= _MAX_CLUSTER_SIZE:
+                    if i >= self.pool_params.max_cluster_size:
                         break
-                    if i > 0 and raw_scores[i - 1][0] - score > _CLUSTER_GAP_THRESHOLD:
+                    if i > 0 and raw_scores[i - 1][0] - score > self.pool_params.cluster_gap_threshold:
                         break
                     best_scene_ids.append(scene_id)
 
