@@ -34,11 +34,11 @@ const emit = defineEmits<{
 
 const copy = computed(() => COPY[props.locale])
 const latitudeInvalid = computed(() =>
-  props.location.latitude === null || !Number.isFinite(props.location.latitude) ||
+  props.location.latitude === null ||
   props.location.latitude < -90 || props.location.latitude > 90,
 )
 const longitudeInvalid = computed(() =>
-  props.location.longitude === null || !Number.isFinite(props.location.longitude) ||
+  props.location.longitude === null ||
   props.location.longitude < -180 || props.location.longitude > 180,
 )
 
@@ -64,7 +64,8 @@ function setCoordinate(field: Coordinate, value: string | number): void {
   const parsed = value === "" ? null : Number(value)
   emit("update:location", {
     ...props.location,
-    [field]: parsed !== null && Number.isFinite(parsed) ? parsed : null,
+    // 输入侧统一过滤：空串与非法输入（NaN/Infinity）都归为未填写。
+    [field]: Number.isFinite(parsed) ? parsed : null,
   })
 }
 </script>

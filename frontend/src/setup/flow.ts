@@ -47,14 +47,13 @@ export function evaluateSteps(
   wallpaperReady: boolean,
   playlists: PlaylistScanResult["playlists"],
 ): StepEvaluation {
+  // 草稿坐标只会是 null 或有限数：输入解析过滤非有限值，后端 JSON 无法携带 NaN/Infinity。
   const location = draft.weather.location
   const locationValid =
     location.latitude !== null &&
-    Number.isFinite(location.latitude) &&
     location.latitude >= -90 &&
     location.latitude <= 90 &&
     location.longitude !== null &&
-    Number.isFinite(location.longitude) &&
     location.longitude >= -180 &&
     location.longitude <= 180
 
@@ -69,9 +68,7 @@ export function evaluateSteps(
       wallpaper: wallpaperReady,
       weather: draft.weather.api_key.trim().length > 0 && locationValid,
       scenes: scenesValid,
-      scheduling:
-        hasValidTiming(draft.disturbance) &&
-        Boolean(draft.matching.response_style),
+      scheduling: hasValidTiming(draft.disturbance),
       activity: conflicts.length === 0,
     },
     conflicts,

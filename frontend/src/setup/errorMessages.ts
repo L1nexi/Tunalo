@@ -28,7 +28,8 @@ export function describeError(error: unknown, locale: Locale): string {
     const stage = copy.errors.stages[error.payload.stage]
     return `${stage}: ${error.payload.detail || error.payload.error}`
   }
-  return error.message || copy.errors.generic
+  // ApiError.message 由后端必填的 error 字段构成，不会为空；非 ApiError 已在上面兜住。
+  return error.message
 }
 
 export function describeScanError(error: unknown, locale: Locale): string {

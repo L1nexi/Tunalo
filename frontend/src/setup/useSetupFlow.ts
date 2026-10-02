@@ -155,7 +155,8 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
       return false
     }
     if (!allValid.value) {
-      activeStep.value = missingSteps.value[0]?.id ?? "wallpaper"
+      // allValid 为假时缺失步骤必然非空，两者由同一份 evaluation 推导。
+      activeStep.value = missingSteps.value[0].id
       stepError.value = "validation"
       void focusStep(true)
       return false
