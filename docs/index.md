@@ -40,6 +40,7 @@
 | 文档                                                   | 作用                                                                | 状态     |
 | ------------------------------------------------------ | ------------------------------------------------------------------- | -------- |
 | `adr/0001-productization-server-and-profile-editor.md` | 产品化本地服务端、REST Profile 接口、城市定位与设置窗口的架构交接。 | Accepted |
+| [adr/0002-scene-model-rethink-and-neutral-baseline.md](adr/0002-scene-model-rethink-and-neutral-baseline.md) | 旧匹配心智的溯源、整体模型重审与中立随机基准；具体新模型仍待讨论。 | Accepted |
 
 ## Half-Finished
 
