@@ -1,12 +1,12 @@
 # Docs Index
 
-`docs/` 按规格生命周期管理，不按 `current` / `legacy` 二分。代码、测试、运行配置和正在推进的 active spec 才是当前实现依据；已完成规格进入归档后，保留为项目记忆和设计背景。
+`docs/` 按规格生命周期管理，不按 `current` / `legacy` 二分。代码、测试、运行配置和正在推进的 active spec 才是当前实现依据；已完成规格进入归档后，保留为项目记忆和设计背景。进行中的设计讨论单独标明确认范围，未定案方案不直接作为实现契约。
 
 ## 生命周期
 
 | 路径                   | 定位                                        | 管理规则                                                                                                                 |
 | ---------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `docs/*.md`            | 当前规格、问题列表与开发指引                | 规格完成后移入 `archived/done/`；废弃后移入 `archived/deprecated/` 或 `archived/outdated/`。问题列表与开发指引持续更新。 |
+| `docs/*.md`            | 当前规格、进行中的设计讨论、问题列表与开发指引 | 规格完成后移入 `archived/done/`；废弃后移入 `archived/deprecated/` 或 `archived/outdated/`。问题列表与开发指引持续更新。 |
 | `half-finished/`       | 暂停的规格、研究记录、访谈和未来方向        | 想法仍有价值但不在当前实现路径上时保留在这里。                                                                           |
 | `superpowers/`         | 本地 agent 工作过程记录                     | 作为 scratch / work-in-progress 使用，默认不推远端；有长期价值的完成记录归档到 `archived/done/superpowers/`。            |
 | `archived/done/`       | 已完成规格和实施记录                        | 完成态历史记录。可以解释当前行为，但不作为持续维护的 current contract。                                                  |
@@ -28,6 +28,12 @@
 | ------------------------ | ------------------------------------------------ |
 | `DEVELOPMENT.md`         | 本地运行、检查、打包与实现入口。                 |
 | `PRODUCT_POSITIONING.md` | 长期产品定位、目标用户与开发阶段的体验判断准则。 |
+
+## 进行中的设计讨论
+
+| 文档 | 作用 | 状态 |
+| --- | --- | --- |
+| [SCENE_SELECTION_MODEL_DISCUSSION.md](SCENE_SELECTION_MODEL_DISCUSSION.md) | 用户偏好的级联表达、场景并集召回与变量概率预算；区分已确认方向、探索方案和行为草案，并承接上下文语义问题。 | 问题一、二讨论已记录；准备讨论问题三，具体算法未定案。 |
 
 ## Active Specs
 
@@ -82,6 +88,7 @@
 
 这些文档记录背景事实、POC 和推迟的架构方向：
 
+- [OPENWEATHER_CURRENT_API.md](archived/reference/OPENWEATHER_CURRENT_API.md)：OWM 当前天气接口的请求参数、响应字段、天气代码与数据口径。
 - `archived/reference/WE_CLI.md`
 - `archived/reference/WE_CLI_POC.md`
 - `archived/reference/SEMANTIC-REFACTOR-SPEC.md`
