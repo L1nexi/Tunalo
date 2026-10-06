@@ -33,7 +33,10 @@
 
 | 文档 | 作用 | 状态 |
 | --- | --- | --- |
-| [SCENE_SELECTION_MODEL_DISCUSSION.md](SCENE_SELECTION_MODEL_DISCUSSION.md) | 用户偏好的级联表达、场景并集召回与变量概率预算；区分已确认方向、探索方案和行为草案，并承接上下文语义问题。 | 问题一、二讨论已记录；准备讨论问题三，具体算法未定案。 |
+| [场景选择模型讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md) | 三个问题的入口、共同产品边界、设计原则与中立参照。 | 讨论进行中。 |
+| [问题一：用户偏好](SCENE_SELECTION_USER_PREFERENCES.md) | 粗变量的级联偏好、负向意愿与细粒度表达。 | 级联方向已确认，具体交互与表达范围待讨论。 |
+| [问题二：场景选择与概率预算](SCENE_SELECTION_PROBABILITY_MODEL.md) | 正向并集召回、负向排除、变量预算、约束实例及探索方案。 | 机制方向已确认，具体分布、采样和状态更新待讨论。 |
+| [问题三：上下文语义与显著度](SCENE_SELECTION_CONTEXT_SEMANTICS.md) | 有符号显著度、共同锚点、时段与季节曲线、天气语义及活动观测。 | 当前推进到桌面窗口池轨迹，具体构建函数待讨论。 |
 
 ## Active Specs
 
