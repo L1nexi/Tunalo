@@ -33,16 +33,20 @@
 
 | 文档 | 作用 | 状态 |
 | --- | --- | --- |
-| [场景选择模型讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md) | 三个问题的入口、分项进度清点、共同产品边界、设计原则与中立参照。 | 2026-10-07 更新；整体模型仍在讨论。 |
+| [场景选择模型讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md) | 三个问题的入口、分项进度清点、共同产品边界、设计原则与中立参照。 | 保留推导背景；2026-10-09 的现行决定以 SPEC 和实施计划为准。 |
 | [问题一：用户偏好](SCENE_SELECTION_USER_PREFERENCES.md) | 粗变量的级联偏好、负向意愿与细粒度表达。 | 级联方向已确认，具体交互与表达范围待讨论。 |
-| [问题二：场景选择与概率预算](SCENE_SELECTION_PROBABILITY_MODEL.md) | 正向并集召回、负向排除、变量预算、约束实例及探索方案。 | 匹配框架已确认，具体分布与尽力选择待讨论；重抽时机和调度状态更新另归调度模型。 |
-| [问题三：上下文语义与显著度](SCENE_SELECTION_CONTEXT_SEMANTICS.md) | 有符号显著度、共同锚点、平台与 S 形周期过渡、天气强度标尺及活动轨迹构建。 | 活动保留 30 分钟轨迹；周期平台结构和降雨四档映射已确认。锚点位置、参数、数据对应及跨变量校准待落实。 |
+| [问题二：场景选择与概率预算](SCENE_SELECTION_PROBABILITY_MODEL.md) | 正向并集召回、负向排除、变量预算、方向投影评分、约束实例及探索方案。 | 最高正向显著度形成 softmax 预算，空层级联至穷尽；主干及内部初值已进入规格，调度仅作最小接入。 |
+| [问题三：上下文语义与显著度](SCENE_SELECTION_CONTEXT_SEMANTICS.md) | 有符号显著度、共同锚点、平台与 S 形周期过渡、天气强度标尺及活动轨迹构建。 | 历史推导；活动 600 槽、季节平台、API 对齐的无平台时段及逐代码天气数值见新规格。 |
 
 ## Active Specs
 
 | 文档                           | 作用                                                       | 状态   |
 | ------------------------------ | ---------------------------------------------------------- | ------ |
 | `PRODUCTIZATION_PHASE_PLAN.md` | 配置 profile、Tick History 与 setup GUI 的产品化阶段规划。 | Active |
+| [SCENE_SELECTION_MODEL_SPEC.md](SCENE_SELECTION_MODEL_SPEC.md) | 上下文语义、级联偏好、变量预算、场景概率与验收行为。 | 待实施；已纳入 2026-10-09 决定及内部初值。 |
+| [场景选择模型实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) | Sensor、Policy、Matcher 重构、配置与运行时接入，以及整体实现后的行为测试计划。 | 待实施；复用采集、重构模型，完整实现后集中测试。 |
+| [构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md) | 内部初值、600 槽算例、内置活动规则、55 个 OWM 代码与 Scene 关联。 | 第一版实施取值；后续按实际行为校准。 |
+| [场景选择模型实施开放问题](open-questions.md) | 原问题的已确认结论及后续问题记录入口。 | 本轮问题已关闭，当前无阻挡实施的开放项。 |
 
 ## Architecture Decisions
 
