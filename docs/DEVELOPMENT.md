@@ -57,6 +57,10 @@ npm run build-only
 
 ## 场景选择模型
 
+决策与取舍分别见 [ADR-0003：偏好级联与概率预算](adr/0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](adr/0004-context-salience-and-observation-boundaries.md)、[ADR-0005：选择与调度边界](adr/0005-selection-and-scheduling-boundary.md)。本文维护当前实现入口与可调整的内部取值，领域概念见 [CONTEXT.md](../CONTEXT.md)。
+
+### Profile 与界面接入
+
 Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表表示中立回退。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
 
 `activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity` 或设为 `null` 时使用内置默认规则；显式提供对象时完全使用其中的规则，空对象表示不识别活动。这三种状态在保存和重新加载后保持不变。
@@ -64,6 +68,26 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 `ProfileCompiler` 处理用户 Profile 和内置规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
 
 前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。
+
+### 内部参数与规则入口
+
+以下为 2026-10-11 的实现取值，不是用户设置，也不将所有初值固定成长期决策。调整参数继续满足 ADR 的感知锚点、分布性质与暴雨排序约束。
+
+| 参数 | 当前值 | 实现入口 |
+| --- | --- | --- |
+| 正向边界、负向边界幅度 | 各 0.5，数据模型允许不同取值 | `MatchingConfig` |
+| 变量温度、场景温度 | 1.4、1.5，分别控制来源预算和候选内部的探索程度 | `MatchingConfig` |
+| 活动窗口、年龄尺度 | 600 槽、300 槽 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
+| 活动、季节、时段曲线参数 | 各自的 `curve_q` 均为 0.5，三者独立 | 对应 PolicyConfig |
+| 季节周期、四季峰值 | 365 日；80／172／265／355 | `SeasonPolicy`、`SeasonPolicyConfig` |
+| 季节平台半宽、时段平台 | 10 日；时段无平台 | `SeasonPolicyConfig`、`TimePolicy` |
+| 天气弱反向系数 | 0.25 | `WeatherPolicy` |
+
+变量温度需满足 `T_V < 1/ln(2)`，使暴雨为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。
+
+配置定义见 [runtime_models.py](../configurations/runtime_models.py)。十个 Scene 的直接语义关联集中在 [ProfileCompiler](../configurations/profile_compiler.py)：四个日间／夜间工作和娱乐场景分别关联时段与活动，四季、黄昏和雨天分别关联对应单项语义。雪、黎明等没有独立预设，不补回旧标签回退，也不由讨论中的复合例子自动扩充产品目录。
+
+内置活动规则集中在 [activity_rules.py](../configurations/activity_rules.py)，天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)。这些表由实现维护，不在文档中复制另一份逐应用或逐代码配置；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
 
 ### 运行时契约与历史记录
 
@@ -83,13 +107,24 @@ Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导�
 
 800～804 的正向依据依次为晴朗 1、晴朗 0.75、晴朗／阴天各 0.25、阴天 0.75、阴天 1。它们是内部校准初值。示例：晴朗输出 `(1,-0.25,-1,-1)`，全阴输出 `(-0.25,1,-0.25,-0.25)`，大雨输出 `(-1,-0.25,1,0)`，暴雨输出 `(-2,-0.25,2,0)`；元组顺序为晴朗、阴天、雨、雪。
 
-已知代码优先，即使推导结果全零也不按主分类重解释。未知代码时，`Clear`、`Clouds` 分别提供晴朗／阴天 1，`Rain`、`Drizzle`、`Snow` 沿用雨 0.5、雨 0.2、雪 0.75 的初值。没有观测或无法识别时保持全零；请求失败时继续解释 Sensor 的既有缓存。归档规则表中的雨雪正向强度仍沿用，晴朗／阴云全零的旧说明已由这里取代。
+已知代码优先，即使推导结果全零也不按主分类重解释。未知代码时，`Clear`、`Clouds` 分别提供晴朗／阴天 1，`Rain`、`Drizzle`、`Snow` 使用雨 0.5、雨 0.2、雪 0.75 的初值。没有观测或无法识别时保持全零；请求失败时继续解释 Sensor 的既有缓存。雨雪的正向强度及中间代码取值以 WeatherPolicy 为准，不把早期晴朗／阴云全零处理恢复为当前行为。
+
+### 概率计算、回放与行为验证
 
 Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；它调用匹配流程中的 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
 
 活动轨迹保存工作、休闲、OTHER 类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别汇总各语义项的证据后再应用幅度曲线。ActivityPolicy 组织 600 个年龄采样点，并选定指数衰减的尺度、底数和幂次；数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
 
-模型回归在既有公开入口验证：纯概率入口的独立 SPEC 算例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及真实 Engine 的执行结果。不会为私有分类器、评分辅助函数或状态容器单开测试；测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
+模型回归在既有公开入口验证：ADR 中的约束实例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及真实 Engine 的执行结果。不会为私有分类器、评分辅助函数或状态容器单开测试；测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
+
+| 行为证据 | 入口 |
+| --- | --- |
+| 中立基准、简单与复合场景、预算、级联、排除、尽力选择与边界 | [test_selection_model.py](../tests/test_selection_model.py) |
+| 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系 | [test_semantic_model.py](../tests/test_semantic_model.py) |
+| 偏好编译、播单名称与大小无关、自定义活动规则及保存回填 | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
+| 最新概率消费、暂停观察、阻塞不抽样、热替换和执行失败 | [test_selection_pipeline.py](../tests/test_selection_pipeline.py)、[test_profile_manager.py](../tests/test_profile_manager.py) |
+
+确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。模型与后端消费的验收不覆盖当前尚未接入的新版设置界面；后续事项见 [TODO](TODO.md)。
 
 ```powershell
 .\.venv\Scripts\python.exe tools/tuning/calibrate.py

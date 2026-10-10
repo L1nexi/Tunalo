@@ -20,7 +20,7 @@
 | ---------------------- | -------------------------------- |
 | `TODO.md`              | 后续小版本的体验与产品改进待办。 |
 | `ACCEPTANCE_ISSUES.md` | 2026-09-23 桌面验收开放问题。    |
-| [FRONTEND_UX_UI_REVIEW_2026-09-28.md](FRONTEND_UX_UI_REVIEW_2026-09-28.md) | 前端 UX、UI 与布局审查；两阶段（第一阶段 UX、第二阶段 UI 含品牌强调色）均已实施并经桌面验收，响应风格等最终文案待定稿；2026-10-01 复审修复轮记录见文内第 6 节。 |
+| [FRONTEND_UX_UI_REVIEW_2026-09-28.md](FRONTEND_UX_UI_REVIEW_2026-09-28.md) | 前端 UX、UI 与布局审查及桌面验收历史；2026-10-01 修复记录见第 6 节。新版场景偏好界面和 Profile 接入尚待设计，见 TODO。 |
 
 ## 开发指引
 
@@ -29,39 +29,27 @@
 | `DEVELOPMENT.md`         | 本地运行、检查、打包与实现入口。                 |
 | `PRODUCT_POSITIONING.md` | 长期产品定位、目标用户与开发阶段的体验判断准则。 |
 
-## 进行中的设计讨论
-
-| 文档 | 作用 | 状态 |
-| --- | --- | --- |
-| [场景选择模型讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md) | 三个问题的入口、分项进度清点、共同产品边界、设计原则与中立参照。 | 保留推导背景；2026-10-09 的现行决定以 SPEC 和实施计划为准。 |
-| [问题一：用户偏好](SCENE_SELECTION_USER_PREFERENCES.md) | 粗变量的级联偏好、负向意愿与细粒度表达。 | 级联方向已确认，具体交互与表达范围待讨论。 |
-| [问题二：场景选择与概率预算](SCENE_SELECTION_PROBABILITY_MODEL.md) | 正向并集召回、负向排除、变量预算、方向投影评分、约束实例及探索方案。 | 最高正向显著度形成 softmax 预算，空层级联至穷尽；主干及内部初值已进入规格，调度仅作最小接入。 |
-| [问题三：上下文语义与显著度](SCENE_SELECTION_CONTEXT_SEMANTICS.md) | 有符号显著度、共同锚点、平台与 S 形周期过渡、天气强度标尺及活动轨迹构建。 | 历史推导；活动 600 槽、季节平台、API 对齐的无平台时段及逐代码天气数值见新规格。 |
-
 ## Active Specs
 
 | 文档                           | 作用                                                       | 状态   |
 | ------------------------------ | ---------------------------------------------------------- | ------ |
-| `PRODUCTIZATION_PHASE_PLAN.md` | 配置 profile、Tick History 与 setup GUI 的产品化阶段规划。 | Active |
-| [场景选择模型实施开放问题](open-questions.md) | 原问题的已确认结论及后续问题记录入口。 | Tick History 与历史导出保持现状；选择、调度和历史记录的类型职责已拆分。天气观测字段的进一步利用仍待设计。 |
+| `PRODUCTIZATION_PHASE_PLAN.md` | 产品化阶段规划与既有配置、Tick History、setup 边界；场景模型的后续变更见 ADR。 | 界面接入待继续 |
 
-## 场景选择模型：初步实施记录
+## 场景选择模型阅读入口
 
-以下归档保留初步实施的设计与验收依据。2026-10-11 已恢复用户自定义活动规则、集中数学工具并撤回前端改动；当前配置和开发状态以 [开发指引](DEVELOPMENT.md) 为准；运行时契约已按选择、调度与历史记录拆分。
+已确认决策与取舍由 ADR-0002～0005 承接；领域词表见根目录 [CONTEXT.md](../CONTEXT.md)，当前参数、代码和验证入口见[开发指引](DEVELOPMENT.md#场景选择模型)。模型与后端消费已实现，前端仍使用旧 Profile 契约，具体界面、长期校准及后续语义探索见 [TODO](TODO.md)。
 
-| 文档 | 作用 | 状态 |
-| --- | --- | --- |
-| [SCENE_SELECTION_MODEL_SPEC.md](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md) | 上下文语义、级联偏好、变量预算、场景概率与验收行为。 | 已实现并验证；详见实施验收记录。 |
-| [场景选择模型实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) | Sensor、Policy、Selector 重构、配置与运行时接入，以及整体实现后的行为测试计划。 | 已实施并验证；完整实现后集中测试。 |
-| [构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md) | 内部初值、600 槽算例、内置活动规则、55 个 OWM 代码与 Scene 关联。 | 第一版实施取值；后续按实际行为校准。 |
-| [场景选择模型实施验收](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_ACCEPTANCE.md) | 公开接口行为、曲线、原生窗口、真实天气和 Wallpaper Engine 的验证证据。 | 已完成；正式配置未改写。 |
+2026-10-11 已清理本轮讨论总览、分项讨论、实施规格、计划、初值表、初步验收及开放问题等中间文档；未决事项已迁入 TODO。需要追溯原始讨论或实施过程时使用 Git 历史，不从旧过程记录推定当前能力。
 
 ## Architecture Decisions
 
 | 文档                                                   | 作用                                                                | 状态     |
 | ------------------------------------------------------ | ------------------------------------------------------------------- | -------- |
 | `adr/0001-productization-server-and-profile-editor.md` | 产品化本地服务端、REST Profile 接口、城市定位与设置窗口的架构交接。 | Accepted |
-| [adr/0002-scene-model-rethink-and-neutral-baseline.md](adr/0002-scene-model-rethink-and-neutral-baseline.md) | 旧匹配心智的溯源、整体模型重审与中立随机基准；具体新模型仍待讨论。 | Accepted |
+| [ADR-0002](adr/0002-scene-model-rethink-and-neutral-baseline.md) | 旧匹配心智的溯源、整体模型重审与中立随机基准。 | Accepted |
+| [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md) | 偏好级联、正向召回与负向排除、变量预算、条件场景概率及尽力选择。 | Accepted |
+| [ADR-0004](adr/0004-context-salience-and-observation-boundaries.md) | 有符号显著度、有限活动轨迹、季节与时段锚点、天气共同推导及观测边界。 | Accepted |
+| [ADR-0005](adr/0005-selection-and-scheduling-boundary.md) | 选择与调度分工、执行时抽样、状态所有权、类型职责、诊断及配置接入边界。 | Accepted |
 
 ## Half-Finished
 
@@ -114,5 +102,6 @@
 - `README.md` 面向用户和发布包读者；实现规格、产品规格和研究记录放在 `docs/`。
 - 不新建 `current/` 桶。规格完成后应进入 `archived/done/`，即使对应实现仍然是当前行为。
 - active spec 完成后，移动到 `archived/done/` 并同步更新本索引。
+- 已完成实现的决策与理由整理为 ADR 后，可清理重复的讨论和实施中间文档；保留代码与行为验证入口，将尚未完成的工作迁入 TODO，并同步清除旧引用。
 - 路线明确放弃后，移动到 `archived/deprecated/`；如果文档内缺少状态说明，补一段短说明。
 - 大型旧文档不再匹配当前代码时，移动到 `archived/outdated/`。

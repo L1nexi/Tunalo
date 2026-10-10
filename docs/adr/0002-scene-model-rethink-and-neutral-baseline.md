@@ -13,6 +13,10 @@ date: 2026-10-03
 
 具体实现不能从本文的示例倒推：余弦相似度是否保留、规则与评分如何使用、复合场景如何处理、偏好如何表达，以及最终默认采用中立行为还是推荐预设，都尚未定案。显著值窗口等方案属于讨论构想。
 
+### 2026-10-11 后续决策
+
+上述范围描述的是 2026-10-03 重审当时；本记录保留旧心智与设计出发点。后续已经确认并实现的决策由 [ADR-0003：偏好级联与概率预算](0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](0004-context-salience-and-observation-boundaries.md)、[ADR-0005：选择与调度边界](0005-selection-and-scheduling-boundary.md) 承接。文中的旧算法、开放项和示例构想不作为当前实现契约；当前参数与接入状态见[开发指引](../DEVELOPMENT.md#场景选择模型)。
+
 ## 旧产品心智及其形成过程
 
 ### 调度主体是用户定义的播单
@@ -120,13 +124,11 @@ date: 2026-10-03
 
 本文不把这些开放问题拆成已确定的实施顺序，也不把示例构想写成约束。后续设计从上述产品语义出发，继续讨论。
 
-## 当前实现与历史参考
+## 当时实现与历史参考
 
-- [领域术语](../../CONTEXT.md)：当前 Scene、Policy、响应风格与连续性等术语；新模型形成后再按确认结果调整。
-- [产品定位](../PRODUCT_POSITIONING.md)：场景关联、用户审美主导权与现有候选池语义。涉及旧匹配机制的表述同样处于本次重审范围。
-- [产品化规划](../PRODUCTIZATION_PHASE_PLAN.md)：现有 Profile 与五档响应风格的规划背景。
-- [后续待办](../TODO.md)：此前已识别场景权重的旧心智残留；本 ADR 将问题扩展到模型目标与整体语义。
+- [领域术语](../../CONTEXT.md)：持续维护的领域词表，后续已按新模型更新。
+- [产品定位](../PRODUCT_POSITIONING.md)：场景与播单解耦、用户审美主导权及免打扰目标。
+- [产品化规划](../PRODUCTIZATION_PHASE_PLAN.md)：Profile 和旧五档响应风格的规划背景，后续变更以新 ADR 为准。
+- [后续待办](../TODO.md)：本轮模型重构已完成，未完成的界面接入及后续探索继续记录在这里。
 - [早期语义重构记录](../archived/reference/SEMANTIC-REFACTOR-SPEC.md)：播单亲和度、策略贡献分解与保留余弦的历史理由。
-- [Profile 编译器](../../configurations/profile_compiler.py)：当前场景标签、回退关系与响应风格权重组。
-- [Policy 基类](../../core/policies/base.py)：当前方向、显著性、强度与权重形成贡献的方式。
-- [匹配器](../../core/runtime/matcher.py)及[标签解析器](../../core/runtime/tag_resolver.py)：当前标签空间、贡献融合、余弦计算与候选池形成方式。
+- 本记录形成时的 `profile_compiler.py`、Policy、`matcher.py` 和 `tag_resolver.py` 保存于 Git 历史；旧匹配器及标签解析器已在后续实现中移除。当前实现入口见后续 ADR，不将已删除源码作为仍可访问的链接。
