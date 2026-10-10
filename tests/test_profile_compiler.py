@@ -84,7 +84,7 @@ def test_m20_playlist_name_size_and_many_to_one_binding_do_not_change_scene_prob
 
 
 def test_product_defaults_satisfy_violent_rain_budget_constraint():
-    from core.models.semantics import Salience
+    from core.models.selection import Salience
     from core.runtime.selector import calculate_distribution
 
     config = ProfileCompiler.compile(profile())

@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.scene import SceneId
-from core.models.semantics import ContextVariable
+from core.models.selection import ContextVariable
 
 
 class ProfileModel(BaseModel):

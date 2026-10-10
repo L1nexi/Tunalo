@@ -11,8 +11,7 @@ from configurations.runtime_models import ActivityPolicyConfig
 from core.math_utils import exponential_decay, s_curve
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
-from core.models.semantics import VARIABLE_ITEMS, ContextVariable, SemanticItem
-from core.models.trace import ActivityDetails, ActivityEvaluation
+from core.models.selection import VARIABLE_ITEMS, ActivityDetails, ActivityEvaluation, ContextVariable, SemanticItem
 from core.policies.base import Policy
 
 _MATCH_SOURCE_PRIORITY = {

@@ -4,7 +4,7 @@ import pytest
 
 from configurations.runtime_models import SceneConfig
 from core.models.scene import SceneId, Scenes
-from core.models.trace import DecisionMode
+from core.models.scheduling import DecisionMode
 from core.runtime.act_plan import plan_actuation
 from core.runtime.we_config import FactualPlaylistState, FactualPlaylistStatus
 

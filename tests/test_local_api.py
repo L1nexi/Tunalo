@@ -18,17 +18,9 @@ from configurations.profile_store import ProfileStore
 from configurations.runtime_models import SceneConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId, Scenes
-from core.models.trace import (
-    Action,
-    ActionResult,
-    ActPlan,
-    BlockerEvaluation,
-    Decision,
-    DecisionMode,
-    ScheduleTrace,
-    Selection,
-    TickTrace,
-)
+from core.models.scheduling import Action, ActionResult, ActPlan, BlockerEvaluation, Decision, DecisionMode, ScheduleResult
+from core.models.selection import Selection
+from core.models.trace import TickTrace
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
 from core.state.tick_history import TickHistoryStore
@@ -211,7 +203,7 @@ def _make_trace(
         ts=1714800000.0 + tick_id,
         paused=paused,
         pause_until=1714803600.0 if paused else 0.0,
-        schedule=ScheduleTrace(
+        schedule=ScheduleResult(
             context=Context(
                 window=WindowData(process="chrome.exe", title="Code Review"),
                 idle=12.5,

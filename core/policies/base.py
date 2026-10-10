@@ -5,7 +5,7 @@ from typing import Any, ClassVar
 
 from configurations.runtime_models import BasePolicyConfig
 from core.models.context import Context
-from core.models.trace import PolicyEvaluation
+from core.models.selection import PolicyEvaluation
 
 
 class Policy(ABC):

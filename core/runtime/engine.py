@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from configurations.runtime_models import SchedulerConfig
 from core.models.context import ContextManager
 from core.models.scene import Scenes
-from core.models.trace import ScheduleTrace
+from core.models.scheduling import ScheduleResult
 from core.policies import POLICY_REGISTRY, Policy
 from core.runtime.act_plan import plan_actuation
 from core.runtime.actuator import Actuator
@@ -83,7 +83,7 @@ class Engine:
         cached_scenes: Scenes,
         paused: bool,
         manual_requested: bool,
-    ) -> ScheduleTrace:
+    ) -> ScheduleResult:
         context = self.context_manager.sense()
         selection = self.selector.select(context)
         plan = plan_actuation(
@@ -96,7 +96,7 @@ class Engine:
         action = self.actuator.act(decision)
         if action.executed:
             self.controller.notify_executed(decision)
-        return ScheduleTrace(
+        return ScheduleResult(
             context=context,
             selection=selection,
             plan=plan,

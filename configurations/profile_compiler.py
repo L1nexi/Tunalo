@@ -15,7 +15,7 @@ from configurations.runtime_models import (
     WeatherPolicyConfig,
 )
 from core.models.scene import SceneId
-from core.models.semantics import SemanticItem
+from core.models.selection import SemanticItem
 
 _SCENE_PRESETS: dict[SceneId, frozenset[SemanticItem]] = {
     SceneId.DAY_WORK: frozenset({"day", "focus"}),

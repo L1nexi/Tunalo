@@ -31,18 +31,18 @@ Windows 打包使用 `.\scripts\build.bat`。
 
 ```text
 Sense:    ContextManager.sense()       -> Context snapshot
-Match:    Matcher.match()              -> Match
+Select:   Selector.select()            -> Selection
 Plan:     plan_actuation()             -> ActPlan
 Decide:   Controller.decide_action()   -> Decision
 Execute:  Actuator.act()               -> ActionResult
 Commit:   SchedulerState.commit()      -> cache persist
 ```
 
-`Engine.schedule()` 接管完整调度流程。`Scheduler` 持有活动 Engine，负责编排生命周期、tick、安全点应用、暂停恢复、keep_alive、状态提交和 listener 通知。
+`Engine.schedule()` 接管完整调度流程，返回 `ScheduleResult`。`Scheduler` 持有活动 Engine，负责编排生命周期、tick、安全点应用、暂停恢复、keep_alive、状态提交和 listener 通知。
 
 - `ProfileManager` 独占 Profile 的加载、编译、持久化和单写者应用队列，但不持有或代理 Engine。
-- `Matcher` 比较上下文向量和产品预设 Scene 的标签向量。
-- `Controller` 对 Scenes 做语义连续性与防打扰决策。
+- `Selector` 汇集 Policy 显著度，计算完整 Scene 概率分布。
+- `Controller` 根据规划、选择结果及防打扰门槛决定动作。
 - `Actuator` 是纯执行器，只在执行边界把 Scenes 降级为具体 Playlist 并调用 Wallpaper Engine CLI。
 - `FactualPlaylistStatus`、Playlist 扫描、`target_playlist` 和 `openPlaylist` 属于 Wallpaper Engine 边界，不应改名为 Scene。
 
@@ -61,8 +61,8 @@ Commit:   SchedulerState.commit()      -> cache persist
 ## 目录
 
 - `configurations/`：Profile、Profile Compiler、原子持久化和内部运行时配置模型。
-- `core/models/`：领域模型与 trace。
-- `core/runtime/`：Engine、Scheduler、ProfileManager、Matcher、Controller、Actuator 和 Wallpaper Engine 边界。
+- `core/models/`：`selection.py` 定义选择契约，`scheduling.py` 定义调度契约，`trace.py` 定义历史记录。
+- `core/runtime/`：Engine、Scheduler、ProfileManager、Selector、Controller、Actuator 和 Wallpaper Engine 边界。
 - `core/state/`：Scheduler 状态、Tick History 与 Action Event 写入。
 - `server/`：Bottle 本地服务、Profile 资源接口和前端静态文件服务。
 - `integrations/`：天气与公网 IP 地点服务的外部请求和响应解析。

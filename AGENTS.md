@@ -35,7 +35,7 @@ Execute:  Actuator.act()               -> ActionResult
 Commit:   SchedulerState.commit()      -> cache persist
 ```
 
-`Engine.schedule()` 接管完整调度流程：sense、select、plan、decide、execute，并返回 `ScheduleTrace`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列，但不持有或代理 Engine；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine，不再通过文件热重载进入运行时。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
+`Engine.schedule()` 接管完整调度流程：sense、select、plan、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列，但不持有或代理 Engine；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine，不再通过文件热重载进入运行时。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
 
 关键组件：
 
@@ -54,7 +54,9 @@ Commit:   SchedulerState.commit()      -> cache persist
 - `core/runtime/controller.py` — 调度决策器，输出 `Decision`
 - `core/runtime/actuator.py` — 纯执行器
 - `core/runtime/executor.py` — WE CLI 封装，内置 keep_alive 保活
-- `core/models/trace.py` — `ScheduleTrace`、`TickTrace`、`Decision`、`ActPlan`、`BlockerEvaluation` 等 dataclass
+- `core/models/selection.py` — 语义词表、显著度、Policy 求值及解释信息、`Selection`
+- `core/models/scheduling.py` — 规划、控制和执行契约，以及完整的 `ScheduleResult`
+- `core/models/trace.py` — 为调度结果添加编号、时间和暂停信息的 `TickTrace`
 
 ## 构建、测试与本地开发命令
 

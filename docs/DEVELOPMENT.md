@@ -63,7 +63,17 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 `ProfileCompiler` 处理用户 Profile 和内置规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
 
-前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。`trace` 与 `semantics` 的职责及类型归属调整留到后续提交，本轮不改诊断实现。
+前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。
+
+### 运行时契约与历史记录
+
+`core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。Policy、Selector 和配置编译直接使用这些选择契约。
+
+`core/models/scheduling.py` 定义规划、控制和执行契约。`Engine.schedule()` 返回 ScheduleResult，保留本次 Context、Selection、ActPlan、Decision 和 ActionResult。其 target 表示执行后的有效场景：成功切换时为决策目标，其余情况沿用执行前场景。
+
+`core/models/trace.py` 只定义 TickTrace，为 ScheduleResult 添加 tick 编号、时间和暂停信息。模型依赖方向为 trace → scheduling → selection。缓存更新规则由 SchedulerState.commit 掌握，仅成功切换且场景集合变化时持久化；TickTrace 不决定缓存提交。
+
+Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导出、DTO 和脱敏规则。Policy 和控制器的解释字段完整保留，不改为调试日志。
 
 ### 天气共同推导
 

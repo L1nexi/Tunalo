@@ -9,15 +9,8 @@ from typing import Any
 from configurations.runtime_models import SchedulingConfig
 from core.models.context import Context
 from core.models.scene import Scenes
-from core.models.trace import (
-    Action,
-    ActPlan,
-    Blocker,
-    BlockerEvaluation,
-    Decision,
-    DecisionMode,
-    Selection,
-)
+from core.models.scheduling import Action, ActPlan, Blocker, BlockerEvaluation, Decision, DecisionMode
+from core.models.selection import Selection
 
 logger = logging.getLogger("Tunalo.Controller")
 

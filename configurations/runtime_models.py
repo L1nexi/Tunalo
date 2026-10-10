@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
 from core.models.scene import SceneId
-from core.models.semantics import ContextVariable, SemanticItem
+from core.models.selection import ContextVariable, SemanticItem
 
 FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 

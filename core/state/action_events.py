@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from core.models.event import EventLogger, EventType
-from core.models.trace import Action, TickTrace
+from core.models.scheduling import Action
+from core.models.trace import TickTrace
 
 
 class ActionEventWriter:

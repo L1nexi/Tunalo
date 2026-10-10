@@ -5,7 +5,8 @@ import time
 from dataclasses import dataclass, field
 
 from core.models.scene import Scenes
-from core.models.trace import ScheduleTrace, TickTrace
+from core.models.scheduling import Action, ScheduleResult
+from core.models.trace import TickTrace
 from core.state.persisted import PersistedState
 
 logger = logging.getLogger("Tunalo.State")
@@ -64,7 +65,7 @@ class SchedulerState:
         self._manual_apply_pending = False
         return True
 
-    def attach_metadata(self, schedule: ScheduleTrace) -> TickTrace:
+    def attach_metadata(self, schedule: ScheduleResult) -> TickTrace:
         self.tick_id += 1
         return TickTrace(
             tick_id=self.tick_id,
@@ -77,8 +78,11 @@ class SchedulerState:
     def commit(self, trace: TickTrace) -> None:
         self.last_tick_trace = trace
 
-        next_cached = trace.cache_update
-        if next_cached is not None and next_cached != self.cached_scenes:
+        if not trace.action.executed or trace.decision.action != Action.SWITCH:
+            return
+
+        next_cached = trace.decision.target
+        if next_cached != self.cached_scenes:
             self.cached_scenes = next_cached
             self.save()
 

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context
-from core.models.semantics import SemanticItem
-from core.models.trace import WeatherDetails, WeatherEvaluation
+from core.models.selection import SemanticItem, WeatherDetails, WeatherEvaluation
 from core.policies.base import Policy
 
 _WEAK_OPPOSITION = 0.25

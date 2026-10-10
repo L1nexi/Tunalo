@@ -11,7 +11,8 @@ from configurations.runtime_models import (
 )
 from core.models.context import Context
 from core.models.scene import SceneId, Scenes
-from core.models.trace import Action, ActPlan, Blocker, Decision, DecisionMode, Selection
+from core.models.scheduling import Action, ActPlan, Blocker, Decision, DecisionMode
+from core.models.selection import Selection
 from core.runtime.actuator import Actuator
 from core.runtime.controller import Controller
 from core.state.persisted import PersistedState

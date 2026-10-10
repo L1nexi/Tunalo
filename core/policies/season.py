@@ -3,8 +3,7 @@ from __future__ import annotations
 from configurations.runtime_models import SeasonPolicyConfig
 from core.math_utils import interpolate_periodic
 from core.models.context import Context
-from core.models.semantics import VARIABLE_ITEMS, ContextVariable
-from core.models.trace import SeasonDetails, SeasonEvaluation
+from core.models.selection import VARIABLE_ITEMS, ContextVariable, SeasonDetails, SeasonEvaluation
 from core.policies.base import Policy
 
 

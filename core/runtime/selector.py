@@ -8,8 +8,7 @@ from configurations.runtime_models import MatchingConfig
 from core.math_utils import softmax
 from core.models.context import Context
 from core.models.scene import SceneId
-from core.models.semantics import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariable, Salience, SemanticItem
-from core.models.trace import Selection
+from core.models.selection import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariable, Salience, Selection, SemanticItem
 from core.policies.base import Policy
 
 

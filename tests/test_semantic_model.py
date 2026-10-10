@@ -9,7 +9,7 @@ from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
-from core.models.trace import Selection
+from core.models.selection import Selection
 from core.policies import ActivityPolicy, SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import Selector
 

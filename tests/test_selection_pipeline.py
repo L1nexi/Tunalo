@@ -13,7 +13,8 @@ import pytest
 from app.event_logger import JsonlEventLogger
 from configurations.runtime_models import ActivityPolicyConfig, PoliciesConfig, SceneConfig, SchedulerConfig, SchedulingConfig, WeatherPolicyConfig
 from core.models.scene import SceneId, Scenes
-from core.models.trace import Action, Decision, TickTrace
+from core.models.scheduling import Action, Decision
+from core.models.trace import TickTrace
 from core.runtime.engine import Engine
 from core.state.action_events import ActionEventWriter
 from core.state.scheduler import SchedulerState
@@ -130,7 +131,7 @@ def test_blocking_and_execution_failure_preserve_scheduler_cache(desktop: Simple
     assert failed.decision.action == Action.SWITCH
     assert not failed.action.executed
     assert state.cached_scenes == Scenes([SceneId.DAY_WORK])
-    assert trace.cache_update is None
+    assert trace.target == Scenes([SceneId.DAY_WORK])
 
 
 def test_prepared_replacement_preserves_observations_at_preparation_time(desktop: SimpleNamespace, tmp_path: Path) -> None:

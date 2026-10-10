@@ -4,11 +4,7 @@ import logging
 import random
 
 from core.models.scene import Scenes
-from core.models.trace import (
-    Action,
-    ActionResult,
-    Decision,
-)
+from core.models.scheduling import Action, ActionResult, Decision
 from core.runtime.executor import WEExecutor
 
 logger = logging.getLogger("Tunalo.Actuator")

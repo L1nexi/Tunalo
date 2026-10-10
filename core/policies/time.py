@@ -6,8 +6,7 @@ import time
 from configurations.runtime_models import TimePolicyConfig
 from core.math_utils import interpolate_periodic
 from core.models.context import Context
-from core.models.semantics import VARIABLE_ITEMS, ContextVariable
-from core.models.trace import TimeDetails, TimeEvaluation
+from core.models.selection import VARIABLE_ITEMS, ContextVariable, TimeDetails, TimeEvaluation
 from core.policies.base import Policy
 
 logger = logging.getLogger("Tunalo.Policy")

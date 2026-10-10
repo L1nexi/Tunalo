@@ -1,6 +1,6 @@
 # 场景选择模型实施开放问题
 
-更新：2026-10-11。数学工具和天气构建继续修正；Tick History 与类型职责问题重新列为开放项，留待后续设计，不在本轮调整实现。
+更新：2026-10-11。Q-12 已确认保留现有 Tick History 与历史导出；Q-14 已按选择契约、调度契约和历史记录拆分落实。天气观测字段的进一步利用见 Q-15。
 
 本轮结论已写入 [SPEC](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md)。以下保留原问题编号用于追溯，不再作为待答问卷。内部初值和规则由实施者维护，不要求用户逐项定值。
 
@@ -18,30 +18,17 @@
 | Q-09：名称与场景     | 沿用 `dawn/day/sunset/night` 以及既有 Time 名称；保留 `focus/chill` 和十个 SceneId。Scene 使用直接情境的等地位关联，具体集合见规则表第 5 节。                                                                                                                                                                                                          |
 | Q-10：调度接入       | 停用旧连续性并删除无用代码，只作最小适配。保留集合相等判断、控制门槛和执行时抽样，实际执行使用本次 Scene 分布；不设计新调度模型。                                                                                                                                                                                                                      |
 | Q-13：模块名称与划分 | Matcher 更名为 Selector，公开方法为 `select(context)`；继续持有并调用 Policy，不拆出 Observer。语义状态仍由 Policy 持有，Selector 继续代理状态导入导出；Engine 在采集后调用 Selector，实际抽样仍在执行边界。                                                                                                                                           |
+| Q-12：历史导出 | 保留现有 TickHistoryStore、1200 条近期记录、HTTP 读取、托盘导出和脱敏 JSON，不改为 debug log；Event Log 继续记录稀疏运行事件。 |
+| Q-14：类型职责 | selection 定义语义与选择结果及解释信息；scheduling 定义规划、控制、执行契约和 ScheduleResult；trace 只定义 TickTrace。缓存提交规则归 SchedulerState.commit，历史导出字段保持不变。 |
 
 ## 已由现有代码回答的事项
 
 - Q-03（缺失、错误与缓存）：复用空窗口、未命中零即时方向、天气无数据无贡献、请求失败保留缓存及 Context 异常保留原字段。不存在重新设计一套 Sensor 失败分类的要求。
 - Q-11（状态归属）：ActivityPolicy 持有内存轨迹，暂停继续观察，停止不采样，进程重启从空状态开始；配置热替换通过已有状态导入导出承接。新轨迹采用相同生命周期，不转换旧 EMA。
-- Q-12（诊断）：原来的“保留 Tick History 并适配字段”结论已重新打开，见下方；当前实现暂时保留，不据旧结论继续扩展诊断。
 
 代码依据见实施计划第 2.1 节。热替换时接续运行中状态，与支持旧配置格式是两件事；前者复用既有机制，后者已明确不做。
 
 ## 留待后续设计的开放问题
-
-### Q-12：没有诊断页后，是否仍需 Tick History
-
-- 现状：`TickHistoryStore` 默认在内存中保留最近 1200 个完整 TickTrace。`app/main.py` 注册逐 tick 更新，`server/app.py` 提供 `/api/tick-history`，托盘的导出入口通过 `ui/tick_history_export.py` 生成脱敏 JSON。这些仍是实际调用方，但产品已不再提供诊断页。
-- 需要评估：若 debug log 足以承担排障和历史转储，是否还需要单独的内存记录、DTO、HTTP 路由和导出链路；若保留，明确它比 debug log 多提供什么必要能力。
-- 待决定：保留、缩减或删除 Tick History，以及如何处理现有导出入口。若改用 debug log，同时明确记录字段、开启方式、保留范围和敏感信息处理，不默认长期记录全部观测。
-- 范围：与下方类型职责问题一起设计；本轮不删除记录、路由或导出功能。Event Log 的稀疏运行事件职责单独评估，不直接混入逐 tick 调试日志。
-
-### Q-14：trace、semantics 与调试信息的职责和归属
-
-- 现状：`core/models/trace.py` 同时包含 Selection、ActPlan、Decision、ActionResult 等调用契约，以及 Policy 解释详情、BlockerEvaluation、ScheduleTrace、TickTrace 等调试或记录结构；语义词表和显著度类型另放在 `core/models/semantics.py`。业务类型、诊断信息和流程记录的职责交织。
-- 需要评估：逐项区分运行时计算与执行必需的数据、仅为解释过程保留的数据，以及跨 tick 记录。仅用于调试的信息是否应直接写入 debug log，而不继续形成 dataclass。
-- 待决定：必需业务类型的命名与定义位置、semantics 是否与其他业务类型合并或重新划分，以及 Policy、Engine、Scheduler 的调试日志出口。结合 Q-12 决定哪些记录类型仍需存在，不先固定拆分方案。
-- 范围：留到后续提交；本轮不移动类型、不改变 trace 输出契约。
 
 ### Q-15：WeatherPolicy 需挖掘更多 OWM 可用字段
 

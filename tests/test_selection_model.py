@@ -6,8 +6,7 @@ import pytest
 
 from configurations.runtime_models import MatchingConfig, SceneConfig
 from core.models.scene import SceneId
-from core.models.semantics import Salience
-from core.models.trace import Selection
+from core.models.selection import Salience, Selection
 from core.runtime.selector import calculate_distribution
 
 RAIN = SceneId.RAIN

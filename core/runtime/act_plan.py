@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.models.scene import Scenes
-from core.models.trace import ActPlan, DecisionMode
+from core.models.scheduling import ActPlan, DecisionMode
 from core.runtime.we_config import FactualPlaylistState
 from core.runtime.we_config import FactualPlaylistStatus as Status
 
