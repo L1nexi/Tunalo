@@ -279,10 +279,10 @@ class TrayIcon:
         trace = self.scheduler.last_tick_trace
         if trace is None:
             return None
-        best_scenes = trace.match.best_scenes
+        best_scenes = trace.selection.scenes
         if not best_scenes:
             return None
-        primary = scene_name(best_scenes[0])
+        primary = scene_name(max(trace.selection.probabilities, key=trace.selection.probabilities.__getitem__))
         if len(best_scenes) > 1:
             return f"{primary}(+{len(best_scenes) - 1})"
         return primary

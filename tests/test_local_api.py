@@ -25,8 +25,8 @@ from core.models.trace import (
     BlockerEvaluation,
     Decision,
     DecisionMode,
-    Match,
     ScheduleTrace,
+    Selection,
     TickTrace,
 )
 from core.runtime.engine import Engine
@@ -41,9 +41,9 @@ def _configure_scenes():
     """Configure Scenes with test data for all tests."""
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="focus", item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="idle", item_count=3),
+            SceneId.DAY_WORK: SceneConfig(playlist="focus", associations={"focus"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"focus"}, item_count=5),
+            SceneId.SUNSET: SceneConfig(playlist="idle", associations={"focus"}, item_count=3),
         }
     )
     yield
@@ -204,7 +204,6 @@ def _make_trace(
     policy_evaluations: list | None = None,
 ) -> TickTrace:
     current_time = time.localtime(1714800000)
-    scene_matches = [(SceneId.DAY_WORK, 0.91), (SceneId.RAIN, 0.66)]
     best_scenes = Scenes([matched_scene]) if matched_scene else Scenes()
     plan_active = Scenes([active_scene_before]) if active_scene_before else Scenes()
     return TickTrace(
@@ -221,14 +220,11 @@ def _make_trace(
                 weather=weather,
                 time=current_time,
             ),
-            match=Match(
-                best_scenes=best_scenes,
-                scene_matches=scene_matches,
-                raw_context_vector={"focus": 0.8, "rain": 0.4},
-                resolved_context_vector={"focus": 0.8, "rain": 0.4},
-                fallback_expansions={"storm": {"rain": 0.25}},
+            selection=Selection(
+                probabilities={matched_scene: 1} if matched_scene else {},
+                salience={"focus": 0.8, "rain": 0.4},
+                reason="neutral",
                 policy_evaluations=policy_evaluations or [],
-                max_policy_magnitude=1.2,
             ),
             plan=ActPlan(mode=DecisionMode.NORMAL, active_scenes=plan_active),
             decision=Decision(
@@ -273,9 +269,9 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
 ):
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="focus", item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="test_pl", item_count=1),
+            SceneId.DAY_WORK: SceneConfig(playlist="focus", associations={"focus"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"focus"}, item_count=5),
+            SceneId.SUNSET: SceneConfig(playlist="test_pl", associations={"focus"}, item_count=1),
         }
     )
     app = build_api_app(tick_history, profile_manager)
@@ -295,11 +291,11 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
     assert "200" in status
     tick = body["ticks"][0]
     assert tick["summary"]["activeScenes"] == [{"id": "sunset"}]
-    assert tick["summary"]["matchedScenes"] == [{"id": "sunset"}]
+    assert tick["summary"]["candidateScenes"] == [{"id": "sunset"}]
     assert tick["think"]["decision"]["activeScenes"] == [{"id": "day_work"}]
     assert tick["think"]["decision"]["targetScenes"] == [{"id": "sunset"}]
     assert tick["think"]["decision"]["targetPlaylist"] == {"name": "test_pl"}
-    assert tick["act"]["topMatches"][0]["scene"] == {"id": "day_work"}
+    assert tick["act"]["sceneProbabilities"] == [{"scene": {"id": "sunset"}, "probability": 1}]
 
 
 def test_api_tick_history_window_invalid_count(app):

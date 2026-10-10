@@ -5,21 +5,20 @@ import time
 
 from configurations.runtime_models import TimePolicyConfig
 from core.models.context import Context
+from core.models.semantics import VARIABLE_ITEMS, ContextVariable
 from core.models.trace import TimeDetails, TimeEvaluation
-from core.policies.base import Policy, _circular_distance, _hann
+from core.policies.base import Policy, _periodic_salience
 
 logger = logging.getLogger("Tunalo.Policy")
 
 
 class TimePolicy(Policy):
     config_key = "time"
-    evaluation_cls = TimeEvaluation
-    fixed_output_tags = ("dawn", "day", "sunset", "night")
 
-    def __init__(self, config: TimePolicyConfig):
+    def __init__(self, config: TimePolicyConfig) -> None:
         super().__init__(config)
         self._peaks: dict[str, float] = {}
-        self._H: float = 6.0
+        self._curve_q = config.curve_q
 
     @staticmethod
     def _compute_peaks(ds: float, ns: float) -> dict[str, float]:
@@ -32,7 +31,7 @@ class TimePolicy(Policy):
             "night": (ns + night_span / 2) % 24,
         }
 
-    _TAG_ORDER = fixed_output_tags
+    _TAG_ORDER = VARIABLE_ITEMS[ContextVariable.TIME]
     _VIRTUAL_PEAKS = [0.0, 6.0, 12.0, 18.0]
 
     @staticmethod
@@ -73,33 +72,22 @@ class TimePolicy(Policy):
         hour = current_time.tm_hour + current_time.tm_min / 60.0
 
         if not self._peaks:
-            return self._make_evaluation(
-                details=TimeDetails(hour=round(hour, 4)),
-                raw_direction=None,
-                salience=0.0,
-                intensity=0.0,
-            )
+            return TimeEvaluation(policy_id=self.config_key, salience={item: 0.0 for item in self._TAG_ORDER}, details=TimeDetails(hour=hour))
 
         t_virtual = self._warp_time(hour, self._peaks)
         details = TimeDetails(
-            hour=round(hour, 4),
-            virtual_hour=round(t_virtual, 4),
-            day_start_hour=round(self._day_start, 4),
-            night_start_hour=round(self._night_start, 4),
-            peaks={tag: round(value, 4) for tag, value in self._peaks.items()},
+            hour=hour,
+            virtual_hour=t_virtual,
+            day_start_hour=self._day_start,
+            night_start_hour=self._night_start,
+            peaks=self._peaks.copy(),
         )
 
-        best_weight = 0.0
-        raw: dict[str, float] = {}
-        for tag, v_peak in zip(self._TAG_ORDER, self._VIRTUAL_PEAKS):
-            distance = _circular_distance(t_virtual, v_peak, 24)
-            weight = _hann(distance, self._H)
-            if weight > 1e-4:
-                raw[tag] = weight
-                best_weight = max(best_weight, weight)
-        return self._make_evaluation(
-            details=details,
-            raw_direction=raw,
-            salience=best_weight,
-            intensity=1.0 if raw else 0.0,
-        )
+        values = (1.0, 0.0, -1.0, 0.0)
+        salience = {
+            item: _periodic_salience(
+                t_virtual, [(peak, values[(index - own_index) % 4]) for index, peak in enumerate(self._VIRTUAL_PEAKS)], 24, 0, self._curve_q
+            )
+            for own_index, item in enumerate(self._TAG_ORDER)
+        }
+        return TimeEvaluation(policy_id=self.config_key, salience=salience, details=details)

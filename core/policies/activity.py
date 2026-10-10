@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import math
 import re
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,7 +10,7 @@ from configurations.runtime_models import ActivityPolicyConfig
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
 from core.models.trace import ActivityDetails, ActivityEvaluation
-from core.policies.base import Policy
+from core.policies.base import Policy, _s_curve
 
 _MATCH_SOURCE_PRIORITY = {
     "process": 0,
@@ -50,9 +52,14 @@ class CompiledActivityMatcher:
 
 class ActivityPolicy(Policy):
     config_key = "activity"
-    evaluation_cls = ActivityEvaluation
+    WINDOW_SIZE = 600
 
-    def __init__(self, config: ActivityPolicyConfig):
+    def __init__(self, config: ActivityPolicyConfig) -> None:
+        """Build the product classifier and observation window.
+
+        Raises:
+            re.error: If a configured regular expression is invalid.
+        """
         super().__init__(config)
         self.matchers: list[CompiledActivityMatcher] = []
         for declaration_order, matcher in enumerate(config.matchers):
@@ -72,45 +79,22 @@ class ActivityPolicy(Policy):
                 )
             )
 
-        smoothing_window = config.smoothing_window
-        if smoothing_window <= 1:
-            self.alpha = 1.0
-        else:
-            self.alpha = 2.0 / (smoothing_window + 1.0)
-
-        self._dir_ema: dict[str, float] = {}
-        self._mag_ema: float = 0.0
+        self._history: deque[int] = deque(maxlen=self.WINDOW_SIZE)
+        self._weights = tuple(2 ** (-((age / config.age_scale) ** 3)) for age in range(self.WINDOW_SIZE))
+        self._denominator = math.fsum(self._weights)
+        self._curve_q = config.curve_q
 
     def evaluate(self, context: Context) -> ActivityEvaluation:
-        instant_dir, details = self._get_instant_signal(context)
-
-        all_tags = set(self._dir_ema.keys()) | set(instant_dir.keys())
-        new_dir_ema: dict[str, float] = {}
-        for tag in all_tags:
-            cur = instant_dir.get(tag, 0.0)
-            prev = self._dir_ema.get(tag, 0.0)
-            value = self.alpha * cur + (1.0 - self.alpha) * prev
-            if value >= 1e-6:
-                new_dir_ema[tag] = value
-        self._dir_ema = new_dir_ema
-
-        instant_mag = 1.0 if instant_dir else 0.0
-        self._mag_ema = self.alpha * instant_mag + (1.0 - self.alpha) * self._mag_ema
-
-        if not instant_dir:
-            details.ema_active = bool(self._dir_ema)
-
-        return self._make_evaluation(
-            details=details,
-            raw_direction=dict(self._dir_ema),
-            salience=1.0 if self._dir_ema else 0.0,
-            intensity=self._mag_ema if self._dir_ema else 0.0,
-        )
+        direction, details = self._get_instant_signal(context)
+        self._history.appendleft(direction)
+        net_direction = math.fsum(weight * observed for weight, observed in zip(self._weights, self._history)) / self._denominator
+        focus = math.copysign(_s_curve(abs(net_direction), self._curve_q), net_direction)
+        return ActivityEvaluation(policy_id=self.config_key, salience={"focus": focus, "chill": -focus}, details=details)
 
     def _get_instant_signal(
         self,
         context: Context,
-    ) -> tuple[dict[str, float], ActivityDetails]:
+    ) -> tuple[int, ActivityDetails]:
         details = ActivityDetails(
             window_title=context.window.title,
             process=context.window.process,
@@ -121,9 +105,9 @@ class ActivityPolicy(Policy):
             details.match_source = matched.source
             details.matched_rule = matched.pattern
             details.matched_tag = matched.tag
-            return {matched.tag: 1.0}, details
+            return (1 if matched.tag == "focus" else -1), details
 
-        return {}, details
+        return 0, details
 
     def _select_matcher(self, context: Context) -> CompiledActivityMatcher | None:
         matched: CompiledActivityMatcher | None = None
@@ -146,8 +130,6 @@ class ActivityPolicy(Policy):
             return self._matches_exact(matcher, observed)
         if matcher.match == "contains":
             return self._matches_contains(matcher, observed)
-        if matcher.regex is None:
-            return False
         return matcher.regex.search(observed) is not None
 
     @staticmethod
@@ -173,12 +155,7 @@ class ActivityPolicy(Policy):
         return pattern in observed
 
     def export_state(self) -> dict[str, Any]:
-        return {
-            "dir_ema": self._dir_ema.copy(),
-            "mag_ema": self._mag_ema,
-        }
+        return {"directions": list(self._history)}
 
     def import_state(self, state: dict[str, Any]) -> None:
-        allowed_tags = {matcher.tag for matcher in self.matchers}
-        self._dir_ema = {tag: float(value) for tag, value in state.get("dir_ema", {}).items() if tag in allowed_tags}
-        self._mag_ema = float(state.get("mag_ema", 0.0))
+        self._history = deque(state["directions"], maxlen=self.WINDOW_SIZE)

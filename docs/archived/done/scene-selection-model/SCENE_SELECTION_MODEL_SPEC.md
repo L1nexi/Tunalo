@@ -1,6 +1,6 @@
 # 上下文语义与场景选择模型规格
 
-日期：2026-10-09；更新：2026-10-10。状态：待实施；已纳入本轮活动窗口、时段、天气、配置边界及 Selector 模块划分的决定。内部初始参数与规则见[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md)，实施步骤见[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md)。
+日期：2026-10-09；更新：2026-10-10。状态：已实现并验证，见 [实施验收](SCENE_SELECTION_MODEL_ACCEPTANCE.md)；已纳入本轮活动窗口、时段、天气、配置边界及 Selector 模块划分的决定。内部初始参数与规则见[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md)，实施步骤见[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md)。
 
 本文整理已经确认的产品行为与数学模型，覆盖上下文语义构建、用户偏好、场景召回和概率分配。它是新匹配模型的规格入口；讨论记录保留推导、取舍和未采用方案，不表示功能已经交付。
 
@@ -487,7 +487,7 @@ $$
 
 现有采集、失败回退和生命周期继续复用，具体代码依据见[实施计划第 2.1 节](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md#21-直接复用的实现与行为)。天气无数据或无法映射时无贡献，请求失败且已有缓存时继续使用缓存；窗口无前台或读取失败返回空窗口，未命中提供零即时方向，历史继续参与合成。未被 Sensor 处理的采集异常仍由 ContextManager 保留原字段，不在 Selector 中统一处理采集失败。
 
-当前没有阻挡实施的开放决策。[open-questions.md](open-questions.md) 记录本轮结论；以后只追加代码、规格和已确认决定均不能回答的具体问题。
+当前没有阻挡实施的开放决策。[open-questions.md](../../../open-questions.md) 记录本轮结论；以后只追加代码、规格和已确认决定均不能回答的具体问题。
 
 ### 7.2. 与已有文档的关系
 
@@ -495,11 +495,11 @@ $$
 
 数学定义与验收行为以本文为新模型入口。讨论记录保留旧推导；其中的 30 分钟窗口、固定钟点、时段平台、晴朗与雨反向等描述已被本轮决定覆盖。
 
-- [产品定位](PRODUCT_POSITIONING.md)
-- [术语表](../CONTEXT.md)
-- [场景选择模型讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)
-- [用户偏好讨论](SCENE_SELECTION_USER_PREFERENCES.md)
-- [概率模型讨论](SCENE_SELECTION_PROBABILITY_MODEL.md)
-- [上下文语义讨论](SCENE_SELECTION_CONTEXT_SEMANTICS.md)
-- [模型重审与中立基准 ADR](adr/0002-scene-model-rethink-and-neutral-baseline.md)
-- [OpenWeather 当前天气开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)
+- [产品定位](../../../PRODUCT_POSITIONING.md)
+- [术语表](../../../../CONTEXT.md)
+- [场景选择模型讨论总览](../../../SCENE_SELECTION_MODEL_DISCUSSION.md)
+- [用户偏好讨论](../../../SCENE_SELECTION_USER_PREFERENCES.md)
+- [概率模型讨论](../../../SCENE_SELECTION_PROBABILITY_MODEL.md)
+- [上下文语义讨论](../../../SCENE_SELECTION_CONTEXT_SEMANTICS.md)
+- [模型重审与中立基准 ADR](../../../adr/0002-scene-model-rethink-and-neutral-baseline.md)
+- [OpenWeather 当前天气开发参考](../../reference/OPENWEATHER_CURRENT_API.md)

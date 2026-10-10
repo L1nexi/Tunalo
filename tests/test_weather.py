@@ -6,6 +6,8 @@ import time
 import requests
 
 from configurations.runtime_models import WeatherPolicyConfig
+from core.models.context import Context
+from core.policies.weather import WeatherPolicy
 from core.sensors.weather import WeatherSensor
 
 
@@ -64,3 +66,34 @@ def test_weather_sensor_warning_identifies_timeout_without_exposing_request(monk
     warnings = [record.message for record in caplog.records if record.name == "Tunalo.Sensor"]
     assert any("reason=timeout" in message for message in warnings)
     assert all("fake-secret" not in message for message in warnings)
+
+
+def test_failed_weather_refresh_keeps_cached_semantic_evidence(monkeypatch, caplog):
+    clock = [1000.0]
+    monkeypatch.setattr("core.sensors.weather.time.time", lambda: clock[0])
+
+    class RainResponse(_Response):
+        @staticmethod
+        def json():
+            return {"weather": [{"id": 504, "main": "Rain"}], "sys": {"sunrise": 1, "sunset": 2}}
+
+    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: RainResponse())
+    sensor = WeatherSensor(_config())
+    sensor.collect()
+    deadline = time.monotonic() + 1
+    while (cached := sensor.collect()) is None and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert cached is not None
+    assert WeatherPolicy(_config()).evaluate(Context(weather=cached)).salience["rain"] == 2
+
+    def fail(*_args, **_kwargs):
+        raise requests.Timeout("fixture timeout")
+
+    monkeypatch.setattr("integrations.openweather.requests.get", fail)
+    clock[0] += 601
+    assert sensor.collect() == cached
+    deadline = time.monotonic() + 1
+    while not any("reason=timeout" in record.message for record in caplog.records) and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert any("reason=timeout" in record.message for record in caplog.records)
+    assert WeatherPolicy(_config()).evaluate(Context(weather=sensor.collect())).salience["rain"] == 2

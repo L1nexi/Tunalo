@@ -1,8 +1,8 @@
 # 问题二：场景选择与概率预算
 
-> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
+> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
 
-更新：2026-10-07。状态：已确认行为整理为[规格](SCENE_SELECTION_MODEL_SPEC.md)，参数与接入细化继续保留。共同边界与中立参照见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
+更新：2026-10-07。状态：已确认行为整理为[规格](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)，参数与接入细化继续保留。共同边界与中立参照见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
 
 本记录聚焦匹配模型：结合上下文、[用户偏好](SCENE_SELECTION_USER_PREFERENCES.md)及可用场景，形成当下的候选与概率分布。当前已确认召回和概率分解框架，变量预算以最高正向语义项显著度形成 softmax，条件分配与尽力选择采用方向投影评分加 softmax。某层全部候选为空时继续级联至穷尽。参数和观测映射仍待落实，不代表实现已经完成。
 
@@ -18,7 +18,7 @@
 | 日间工作 | 白天、工作 |
 | 雨天工作 | 雨、工作 |
 
-场景关联采用语义项集合，粗变量以最高正向语义项显著度形成预算强度，数学契约见[规格](SCENE_SELECTION_MODEL_SPEC.md)。配置与运行时中的具体数据表示仍待接入细化。
+场景关联采用语义项集合，粗变量以最高正向语义项显著度形成预算强度，数学契约见[规格](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)。配置与运行时中的具体数据表示仍待接入细化。
 
 ### 正向并集与负向排除
 

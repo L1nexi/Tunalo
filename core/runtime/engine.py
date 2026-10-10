@@ -12,7 +12,7 @@ from core.runtime.act_plan import plan_actuation
 from core.runtime.actuator import Actuator
 from core.runtime.controller import Controller
 from core.runtime.executor import WEExecutor
-from core.runtime.matcher import Matcher
+from core.runtime.selector import Selector
 from core.runtime.we_config import WEConfigProber
 from core.sensors import SENSOR_REGISTRY
 from ui.i18n import set_language
@@ -24,7 +24,7 @@ logger = logging.getLogger("Tunalo.Runtime")
 class EngineReplacement:
     executor: WEExecutor
     context_manager: ContextManager
-    matcher: Matcher
+    selector: Selector
     actuator: Actuator
     controller: Controller
     config: SchedulerConfig
@@ -58,10 +58,10 @@ class Engine:
             RuntimeError: If a runtime component rejects the imported state.
         """
 
-        matcher_state = self.matcher.export_state()
+        selector_state = self.selector.export_state()
         controller_state = self.controller.export_state()
         prepared = self._build_components(config)
-        prepared.matcher.import_state(matcher_state)
+        prepared.selector.import_state(selector_state)
         prepared.controller.import_state(controller_state)
         return prepared
 
@@ -70,7 +70,7 @@ class Engine:
 
         self.executor = replacement.executor
         self.context_manager = replacement.context_manager
-        self.matcher = replacement.matcher
+        self.selector = replacement.selector
         self.actuator = replacement.actuator
         self.controller = replacement.controller
         self.we_config_prober = replacement.we_config_prober
@@ -85,20 +85,20 @@ class Engine:
         manual_requested: bool,
     ) -> ScheduleTrace:
         context = self.context_manager.sense()
-        match = self.matcher.match(context)
+        selection = self.selector.select(context)
         plan = plan_actuation(
             factual=self.we_config_prober.probe_playlist(),
             cached_scenes=cached_scenes,
             paused=paused,
             manual_requested=manual_requested,
         )
-        decision = self.controller.decide_action(plan, context, match)
+        decision = self.controller.decide_action(plan, context, selection)
         action = self.actuator.act(decision)
         if action.executed:
             self.controller.notify_executed(decision)
         return ScheduleTrace(
             context=context,
-            match=match,
+            selection=selection,
             plan=plan,
             decision=decision,
             action=action,
@@ -119,14 +119,14 @@ class Engine:
 
         policies: list[Policy] = [cls(getattr(config.policies, cls.config_key)) for cls in POLICY_REGISTRY]
 
-        matcher = Matcher(config.scenes, policies, config.tags)
+        selector = Selector({scene_id: scene.associations for scene_id, scene in config.scenes.items()}, policies, config.matching)
         controller = Controller(config.scheduling)
         actuator = Actuator(executor)
 
         return EngineReplacement(
             executor=executor,
             context_manager=context_manager,
-            matcher=matcher,
+            selector=selector,
             actuator=actuator,
             controller=controller,
             config=config,

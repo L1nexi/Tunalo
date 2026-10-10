@@ -1,25 +1,21 @@
-"""第一轮 Scene 调参扫描：legacytuning 的 case 目录 × 真实匹配管线。
-
-对每个模式输出一张聚合 winner 热图（cur-<mode>.png）。用法::
-
-    python tools/tuning/scan.py [--mode wx-hour ...] [--out runs/<name>]
-"""
+"""Render calibration grids and export their complete probability distributions."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from tools.tuning.heatmaps import DEFAULT_HEATMAP_CASES, evaluate_cases, render_mode_figures
 from tools.tuning.harness import synthetic_config
+from tools.tuning.heatmaps import DEFAULT_HEATMAP_CASES, evaluate_cases, render_mode_figures
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Round-1 scene tuning scan (legacytuning paradigm)")
+    parser = argparse.ArgumentParser(description="Scene probability calibration scan")
     parser.add_argument(
         "--mode",
         action="append",
@@ -34,14 +30,27 @@ def main() -> int:
 
     config = synthetic_config()
     grids_by_mode = evaluate_cases(config, modes=tuple(args.mode) if args.mode else None)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "matching": config.matching.model_dump(mode="json"),
+        "activity_axis": "signed focus salience; chill is its opposite",
+        "grids": [
+            {
+                "case": case.name,
+                "fixed": grid.fixed,
+                "x": {"name": grid.x_axis.name, "values": grid.x_axis.values},
+                "y": {"name": grid.y_axis.name, "values": grid.y_axis.values},
+                "probabilities": {scene.value: values.tolist() for scene, values in grid.probabilities.items()},
+            }
+            for grids in grids_by_mode.values()
+            for case, grid in grids
+        ],
+    }
+    (out_dir / "distributions.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     for path in render_mode_figures(config, grids_by_mode, out_dir):
         print(f"written: {path}")
 
-    cell_total = sum(
-        grid.winner_indices.size
-        for grids in grids_by_mode.values()
-        for _, grid in grids
-    )
+    cell_total = sum(grid.winner_indices.size for grids in grids_by_mode.values() for _, grid in grids)
     print(f"cells evaluated: {cell_total}")
     print(f"output dir: {out_dir}")
     return 0

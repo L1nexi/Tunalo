@@ -1,11 +1,4 @@
-"""第一轮 Scene 调参热图——完全沿用 legacytuning 的出图范式。
-
-六种模式（wx-hour / act-hour / wx-act / wx-doy / act-doy / hour-doy）、同一份
-case 目录、每模式一张聚合 winner 图：场景各自配色 + "no winner" 深色、
-pcolormesh 平铺、白色虚线参考线、月份刻度。差异只在数据源：真实
-ProfileCompiler/POLICY_REGISTRY/Matcher 取代旧工具复制的管线，playlist 换成
-Scene，gamma 特性按裁定舍弃。
-"""
+"""Calibration grids retain every Scene probability; winner colors are only an overview."""
 
 from __future__ import annotations
 
@@ -28,10 +21,9 @@ import numpy as np
 from configurations.runtime_models import SchedulerConfig
 from core.models.scene import SceneId
 from tools.tuning.harness import (
+    TuningModel,
     build_context,
-    build_matcher,
     coerce_activity,
-    prime_activity,
 )
 
 type HeatmapMode = Literal["wx-hour", "act-hour", "wx-act", "wx-doy", "act-doy", "hour-doy"]
@@ -51,7 +43,8 @@ WEATHER_HEATMAP_PRESETS: tuple[str | None, ...] = (
     "fog",
 )
 
-# legacytuning 的 case 目录原样移植；季节词 haru/natsu/aki/fuyu 与跨季边界日
+
+# 沿用原有二维采样目录；季节词 haru/natsu/aki/fuyu 与跨季边界日
 # （fuyu-haru=35 等）沿用旧命名，便于和旧图对照。
 @dataclass(frozen=True)
 class HeatmapCase:
@@ -163,6 +156,7 @@ class HeatmapGrid:
     fixed: dict[str, object]
     # 行=y 轴序、列=x 轴序；值为场景索引+1，0=no winner。
     winner_indices: np.ndarray
+    probabilities: dict[SceneId, np.ndarray]
 
 
 _MODE_CASES: dict[str, list[HeatmapCase]] = {}
@@ -175,56 +169,55 @@ def evaluate_cases(
     sampling: HeatmapSampling = HeatmapSampling(),
     modes: tuple[str, ...] | None = None,
 ) -> dict[str, list[tuple[HeatmapCase, HeatmapGrid]]]:
-    """Run every case of the selected modes through the real match pipeline."""
-    matcher = build_matcher(config)
+    """Evaluate every cell with the shared salience and probability calculation."""
+    model = TuningModel(config)
     scenes = list(SceneId)
     index_by_scene = {scene: index + 1 for index, scene in enumerate(scenes)}
-    min_similarity = matcher.pool_params.min_similarity
 
     selected = modes or tuple(_MODE_CASES)
     result: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]] = {}
     for mode in selected:
         grids: list[tuple[HeatmapCase, HeatmapGrid]] = []
         for case in _MODE_CASES[mode]:
-            grid = _evaluate_case(config, matcher, case, sampling, scenes, index_by_scene, min_similarity)
+            grid = _evaluate_case(model, case, sampling, scenes, index_by_scene)
             grids.append((case, grid))
         result[mode] = grids
     return result
 
 
 def _evaluate_case(
-    config: SchedulerConfig,
-    matcher,
+    model: TuningModel,
     case: HeatmapCase,
     sampling: HeatmapSampling,
     scenes: list[SceneId],
     index_by_scene: dict[SceneId, int],
-    min_similarity: float,
 ) -> HeatmapGrid:
     x_name, y_name = _MODE_TO_AXES[case.mode]
     x_axis = HeatmapAxis(x_name, _axis_values(x_name, sampling))
     y_axis = HeatmapAxis(y_name, _axis_values(y_name, sampling))
-    winners = np.zeros((len(y_axis.values), len(x_axis.values)), dtype=float)
+    shape = (len(y_axis.values), len(x_axis.values))
+    winners = np.zeros(shape, dtype=float)
+    probabilities = {scene: np.zeros(shape, dtype=float) for scene in scenes}
 
     for y_row, y_value in enumerate(y_axis.values):
         for x_col, x_value in enumerate(x_axis.values):
             values = dict(case.fixed)
             values[x_name] = x_value
             values[y_name] = y_value
-            activity_tag, strength = coerce_activity(values.get("activity"))
+            activity_salience = coerce_activity(values.get("activity"))
             weather_name = values.get("weather")
             context = build_context(
                 hour=float(values["hour"]),
                 day_of_year=int(values["day_of_year"]),
                 weather_name=None if weather_name is None else str(weather_name),
-                activity_tag=activity_tag,
-                activity_strength=strength,
             )
-            prime_activity(matcher, config, activity_tag, strength)
-            match = matcher.match(context)
-            if match.scene_matches and match.scene_matches[0][1] > min_similarity:
-                winners[y_row, x_col] = index_by_scene[match.scene_matches[0][0]]
-    return HeatmapGrid(case=case, x_axis=x_axis, y_axis=y_axis, fixed=dict(case.fixed), winner_indices=winners)
+            selection = model.evaluate(context, activity_salience)
+            for scene, probability in selection.probabilities.items():
+                probabilities[scene][y_row, x_col] = probability
+            if selection.probabilities:
+                primary = max(selection.probabilities, key=selection.probabilities.__getitem__)
+                winners[y_row, x_col] = index_by_scene[primary]
+    return HeatmapGrid(case=case, x_axis=x_axis, y_axis=y_axis, fixed=dict(case.fixed), winner_indices=winners, probabilities=probabilities)
 
 
 def _axis_values(axis_name: AxisName, sampling: HeatmapSampling) -> tuple[float | int | str | None, ...]:
@@ -268,7 +261,7 @@ def render_mode_figures(
     grids_by_mode: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]],
     figures_dir: Path,
 ) -> list[Path]:
-    """One aggregated winner-map PNG per mode, legacytuning layout."""
+    """One aggregated winner-map PNG per mode, with full distributions saved by scan.py."""
     figures_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for mode, grids in grids_by_mode.items():
@@ -362,7 +355,7 @@ def _style_single_axis(ax, orientation: Literal["x", "y"], axis: HeatmapAxis) ->
         return
     if axis.name == "activity":
         ticks = [-1, -0.5, 0, 0.5, 1]
-        labels = ["chill 1.0", "0.5", "idle", "0.5", "focus 1.0"]
+        labels = ["chill 1.0", "0.5", "neutral", "0.5", "focus 1.0"]
         if orientation == "x":
             ax.set_xlim(-1, 1)
             ax.set_xticks(ticks)

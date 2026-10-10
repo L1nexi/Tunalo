@@ -1,137 +1,107 @@
 from __future__ import annotations
 
-import math
-
 from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context
 from core.models.trace import WeatherDetails, WeatherEvaluation
 from core.policies.base import Policy
 
+_CODE_SALIENCE: dict[int, tuple[float, float]] = {
+    200: (0.25, 0),
+    201: (0.5, 0),
+    202: (1, 0),
+    210: (0, 0),
+    211: (0, 0),
+    212: (0, 0),
+    221: (0, 0),
+    230: (0.1, 0),
+    231: (0.2, 0),
+    232: (0.35, 0),
+    300: (0.1, 0),
+    301: (0.2, 0),
+    302: (0.35, 0),
+    310: (0.15, 0),
+    311: (0.3, 0),
+    312: (0.65, 0),
+    313: (0.45, 0),
+    314: (0.85, 0),
+    321: (0.4, 0),
+    500: (0.25, 0),
+    501: (0.5, 0),
+    502: (1, 0),
+    503: (1.5, 0),
+    504: (2, 0),
+    511: (0.75, 0),
+    520: (0.35, 0),
+    521: (0.75, 0),
+    522: (1.5, 0),
+    531: (0.9, 0),
+    600: (0, 0.25),
+    601: (0, 0.75),
+    602: (0, 1.5),
+    611: (0.35, 0.35),
+    612: (0.25, 0.25),
+    613: (0.5, 0.5),
+    615: (0.25, 0.25),
+    616: (0.5, 0.5),
+    620: (0, 0.35),
+    621: (0, 0.85),
+    622: (0, 1.5),
+    701: (0, 0),
+    711: (0, 0),
+    721: (0, 0),
+    731: (0, 0),
+    741: (0, 0),
+    751: (0, 0),
+    761: (0, 0),
+    762: (0, 0),
+    771: (0, 0),
+    781: (0, 0),
+    800: (0, 0),
+    801: (0, 0),
+    802: (0, 0),
+    803: (0, 0),
+    804: (0, 0),
+}
+_MAIN_SALIENCE: dict[str, tuple[float, float]] = {
+    "thunderstorm": (0, 0),
+    "drizzle": (0.2, 0),
+    "rain": (0.5, 0),
+    "snow": (0, 0.75),
+    "clear": (0, 0),
+    "clouds": (0, 0),
+    "mist": (0, 0),
+    "smoke": (0, 0),
+    "haze": (0, 0),
+    "dust": (0, 0),
+    "fog": (0, 0),
+    "sand": (0, 0),
+    "ash": (0, 0),
+    "squall": (0, 0),
+    "tornado": (0, 0),
+}
+
 
 class WeatherPolicy(Policy):
-    """Maps OWM condition codes to normalized weather tag contributions."""
-
-    fixed_output_tags = ("clear", "cloudy", "rain", "storm", "snow", "fog")
-
-    _ID_TAGS: dict[int, dict[str, float]] = {
-        210: {"storm": 0.50, "rain": 0.25},
-        211: {"storm": 0.75, "rain": 0.50},
-        212: {"storm": 1.00, "rain": 0.60},
-        221: {"storm": 0.90, "rain": 0.50},
-        200: {"storm": 0.67, "rain": 0.34},
-        201: {"storm": 0.80, "rain": 0.40},
-        202: {"storm": 0.89, "rain": 0.45},
-        230: {"storm": 0.62, "rain": 0.21},
-        231: {"storm": 0.71, "rain": 0.24},
-        232: {"storm": 0.80, "rain": 0.36},
-        300: {"rain": 0.25},
-        301: {"rain": 0.40},
-        302: {"rain": 0.55},
-        310: {"rain": 0.30},
-        311: {"rain": 0.50},
-        312: {"rain": 0.60},
-        313: {"rain": 0.50},
-        314: {"rain": 0.65},
-        321: {"rain": 0.50},
-        500: {"rain": 0.40},
-        501: {"rain": 0.65},
-        502: {"rain": 0.85},
-        503: {"rain": 1.00},
-        504: {"rain": 1.00},
-        511: {"rain": 0.53, "snow": 0.27},
-        520: {"rain": 0.45},
-        521: {"rain": 0.65},
-        522: {"rain": 0.90},
-        531: {"rain": 0.70},
-        600: {"snow": 0.40},
-        601: {"snow": 0.70},
-        602: {"snow": 1.00},
-        611: {"snow": 0.39, "rain": 0.39},
-        612: {"snow": 0.32, "rain": 0.32},
-        613: {"snow": 0.35, "rain": 0.35},
-        615: {"rain": 0.35, "snow": 0.35},
-        616: {"rain": 0.42, "snow": 0.42},
-        620: {"snow": 0.40},
-        621: {"snow": 0.65},
-        622: {"snow": 1.00},
-        701: {"fog": 0.30},
-        711: {"fog": 0.45},
-        721: {"fog": 0.25},
-        731: {"fog": 0.25},
-        741: {"fog": 0.75},
-        751: {"fog": 0.30},
-        761: {"fog": 0.40},
-        762: {"fog": 0.60},
-        771: {"storm": 0.65},
-        781: {"storm": 1.00},
-        800: {"clear": 0.50},
-        801: {"clear": 0.47, "cloudy": 0.16},
-        802: {"clear": 0.35, "cloudy": 0.35},
-        803: {"cloudy": 0.47, "clear": 0.16},
-        804: {"cloudy": 0.50},
-    }
-
-    _MAIN_FALLBACK: dict[str, dict[str, float]] = {
-        "thunderstorm": {"storm": 0.67, "rain": 0.34},
-        "drizzle": {"rain": 0.40},
-        "rain": {"rain": 0.65},
-        "snow": {"snow": 0.65},
-        "mist": {"fog": 0.30},
-        "smoke": {"fog": 0.45},
-        "haze": {"fog": 0.25},
-        "dust": {"fog": 0.40},
-        "fog": {"fog": 0.75},
-        "sand": {"fog": 0.30},
-        "ash": {"fog": 0.55},
-        "squall": {"storm": 0.65},
-        "tornado": {"storm": 1.00},
-        "clear": {"clear": 0.50},
-        "clouds": {"cloudy": 0.50},
-    }
-
     config_key = "weather"
-    evaluation_cls = WeatherEvaluation
 
-    def __init__(self, config: WeatherPolicyConfig):
+    def __init__(self, config: WeatherPolicyConfig) -> None:
         super().__init__(config)
 
     def evaluate(self, context: Context) -> WeatherEvaluation:
         weather = context.weather
-        details = WeatherDetails(
-            weather_id=weather.id if weather is not None else None,
-            weather_main=weather.main if weather is not None else None,
-            available=weather is not None,
+        values = None
+        if weather is not None:
+            values = _CODE_SALIENCE.get(weather.id)
+            if values is None:
+                values = _MAIN_SALIENCE.get(weather.main.casefold())
+        rain, snow = values if values is not None else (0.0, 0.0)
+        return WeatherEvaluation(
+            policy_id=self.config_key,
+            salience={"clear": 0.0, "cloudy": 0.0, "rain": rain, "snow": snow},
+            details=WeatherDetails(
+                weather_id=weather.id if weather is not None else None,
+                weather_main=weather.main if weather is not None else None,
+                available=weather is not None,
+                mapped=values is not None,
+            ),
         )
-        if weather is None:
-            return self._make_evaluation(
-                details=details,
-                raw_direction=None,
-                salience=0.0,
-                intensity=0.0,
-            )
-
-        raw = self._resolve_tags(weather.id, weather.main)
-        if not raw:
-            return self._make_evaluation(
-                details=details,
-                raw_direction=None,
-                salience=0.0,
-                intensity=0.0,
-            )
-
-        details.mapped = True
-        norm = math.sqrt(sum(weight * weight for weight in raw.values()))
-        return self._make_evaluation(
-            details=details,
-            raw_direction=raw,
-            salience=1.0,
-            intensity=norm,
-        )
-
-    @classmethod
-    def _resolve_tags(cls, weather_id: int, weather_main: str) -> dict[str, float] | None:
-        entry = cls._ID_TAGS.get(weather_id)
-        if entry is not None:
-            return dict(entry)
-        fallback = cls._MAIN_FALLBACK.get(weather_main.lower())
-        return dict(fallback) if fallback is not None else None

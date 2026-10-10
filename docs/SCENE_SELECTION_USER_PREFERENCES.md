@@ -1,6 +1,6 @@
 # 问题一：用户偏好
 
-更新：2026-10-07。状态：已确认行为整理为[规格](SCENE_SELECTION_MODEL_SPEC.md)，具体交互仍待讨论。共同边界与设计原则见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
+更新：2026-10-07。状态：已确认行为整理为[规格](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)，具体交互仍待讨论。共同边界与设计原则见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
 
 本问题讨论用户有哪些中长期偏好，以及产品允许用户怎样自然地表达这些偏好。
 

@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
 from core.models.scene import SceneId, Scenes
+from core.models.semantics import ContextVariable, SemanticItem
 
 if TYPE_CHECKING:
     from core.models.context import Context
@@ -32,13 +33,12 @@ class ActivityDetails:
     matched_tag: str | None = None
     window_title: str = ""
     process: str = ""
-    ema_active: bool = False
 
 
 @dataclass
 class TimeDetails:
     hour: float = 0.0
-    virtual_hour: float = 0.0
+    virtual_hour: float | None = None
     day_start_hour: float | None = None
     night_start_hour: float | None = None
     peaks: dict[str, float] = field(default_factory=dict)
@@ -61,15 +61,7 @@ class WeatherDetails:
 @dataclass
 class BaseEvaluation:
     policy_id: str
-    active: bool
-    weight: float
-    salience: float
-    intensity: float
-    effective_magnitude: float
-    direction: dict[str, float] = field(default_factory=dict)
-    raw_contribution: dict[str, float] = field(default_factory=dict)
-    resolved_contribution: dict[str, float] = field(default_factory=dict)
-    dominant_tag: str | None = None
+    salience: dict[SemanticItem, float]
 
 
 @dataclass
@@ -109,19 +101,18 @@ class ActPlan:
 
 
 @dataclass
-class Match:
-    best_scenes: Scenes
-    scene_matches: list[tuple[SceneId, float]] = field(default_factory=list)
-    # Direct policy outputs keyed by tag name, before fallback expansion.
-    # Used by action_events for user-facing event records.
-    raw_context_vector: dict[str, float] = field(default_factory=dict)
-    # Same data after fallback expansion — fed into cosine-similarity scoring.
-    resolved_context_vector: dict[str, float] = field(default_factory=dict)
-    fallback_expansions: dict[str, dict[str, float]] = field(default_factory=dict)
+class Selection:
+    probabilities: dict[SceneId, float]
+    salience: dict[SemanticItem, float]
+    reason: Literal["preference", "neutral", "best_effort", "no_safe_scenes"]
+    selected_tier: int | None = None
+    sources: list[ContextVariable] = field(default_factory=list)
+    excluded_scenes: dict[SceneId, frozenset[SemanticItem]] = field(default_factory=dict)
     policy_evaluations: list[PolicyEvaluation] = field(default_factory=list)
-    max_policy_magnitude: float = 0.0
-    similarity: float = 0.0
-    similarity_gap: float = 0.0
+
+    @property
+    def scenes(self) -> Scenes:
+        return Scenes([scene_id for scene_id, probability in self.probabilities.items() if probability > 0])
 
 
 @dataclass
@@ -147,18 +138,20 @@ class Decision:
     action: Action
     target: Scenes
     evaluation: BlockerEvaluation | None = None
+    probabilities: dict[SceneId, float] = field(default_factory=dict)
 
 
 @dataclass
 class ActionResult:
     target_playlist: str | None = None
+    selected_scene: SceneId | None = None
     executed: bool = False
 
 
 @dataclass
 class ScheduleTrace:
     context: Context
-    match: Match
+    selection: Selection
     plan: ActPlan
     decision: Decision
     action: ActionResult
@@ -177,8 +170,8 @@ class TickTrace:
         return self.schedule.context
 
     @property
-    def match(self) -> Match:
-        return self.schedule.match
+    def selection(self) -> Selection:
+        return self.schedule.selection
 
     @property
     def plan(self) -> ActPlan:

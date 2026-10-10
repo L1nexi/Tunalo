@@ -4,8 +4,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.scene import SceneId
+from core.models.semantics import ContextVariable
 
 
 class ProfileModel(BaseModel):
@@ -13,13 +13,6 @@ class ProfileModel(BaseModel):
 
 
 NonEmptyText = Annotated[str, Field(min_length=1)]
-type ResponseStyle = Literal[
-    "background",
-    "background_leaning",
-    "balanced",
-    "current_leaning",
-    "current",
-]
 
 
 class WeatherLocationProfile(ProfileModel):
@@ -41,27 +34,21 @@ class DisturbanceProfile(ProfileModel):
 
 
 class MatchingProfile(ProfileModel):
-    response_style: ResponseStyle = "balanced"
-
-
-class ActivityProfile(ProfileModel):
-    work_processes: list[NonEmptyText] = Field(default_factory=list)
-    leisure_processes: list[NonEmptyText] = Field(default_factory=list)
-    work_title_keywords: list[NonEmptyText] = Field(default_factory=list)
-    leisure_title_keywords: list[NonEmptyText] = Field(default_factory=list)
+    preference_tiers: list[list[ContextVariable]] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def reject_conflicting_targets(self) -> Self:
-        process_conflicts = _normalized_processes(self.work_processes) & _normalized_processes(self.leisure_processes)
-        title_conflicts = _normalized_text(self.work_title_keywords) & _normalized_text(self.leisure_title_keywords)
-        conflicts = sorted(process_conflicts | title_conflicts)
-        if conflicts:
-            raise ValueError(f"activity targets cannot be both work and leisure: {', '.join(conflicts)}")
+    def validate_tiers(self) -> Self:
+        """Raise ValueError for empty tiers or repeated variables."""
+        if any(not tier for tier in self.preference_tiers):
+            raise ValueError("preference tiers must not be empty")
+        variables = [variable for tier in self.preference_tiers for variable in tier]
+        if len(set(variables)) != len(variables):
+            raise ValueError("preference variables must not repeat")
         return self
 
 
 class Profile(ProfileModel):
-    version: Literal[1] = 1
+    version: Literal[2] = 2
     setup_complete: Literal[True] = True
     wallpaper_engine_path: NonEmptyText
     language: Literal["zh", "en"] | None = None
@@ -69,12 +56,3 @@ class Profile(ProfileModel):
     scenes: dict[SceneId, NonEmptyText] = Field(min_length=1)
     matching: MatchingProfile = Field(default_factory=MatchingProfile)
     disturbance: DisturbanceProfile = Field(default_factory=DisturbanceProfile)
-    activity: ActivityProfile = Field(default_factory=ActivityProfile)
-
-
-def _normalized_processes(values: list[str]) -> set[str]:
-    return {normalize_process_name(value, case_sensitive=False) for value in values}
-
-
-def _normalized_text(values: list[str]) -> set[str]:
-    return {normalize_match_text(value, case_sensitive=False) for value in values}

@@ -26,9 +26,6 @@ _避免使用_: TickTrace、Action
 当前观测与必要近期轨迹到各语义项有符号显著度的映射，表达支持或违和证据；它独立于用户偏好和场景目录。
 _避免使用_: Blocker、Control Directive
 
-**Tag Direction**:
-Policy 当前倾向的各标签之间的相对比例，只表达语义方向，不表达总体影响大小。
-
 **Salience**:
 显著度，当前观测与必要近期轨迹对某个语义项的支持或违和程度。正向表示支持，零表示中性或不存在，负向表示反向；它独立于用户偏好与场景目录。
 _避免使用_: Intensity
@@ -46,19 +43,9 @@ _避免使用_: Context Variable
 具有同等偏好地位的上下文变量集合。多个层级按用户偏好程度排列，用于级联寻找可响应的上下文。
 _可接受别名_: 偏好层级
 
-**Intensity**:
-强度，即被观测现象自身的强度，与信号归属是否清晰相互独立。
-_避免使用_: Salience
-
-**Response Style**:
-用户对场景匹配更偏重背景氛围还是当前情境的偏好。它只改变各类 Context 对匹配结果的相对影响，不改变切换等待、阻塞或执行时机。
-_可接受别名_: 响应风格
-_避免使用_: Temporal Horizon、时间尺度偏好、调度风格、场景偏好、调度灵敏度、切换积极度
-
-**Wandering**:
-活动缺少持续的主导方向、注意力在不同方向间游移的内部语义，也近似容纳少量有方向但尚未被识别的活动。Wandering 不向用户开放为可关联的活动语义项。
-_中文暂称_: 游移
-_避免使用_: Idle、空闲
+**OTHER**:
+未识别或未观察到明确方向的活动。它是活动轨迹中的零方向，不是场景可关联的语义项。
+_避免使用_: Idle、空闲、娱乐
 
 ## 场景与播单
 
@@ -73,14 +60,14 @@ _可接受别名_: 场景
 _避免使用_: Playlist
 
 **Scenes**:
-由零个、一个或多个 Scene 身份组成的语义候选集合，也是 Scheduler 在 matching、控制与跨 Tick 记忆中使用的场景领域值。
+由零个、一个或多个 Scene 身份组成的候选集合，也是调度控制与跨 Tick 记忆中使用的场景领域值。
 _可接受别名_: 场景集合、场景池
 _避免使用_: Playlists
 
-**Semantic Continuity**:
-相邻 Tick 的 Scenes 在语义上的延续程度。共同 Scene 及其壁纸数量决定连续性强弱；不同 Scene 即使关联同一个 Playlist，也仍保持各自的语义身份。
-_可接受别名_: 语义连续性
-_避免使用_: Playlist Continuity、集合全等
+**Selection**:
+当前上下文下各 Scene 的完整选择概率分布，以及本次选择所依据的显著度和来源。它表达选择机会，尚未抽取具体 Scene。
+_可接受别名_: 场景选择结果
+_避免使用_: Similarity、相似度、采样结果
 
 **Scene Assignment**:
 一个已启用 Scene 到一个具名 Wallpaper Engine Playlist 的关联，表达用户希望该场景呈现的画面。多个 Scene 可以关联同一个 Playlist；未建立关联的 Scene 不参与调度。
@@ -102,7 +89,7 @@ _可接受别名_: active\*scenes
 _避免使用_: Cached Scenes、FactualPlaylistStatus
 
 **Scene Lowering**:
-在执行边界从一个 Scenes 候选集合选出具体 Wallpaper Engine Playlist 的过程。每个候选 Scene 按其绑定 Playlist 的壁纸数量独立贡献选择权重，因此多个 Scene 绑定同一 Playlist 时会共同提高该 Playlist 的权重；lowering 不改变 Scenes 的语义身份。
+在执行边界按本次 Selection 的概率抽取一个 Scene，再找到其绑定的 Wallpaper Engine Playlist 的过程。同播单的不同 Scene 保留身份和概率，播单大小不改变选择机会。
 _可接受别名_: lowering
 _避免使用_: matching
 

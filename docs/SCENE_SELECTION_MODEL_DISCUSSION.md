@@ -1,12 +1,12 @@
 # 场景选择模型讨论
 
-> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
+> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
 
 记录始于：2026-10-04。更新：2026-10-07。状态：讨论进行中。
 
 讨论从[产品定位](PRODUCT_POSITIONING.md)出发，按以下三个问题分别记录当前方向、探索方案和待讨论事项。
 
-已确认行为集中整理为[上下文语义与场景匹配模型规格](SCENE_SELECTION_MODEL_SPEC.md)。本总览保留讨论进度与背景，参数与观测映射继续列为待落实事项。
+已确认行为集中整理为[上下文语义与场景匹配模型规格](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)。本总览保留讨论进度与背景，参数与观测映射继续列为待落实事项。
 
 ## 问题与进度
 

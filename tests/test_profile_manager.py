@@ -10,6 +10,7 @@ import pytest
 
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
+from core.models.context import Context, WindowData
 from core.models.scene import SceneId
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import (
@@ -189,3 +190,39 @@ def test_profile_application_is_unavailable_before_startup(tmp_path: Path):
 
     with pytest.raises(ProfileApplyUnavailable):
         manager.apply_profile(_profile(executable), timeout=1)
+
+
+def test_successful_profile_application_preserves_real_activity_trajectory(tmp_path: Path):
+    manager, engine, current = _initialized_manager(tmp_path)
+    context = Context(window=WindowData(process="code.exe"))
+    for _ in range(179):
+        engine.selector.select(context)
+    draft = _profile(current.wallpaper_engine_path, playlist="NEW")
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        pending = executor.submit(manager.apply_profile, draft, timeout=1)
+        _process_until_done(manager, engine, pending)
+    result = engine.selector.select(context)
+    assert result.salience["focus"] == pytest.approx(0.649890150, abs=1e-9)
+    assert result.probabilities[SceneId.DAY_WORK] == 1
+
+
+def test_failed_persistence_keeps_live_activity_and_committed_profile(tmp_path: Path, monkeypatch):
+    manager, engine, current = _initialized_manager(tmp_path)
+    context = Context(window=WindowData(process="code.exe"))
+    for _ in range(179):
+        engine.selector.select(context)
+
+    def fail_replace(*_args):
+        raise OSError("fixture disk failure")
+
+    monkeypatch.setattr("configurations.profile_store.os.replace", fail_replace)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        pending = executor.submit(manager.apply_profile, _profile(current.wallpaper_engine_path, playlist="NEW"), timeout=1)
+        with pytest.raises(ProfileApplyFailed) as failure:
+            _process_until_done(manager, engine, pending)
+    assert failure.value.stage == "persist"
+    assert manager.get_profile() == current
+    assert ProfileStore(str(tmp_path)).load() == current
+    result = engine.selector.select(context)
+    assert result.salience["focus"] == pytest.approx(0.649890150, abs=1e-9)
+    assert engine.config.scenes[SceneId.DAY_WORK].playlist == "WORK"

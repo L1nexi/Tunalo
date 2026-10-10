@@ -47,8 +47,22 @@ npm run build-only
 
 - `app/main.py`：托盘进程、首次设置和本地服务启动。
 - `core/runtime/profile_manager.py`：配置读取、编译、保存和运行时应用。
+- `core/runtime/selector.py`：Policy 求值、有符号显著度汇集，以及共用的确定性概率计算。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
 
 需要排查天气或本地服务时，可临时设置 `TUNALO_LOG_LEVEL=DEBUG`。分享日志前请检查敏感内容。产品化规划、验收事项和后续改进见 [文档索引](index.md)。
+
+## 场景选择模型
+
+Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表表示中立回退。旧响应风格和用户活动规则已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+
+Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。活动轨迹每次新观测推进一槽，诊断读取不推进；状态热替换只传递分类后的方向。
+
+```powershell
+.\.venv\Scripts\python.exe tools/tuning/calibrate.py
+.\.venv\Scripts\python.exe tools/tuning/scan.py --mode wx-act --out new-model-wx-act
+```
+
+前者导出三类显著度曲线及 1800 槽的完整场景分布；后者输出二维概览与 `distributions.json`。静态活动轴直接表示有符号显著度，不注入活动内部状态。工具只使用专用数据。

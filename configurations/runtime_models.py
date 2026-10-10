@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from configurations.activity_rules import RULE_GROUPS
+from configurations.profile import MatchingProfile
 from core.models.scene import SceneId
+from core.models.semantics import SemanticItem
 
-
-class TagSpec(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    fallback: dict[str, float] = Field(default_factory=dict)
+FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
 
 class SceneConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     playlist: str = Field(min_length=1)
-    tags: dict[str, float] = Field(default_factory=dict)
+    associations: frozenset[SemanticItem] = Field(min_length=1)
     item_count: int = 0
 
 
@@ -25,22 +25,30 @@ class ActivityMatcherConfig(BaseModel):
     source: Literal["process", "title"]
     match: Literal["exact", "regex", "contains"]
     pattern: str = Field(min_length=1)
-    tag: str = Field(min_length=1)
+    tag: Literal["focus", "chill"]
     case_sensitive: bool = False
 
 
 class BasePolicyConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    weight: float = Field(1.0, ge=0)
+
+
+def built_in_activity_matchers() -> list[ActivityMatcherConfig]:
+    return [
+        ActivityMatcherConfig(source=source, match="exact" if source == "process" else "contains", pattern=pattern, tag=tag)
+        for source, tag, patterns in RULE_GROUPS
+        for pattern in patterns
+    ]
 
 
 class ActivityPolicyConfig(BasePolicyConfig):
-    smoothing_window: float = Field(60.0, ge=1)
-    matchers: list[ActivityMatcherConfig] = Field(default_factory=list)
+    age_scale: FinitePositive = 300.0
+    curve_q: FinitePositive = 0.5
+    matchers: list[ActivityMatcherConfig] = Field(default_factory=built_in_activity_matchers)
 
 
 class TimePolicyConfig(BasePolicyConfig):
-    pass
+    curve_q: FinitePositive = 0.5
 
 
 class SeasonPolicyConfig(BasePolicyConfig):
@@ -48,6 +56,8 @@ class SeasonPolicyConfig(BasePolicyConfig):
     summer_peak: int = 172
     autumn_peak: int = 265
     winter_peak: int = 355
+    plateau_half_width: float = Field(10.0, ge=0, allow_inf_nan=False)
+    curve_q: FinitePositive = 0.5
 
 
 class WeatherPolicyConfig(BasePolicyConfig):
@@ -86,11 +96,18 @@ class SchedulingConfig(BaseModel):
     pause_on_fullscreen: bool = True
 
 
+class MatchingConfig(MatchingProfile):
+    positive_boundary: FinitePositive = 0.5
+    negative_boundary: FinitePositive = 0.5
+    variable_temperature: FinitePositive = 1.4
+    scene_temperature: FinitePositive = 1.5
+
+
 class SchedulerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     wallpaper_engine_path: str = ""
     language: Literal["zh", "en"] | None = None
-    tags: dict[str, TagSpec] = Field(default_factory=dict)
     scenes: dict[SceneId, SceneConfig] = Field(default_factory=dict)
+    matching: MatchingConfig = Field(default_factory=MatchingConfig)
     policies: PoliciesConfig = Field(default_factory=PoliciesConfig)
     scheduling: SchedulingConfig = Field(default_factory=SchedulingConfig)

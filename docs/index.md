@@ -43,10 +43,16 @@
 | 文档                           | 作用                                                       | 状态   |
 | ------------------------------ | ---------------------------------------------------------- | ------ |
 | `PRODUCTIZATION_PHASE_PLAN.md` | 配置 profile、Tick History 与 setup GUI 的产品化阶段规划。 | Active |
-| [SCENE_SELECTION_MODEL_SPEC.md](SCENE_SELECTION_MODEL_SPEC.md) | 上下文语义、级联偏好、变量预算、场景概率与验收行为。 | 待实施；已纳入 2026-10-09 决定及内部初值。 |
-| [场景选择模型实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) | Sensor、Policy、Matcher 重构、配置与运行时接入，以及整体实现后的行为测试计划。 | 待实施；复用采集、重构模型，完整实现后集中测试。 |
-| [构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md) | 内部初值、600 槽算例、内置活动规则、55 个 OWM 代码与 Scene 关联。 | 第一版实施取值；后续按实际行为校准。 |
 | [场景选择模型实施开放问题](open-questions.md) | 原问题的已确认结论及后续问题记录入口。 | 本轮问题已关闭，当前无阻挡实施的开放项。 |
+
+## 场景选择模型：已完成
+
+| 文档 | 作用 | 状态 |
+| --- | --- | --- |
+| [SCENE_SELECTION_MODEL_SPEC.md](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md) | 上下文语义、级联偏好、变量预算、场景概率与验收行为。 | 已实现并验证；详见实施验收记录。 |
+| [场景选择模型实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) | Sensor、Policy、Selector 重构、配置与运行时接入，以及整体实现后的行为测试计划。 | 已实施并验证；完整实现后集中测试。 |
+| [构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md) | 内部初值、600 槽算例、内置活动规则、55 个 OWM 代码与 Scene 关联。 | 第一版实施取值；后续按实际行为校准。 |
+| [场景选择模型实施验收](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_ACCEPTANCE.md) | 公开接口行为、曲线、原生窗口、真实天气和 Wallpaper Engine 的验证证据。 | 已完成；正式配置未改写。 |
 
 ## Architecture Decisions
 

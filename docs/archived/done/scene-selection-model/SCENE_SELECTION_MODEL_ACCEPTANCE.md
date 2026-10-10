@@ -1,0 +1,47 @@
+# 场景选择模型实施验收
+
+日期：2026-10-10。实现与验证均基于当前工作区；未提交代码，也未改写正式 Profile。
+
+## 已交付行为
+
+- `Engine.schedule()` 在采集后调用 `Selector.select(context)`。四类 Policy 输出 14 项有符号显著度，Selector 汇集后复用 `calculate_distribution()` 形成完整分布。
+- 活动使用产品内置窗口规则与最近 600 槽；未观察和未命中方向为零，分母始终覆盖整个窗口。轨迹只在内存中保存分类方向，热替换复制轨迹，进程重启从零开始。
+- 季节采用正负平台与 S 形过渡；时段继续按天气日出日落对齐，无平台。天气按规则表的 55 个代码赋值，晴朗、阴云中性，缺失和缓存回退沿用原流程。
+- 统一负向排除、分变量正向召回、偏好级联、最高正向显著度预算、完整方向投影评分与条件分布混合均已接通。尽力选择保留弱证据；全零均匀，安全集合为空返回空结果。
+- Controller 保留既有执行门槛，候选集合相等时轮换，否则切换。Actuator 只在执行时按本次分布抽取 Scene，再查询播单；连续性与播单大小抽样已删除。
+- Profile 版本为 2，使用 `matching.preference_tiers`；旧格式验证失败。设置页支持同层偏好、先后级联、保存回填和清除偏好；活动规则编辑入口已删除。
+- Tick History 与稀疏事件记录使用显著度、完整概率、排除／回退原因和实际抽取 Scene，未沿用旧相似度字段含义。
+
+## 行为证据
+
+| 要求 | 验证入口与证据 |
+| --- | --- |
+| M-01～M-19、边界、有限概率及顺序独立 | `tests/test_selection_model.py` 通过共用纯概率入口验证；数值算例独立固定参数，未复制计算算法。 |
+| M-20、真实配置编译和产品默认参数 | `tests/test_profile_compiler.py` 使用真实编译器、Policy 和 Selector；播单名称、数量、多对一绑定均不改变分布。 |
+| S-01～S-11、内置分类及天气识别回退 | `tests/test_semantic_model.py` 通过真实 Policy 或 Selector 回放观测；600 槽、反对称、平台、周期、动态时段和代码中间值均有证据。 |
+| 暂停观察、诊断不推进、最新概率、执行失败不提交 | `tests/test_selection_pipeline.py` 使用真实 Engine、Sensor、Policy、Selector、Controller 和 Actuator，仅控制系统读取、时钟、随机源与实际执行依赖。 |
+| 状态热替换、参数重新解释、失败隔离、天气缓存重建 | `tests/test_selection_pipeline.py`、`tests/test_profile_manager.py` 验证实际轨迹输出和持久化边界。 |
+| 天气刷新失败仍解释既有缓存 | `tests/test_weather.py` 通过网络边界注入失败，并以真实 WeatherPolicy 检查最终显著度。 |
+| HTTP、导出、脱敏与事件含义 | 既有 API／Tick History 测试及完整 Engine 到 DTO／JSONL 接入用例。 |
+| 偏好保存、回填、清除与删除旧入口 | 前端 13 项单元测试、36 项浏览器回归，含完整偏好提交与原有设置流程。 |
+
+后端最终回归、Ruff、前端类型检查和构建、浏览器回归、差异空白检查均通过。后端共 248 项测试；具体命令见 [开发与验证](../../../DEVELOPMENT.md)。
+
+## 曲线与概率校准
+
+`tools/tuning/calibrate.py` 输出实际 Policy 的活动、季节和时段曲线，并回放 1800 槽工作→娱乐→OTHER；已查看图像。初始缓慢建立、方向反转、OTHER 衰减、季节平台和无平台时段符合模型锚点。
+
+`tools/tuning/scan.py --mode wx-act --out new-model-wx-act` 计算了 5412 个二维采样点，完整分布保存在 `distributions.json`，概览图仅用于查看最高概率区域。天气表额外逐行核对了全部 55 个代码；621 的雪显著度为 0.85。
+
+第一版仍采用规则表的内部初值：边界 0.5／0.5、变量温度 1.4、场景温度 1.5、活动年龄尺度 300、曲线参数 0.5。M-05 数值样例及产品默认排序均已验证。本轮不宣称已经完成长期主观体验评估。
+
+## 原生与真实环境验证
+
+- 实际 Windows 前台窗口、当地时钟、空闲和全屏读取成功。
+- 以独立配置目录启动真实 Bottle、ProfileManager、Engine 与 EdgeChromium 窗口。在 125% 缩放、1186×743 逻辑视口下页面没有横向溢出，主内容区负责滚动；已查看原生渲染图。
+- 通过原生页面操作将时段加入第一层，实际 `PUT /api/profile` 完成队列应用与原子保存。页面、内存 Profile 和磁盘 Profile 的偏好层级一致，版本为 2。
+- 使用用户补充配置中的凭据获得真实 OWM 天气代码 803，日出日落进入真实 TimePolicy，完整 Scene 概率总和为 1。
+- 按实时分布实际抽取 `night_leisure`，CLI 成功加载 `NIGHT_CHILL`。随后从 Wallpaper Engine 自身的播放配置观察到该目标；其配置更新存在异步延迟。验收后按显示器位置恢复到 `SUNSET_GLOW`，再次观察到恢复结果。
+- 正式 `config/profile.json` 的哈希前后一致。它仍为版本 1；真实运行新程序前需提供版本 2 配置。本轮只为验收在内存中明确构建中立偏好，没有写入转换器或旧格式兼容路径。
+
+原生渲染、实时分布及恢复证据保存在本机 `.pytest_tmp/native-model-acceptance/`；曲线与二维扫描在 `tools/tuning/runs/`。这些运行产物不进入生产配置或持久活动历史。

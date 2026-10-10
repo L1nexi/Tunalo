@@ -1,8 +1,8 @@
 # 上下文语义与场景选择模型实施计划
 
-日期：2026-10-09；更新：2026-10-10。状态：待实施；本轮问题已有结论。代码核对基线：`727c75f`。
+日期：2026-10-09；更新：2026-10-10。状态：已实施并验证，验收记录见 [SCENE_SELECTION_MODEL_ACCEPTANCE.md](SCENE_SELECTION_MODEL_ACCEPTANCE.md)。本轮问题已有结论。代码核对基线：`727c75f`。
 
-规格入口：[SCENE_SELECTION_MODEL_SPEC.md](SCENE_SELECTION_MODEL_SPEC.md)。数值、应用规则、天气代码和 Scene 关联见[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md)，本轮决定见 [open-questions.md](open-questions.md)。现有代码已经表达的采集、回退和生命周期直接复用；主要重构语义与数值模型。
+规格入口：[SCENE_SELECTION_MODEL_SPEC.md](SCENE_SELECTION_MODEL_SPEC.md)。数值、应用规则、天气代码和 Scene 关联见[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md)，本轮决定见 [open-questions.md](../../../open-questions.md)。现有代码已经表达的采集、回退和生命周期直接复用；主要重构语义与数值模型。
 
 ## 1. 目标与实施方式
 
@@ -44,22 +44,22 @@
 
 | 行为 | 代码依据 | 本次处理 |
 | --- | --- | --- |
-| 采集节奏 | [`Scheduler._run_loop()`](../core/runtime/scheduler.py) 每轮执行调度后 `sleep(1)`；[`Engine.schedule()`](../core/runtime/engine.py) 每轮先 `sense()` | 沿用约一秒一轮的轮询，每次采样推进一槽，不增加采集线程、事件钩子或实际时间重采样 |
+| 采集节奏 | [`Scheduler._run_loop()`](../../../../core/runtime/scheduler.py) 每轮执行调度后 `sleep(1)`；[`Engine.schedule()`](../../../../core/runtime/engine.py) 每轮先 `sense()` | 沿用约一秒一轮的轮询，每次采样推进一槽，不增加采集线程、事件钩子或实际时间重采样 |
 | 暂停与停止 | 暂停仍调用 `Engine.schedule()`；`Scheduler.stop()` 停止循环但不销毁 Engine | 暂停继续观察；停止或休眠无 tick 时不推进、不补槽；同一实例再启动保留内存状态 |
-| 进程重启 | [`PersistedState`](../core/state/persisted.py) 只持久化暂停和缓存场景；ActivityPolicy 初始化为空 | 活动历史继续只在内存中，进程重启从空状态开始，不写入 `state.json` |
-| 窗口读取回退 | [`WindowSensor`](../core/sensors/window.py) 无前台或读取失败返回空 `WindowData`；仅进程名读取失败时保留标题、进程记作 `Unknown` | 保留此返回方式，仍交给原有规则匹配；不新增“读取失败／成功但未知”等语义状态 |
-| 活动未命中 | [`ActivityPolicy._get_instant_signal()`](../core/policies/activity.py) 未命中返回空即时信号，但 `evaluate()` 继续合成已有历史 | 新模型将该次即时方向记为 0，并保留在轨迹分母；不是把最终活动显著度立即清零，也不是产生负向证据 |
+| 进程重启 | [`PersistedState`](../../../../core/state/persisted.py) 只持久化暂停和缓存场景；ActivityPolicy 初始化为空 | 活动历史继续只在内存中，进程重启从空状态开始，不写入 `state.json` |
+| 窗口读取回退 | [`WindowSensor`](../../../../core/sensors/window.py) 无前台或读取失败返回空 `WindowData`；仅进程名读取失败时保留标题、进程记作 `Unknown` | 保留此返回方式，仍交给原有规则匹配；不新增“读取失败／成功但未知”等语义状态 |
+| 活动未命中 | [`ActivityPolicy._get_instant_signal()`](../../../../core/policies/activity.py) 未命中返回空即时信号，但 `evaluate()` 继续合成已有历史 | 新模型将该次即时方向记为 0，并保留在轨迹分母；不是把最终活动显著度立即清零，也不是产生负向证据 |
 | 活动匹配规则 | ActivityPolicy 已实现标题优先于进程、精确优先于正则优先于包含，再按字面长度与声明顺序决胜，以及文本／进程名标准化 | 复用识别代码与优先级，换成产品内置规则，并替换分类后的数值构建 |
 | 语义状态转移 | ActivityPolicy 的 `export_state/import_state` 导出方向 EMA 与幅度，导入时按支持标签过滤；Engine 准备替换时传递状态 | 沿用这条热替换机制，状态内容改为新模型的 600 槽方向；不转换旧 EMA，不新增历史重新分类机制 |
-| 天气缺失与无法映射 | [`WeatherPolicy.evaluate()`](../core/policies/weather.py) 对 `None` 或代码及主分类均不能映射的观测输出无贡献；先按 `id` 再按 `main` 查表 | 新表示中对应四项天气显著度为 0。保留识别回退顺序，不将缺失解释为晴朗、阴云或负向天气 |
-| 天气刷新与失败 | [`WeatherSensor`](../core/sensors/weather.py) 构造时缓存为空，`collect()` 触发单个后台请求；成功替换缓存，失败保留；编译器使用 600 秒刷新、10 秒超时 | 沿用这些参数及缓存行为，不增加有效期或衰减。无缓存时无天气贡献；请求失败而缓存非空时继续由 WeatherPolicy 解释该缓存 |
+| 天气缺失与无法映射 | [`WeatherPolicy.evaluate()`](../../../../core/policies/weather.py) 对 `None` 或代码及主分类均不能映射的观测输出无贡献；先按 `id` 再按 `main` 查表 | 新表示中对应四项天气显著度为 0。保留识别回退顺序，不将缺失解释为晴朗、阴云或负向天气 |
+| 天气刷新与失败 | [`WeatherSensor`](../../../../core/sensors/weather.py) 构造时缓存为空，`collect()` 触发单个后台请求；成功替换缓存，失败保留；编译器使用 600 秒刷新、10 秒超时 | 沿用这些参数及缓存行为，不增加有效期或衰减。无缓存时无天气贡献；请求失败而缓存非空时继续由 WeatherPolicy 解释该缓存 |
 | 配置替换后的天气 | Engine 每次重新构建 Sensor，没有迁移天气缓存；新 Sensor 构造不请求，首次 `collect()` 才请求 | 沿用全部配置替换时重建天气缓存的行为，API Key 或地点改变也如此；不另设计保留旧地点天气的规则 |
-| Context 的异常与隔离 | [`ContextManager.refresh/sense()`](../core/models/context.py) 捕获未被 Sensor 处理的异常并保留原字段，返回深拷贝 | 保留这条防线和快照隔离，不为数值模型重构改变所有 Sensor 的错误处理契约 |
-| 季节输入及已有锚点 | [`SeasonPolicy`](../core/policies/season.py) 使用当地 `tm_yday`、365 日周期和配置峰值 80／172／265／355 | 保留口径及锚点；四季各自峰值前后 10 日为平台，替换 Hann 与贡献模型 |
-| 时段输入与对齐 | [`TimePolicy`](../core/policies/time.py) 由日出日落计算昼夜中点，将相邻峰值映射到 6 个虚拟小时；没有峰值时无贡献 | 保留动态对齐、原名称、初始缺失与已有峰值回退；只替换为无平台 S 形曲线 |
-| 执行与提交 | [`Controller`](../core/runtime/controller.py) 已定义阻塞、暂停和无候选行为；[`TickTrace.cache_update`](../core/models/trace.py) 只在切换执行成功后提交 | 保留控制门槛、无候选时保持／无动作、执行失败不提交；删除连续性计算 |
-| 抽样时机 | [`Actuator.act()`](../core/runtime/actuator.py) 仅在实际执行切换或轮换时调用 `select_target_playlist()` | 继续在执行边界抽样，阻塞和暂停不抽样；要替换的是旧抽样权重及其分布来源，不是另建每 tick 重抽机制 |
-| 诊断组织与精度 | [`ui/tick_history.py`](../ui/tick_history.py) 已有观测、Policy、匹配、控制与执行的 DTO，默认保留四位小数；导出复用 DTO | 在原有出口适配新显著度和概率，继续沿用展示精度、记录生命周期和脱敏范围，不单独设计新诊断产品 |
+| Context 的异常与隔离 | [`ContextManager.refresh/sense()`](../../../../core/models/context.py) 捕获未被 Sensor 处理的异常并保留原字段，返回深拷贝 | 保留这条防线和快照隔离，不为数值模型重构改变所有 Sensor 的错误处理契约 |
+| 季节输入及已有锚点 | [`SeasonPolicy`](../../../../core/policies/season.py) 使用当地 `tm_yday`、365 日周期和配置峰值 80／172／265／355 | 保留口径及锚点；四季各自峰值前后 10 日为平台，替换 Hann 与贡献模型 |
+| 时段输入与对齐 | [`TimePolicy`](../../../../core/policies/time.py) 由日出日落计算昼夜中点，将相邻峰值映射到 6 个虚拟小时；没有峰值时无贡献 | 保留动态对齐、原名称、初始缺失与已有峰值回退；只替换为无平台 S 形曲线 |
+| 执行与提交 | [`Controller`](../../../../core/runtime/controller.py) 已定义阻塞、暂停和无候选行为；[`TickTrace.cache_update`](../../../../core/models/trace.py) 只在切换执行成功后提交 | 保留控制门槛、无候选时保持／无动作、执行失败不提交；删除连续性计算 |
+| 抽样时机 | [`Actuator.act()`](../../../../core/runtime/actuator.py) 仅在实际执行切换或轮换时调用 `select_target_playlist()` | 继续在执行边界抽样，阻塞和暂停不抽样；要替换的是旧抽样权重及其分布来源，不是另建每 tick 重抽机制 |
+| 诊断组织与精度 | [`ui/tick_history.py`](../../../../ui/tick_history.py) 已有观测、Policy、匹配、控制与执行的 DTO，默认保留四位小数；导出复用 DTO | 在原有出口适配新显著度和概率，继续沿用展示精度、记录生命周期和脱敏范围，不单独设计新诊断产品 |
 
 上述既有行为与本轮确认的增量共同构成实施依据，不把旧代码未在 SPEC 重述的选择视为缺失设计。
 

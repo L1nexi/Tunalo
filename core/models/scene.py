@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar
@@ -27,13 +26,12 @@ class SceneId(StrEnum):
 @dataclass(frozen=True)
 class SceneInfo:
     playlist: str
-    item_count: int
 
 
 class Scenes:
     _configs: ClassVar[dict[SceneId, SceneInfo]] = {}
 
-    def __init__(self, ids: list[SceneId] | None = None):
+    def __init__(self, ids: list[SceneId] | None = None) -> None:
         self._ids = list(dict.fromkeys(ids or []))
 
     @classmethod
@@ -41,7 +39,6 @@ class Scenes:
         cls._configs = {
             scene_id: SceneInfo(
                 playlist=config.playlist,
-                item_count=config.item_count,
             )
             for scene_id, config in configs.items()
         }
@@ -67,16 +64,9 @@ class Scenes:
     def ids(self) -> list[SceneId]:
         return list(self._ids)
 
-    def item_counts(self) -> dict[SceneId, int]:
-        return {scene_id: self._configs[scene_id].item_count for scene_id in self._ids}
-
-    def select_target_playlist(self) -> str:
-        weights: list[int] = []
-        for scene_id in self._ids:
-            item_count = self._configs[scene_id].item_count
-            weights.append(item_count if item_count > 0 else 1)
-        selected_scene = random.choices(self._ids, weights=weights, k=1)[0]
-        return self._configs[selected_scene].playlist
+    @classmethod
+    def playlist_for(cls, scene_id: SceneId) -> str:
+        return cls._configs[scene_id].playlist
 
     def __len__(self) -> int:
         return len(self._ids)

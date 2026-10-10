@@ -1,8 +1,8 @@
 # 问题三：上下文语义与显著度
 
-> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
+> 2026-10-09 补充：下文保留原讨论过程。实施以最新 [SPEC](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md) 为准：活动改为 600 槽；时段复用 API 日出日落及旧名称，不设平台；天气逐代码给值，晴朗／阴云中性；旧配置不兼容，调度停用连续性并作最小适配。下文旧参数、旧例子和“待落实”不再直接构成当前实施要求。
 
-更新：2026-10-07。状态：已确认构建主干整理为[规格](SCENE_SELECTION_MODEL_SPEC.md)，参数与观测映射待落实。共同边界与设计原则见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
+更新：2026-10-07。状态：已确认构建主干整理为[规格](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)，参数与观测映射待落实。共同边界与设计原则见[讨论总览](SCENE_SELECTION_MODEL_DISCUSSION.md)。
 
 本问题讨论怎样从原始观测构建雨、夜晚、工作等场景语义，使其能用于[变量预算和场景选择](SCENE_SELECTION_PROBABILITY_MODEL.md)。活动构建主干、季节与时段的显著平台加 S 形过渡结构，以及天气强度标尺已确定；锚点位置、函数参数、观测数据到等级的对应及跨变量校准仍待落实。本记录区分已确认方向和开放项，不是完整实现规格。
 

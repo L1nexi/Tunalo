@@ -2,7 +2,7 @@
 import { CheckIcon, CircleHelpIcon, SlidersHorizontalIcon } from "@lucide/vue"
 import { computed } from "vue"
 
-import type { Locale, ResponseStyle } from "@/api/profile"
+import type { ContextVariable, Locale } from "@/api/profile"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { COPY, DISTURBANCE_LABELS, RESPONSE_STYLE_LABELS, ZH_TIMING_HINTS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS, VARIABLE_LABELS, preferenceSummary, ZH_TIMING_HINTS } from "@/setup/copy"
 import { detectDisturbancePreset, DISTURBANCE_PRESETS, isNonNegativeInteger, parseNumberInput } from "@/setup/model"
 import type { DisturbancePreset, ProfileDraft } from "@/setup/model"
 
@@ -53,10 +53,30 @@ function timingErrors(field: DisturbanceKey): string[] {
   ]
 }
 
-function setResponseStyle(value: unknown): void {
-  if (typeof value === "string" && value) {
-    emit("update:matching", { response_style: value as ResponseStyle })
-  }
+const variables: ContextVariable[] = ["season", "time", "weather", "activity"]
+const preferenceCopy = computed(() => props.locale === "zh" ? {
+  description: "相同优先级的情境同等重要。前面的情境不明显或没有可用场景时，继续考虑后面的；都无法响应时，综合四类情境。",
+  neutral: "不指定偏好", rank: (rank: number) => `优先级 ${rank}`,
+  reset: "清除偏好", activity: "活动由前台窗口及近期使用轨迹识别，使用产品内置应用规则。",
+} : {
+  description: "Contexts at the same priority are equal. When a priority cannot respond, the next is considered; all four contexts provide the final fallback.",
+  neutral: "No preference", rank: (rank: number) => `Priority ${rank}`,
+  reset: "Clear preferences", activity: "Activity uses foreground windows and recent observations with built-in application rules.",
+})
+
+function preferenceRank(variable: ContextVariable): string {
+  const index = props.matching.preference_tiers.findIndex((tier) => tier.includes(variable))
+  return index < 0 ? "neutral" : String(index + 1)
+}
+
+function setPreference(variable: ContextVariable, value: unknown): void {
+  const ranks = new Map<ContextVariable, number>()
+  props.matching.preference_tiers.forEach((tier, index) => tier.forEach((item) => ranks.set(item, index + 1)))
+  if (value === "neutral") ranks.delete(variable)
+  else ranks.set(variable, Number(value))
+  const tiers = [...new Set(ranks.values())].sort((a, b) => a - b)
+    .map((rank) => variables.filter((item) => ranks.get(item) === rank))
+  emit("update:matching", { preference_tiers: tiers })
 }
 
 function setPreset(value: unknown): void {
@@ -71,40 +91,29 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
 
 <template>
   <section class="flex flex-col gap-8">
-    <FieldSet :data-invalid="messages('matching.response_style').length > 0">
+    <FieldSet :data-invalid="messages('matching', 'matching.preference_tiers').length > 0">
       <FieldLegend>{{ copy.preferences.responseTitle }}</FieldLegend>
-      <FieldDescription>{{ copy.preferences.responseDescription }}</FieldDescription>
-      <Select :model-value="matching.response_style" @update:model-value="setResponseStyle">
-        <SelectTrigger class="w-full lg:hidden" :aria-label="copy.preferences.responseTitle" :aria-invalid="messages('matching.response_style').length > 0" :aria-describedby="messages('matching.response_style').length ? 'response-style-error' : undefined">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem v-for="style in (Object.keys(RESPONSE_STYLE_LABELS[locale]) as ResponseStyle[])" :key="style" :value="style">{{ RESPONSE_STYLE_LABELS[locale][style] }}</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        :spacing="2"
-        class="hidden w-full lg:flex"
-        :model-value="matching.response_style"
-        :aria-describedby="messages('matching.response_style').length ? 'response-style-error' : undefined"
-        @update:model-value="setResponseStyle"
-      >
-        <ToggleGroupItem
-          v-for="style in (Object.keys(RESPONSE_STYLE_LABELS[locale]) as ResponseStyle[])"
-          :key="style"
-          :value="style"
-          class="min-w-28 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
-        >
-          <CheckIcon v-if="matching.response_style === style" class="text-primary" data-icon="inline-start" />
-          {{ RESPONSE_STYLE_LABELS[locale][style] }}
-        </ToggleGroupItem>
-      </ToggleGroup>
-      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.responseExplanations[matching.response_style] }}</p>
-      <FieldError v-if="messages('matching.response_style').length" id="response-style-error" :errors="messages('matching.response_style')" />
+      <FieldDescription>{{ preferenceCopy.description }}</FieldDescription>
+      <FieldGroup>
+        <Field v-for="variable in variables" :key="variable" orientation="horizontal">
+          <FieldLabel :for="`preference-${variable}`">{{ VARIABLE_LABELS[locale][variable] }}</FieldLabel>
+          <Select :model-value="preferenceRank(variable)" @update:model-value="(value) => setPreference(variable, value)">
+            <SelectTrigger :id="`preference-${variable}`" class="w-44" :aria-invalid="messages('matching', 'matching.preference_tiers').length > 0" aria-describedby="preference-error">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="neutral">{{ preferenceCopy.neutral }}</SelectItem>
+                <SelectItem v-for="rank in Math.min(4, matching.preference_tiers.length + 1)" :key="rank" :value="String(rank)">{{ preferenceCopy.rank(rank) }}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </FieldGroup>
+      <p role="status" class="text-sm">{{ preferenceSummary(matching.preference_tiers, locale) }}</p>
+      <p class="text-sm text-muted-foreground">{{ preferenceCopy.activity }}</p>
+      <Button type="button" variant="outline" class="self-start" :disabled="matching.preference_tiers.length === 0" @click="emit('update:matching', { preference_tiers: [] })">{{ preferenceCopy.reset }}</Button>
+      <FieldError v-if="messages('matching', 'matching.preference_tiers').length" id="preference-error" :errors="messages('matching', 'matching.preference_tiers')" />
     </FieldSet>
 
     <FieldSet>

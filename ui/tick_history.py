@@ -47,14 +47,9 @@ class ApiDto(BaseModel):
     )
 
 
-class TagWeightDto(ApiDto):
-    tag: str
-    weight: float
-
-
-class ResolvedTagWeightDto(ApiDto):
-    resolved_tag: str
-    weight: float
+class SemanticSalienceDto(ApiDto):
+    item: str
+    value: float
 
 
 class WindowSnapshotDto(ApiDto):
@@ -90,12 +85,11 @@ class ActivityDetailsDto(ApiDto):
     matched_tag: str | None
     window_title: str
     process: str
-    ema_active: bool
 
 
 class TimeDetailsDto(ApiDto):
     hour: float
-    virtual_hour: float
+    virtual_hour: float | None
     day_start_hour: float | None
     night_start_hour: float | None
     peaks: dict[str, float]
@@ -115,15 +109,7 @@ class WeatherDetailsDto(ApiDto):
 
 class BaseEvaluationDto(ApiDto):
     policy_id: str
-    active: bool
-    weight: float
-    salience: float
-    intensity: float
-    effective_magnitude: float
-    direction: list[TagWeightDto]
-    raw_contribution: list[TagWeightDto]
-    resolved_contribution: list[TagWeightDto]
-    dominant_tag: str | None
+    salience: list[SemanticSalienceDto]
 
 
 class ActivityEvaluationDto(BaseEvaluationDto):
@@ -174,13 +160,21 @@ class ActionDecisionDto(ApiDto):
     executed: bool
     active_scenes: list[SceneRefDto]
     target_scenes: list[SceneRefDto]
-    matched_scenes: list[SceneRefDto]
+    candidate_scenes: list[SceneRefDto]
     target_playlist: PlaylistRefDto | None
+    selected_scene: SceneRefDto | None
 
 
-class TopMatchDto(ApiDto):
+class SceneProbabilityDto(ApiDto):
     scene: SceneRefDto
-    score: float
+    probability: float
+
+
+class SelectionExplanationDto(ApiDto):
+    reason: str
+    selected_tier: int | None
+    sources: list[str]
+    excluded_scenes: dict[SceneId, list[str]]
 
 
 class SenseSnapshotDto(ApiDto):
@@ -193,25 +187,23 @@ class SenseSnapshotDto(ApiDto):
 
 
 class ThinkSnapshotDto(ApiDto):
-    raw_context_vector: list[TagWeightDto]
-    resolved_context_vector: list[TagWeightDto]
-    fallback_expansions: dict[str, list[ResolvedTagWeightDto]]
+    salience: list[SemanticSalienceDto]
+    selection: SelectionExplanationDto
     policies: list[EvaluationDto]
     controller: ControllerDto
     decision: ActionDecisionDto
 
 
 class ActSnapshotDto(ApiDto):
-    top_matches: list[TopMatchDto]
+    scene_probabilities: list[SceneProbabilityDto]
 
 
 class TickSummaryDto(ApiDto):
     tick_id: int
     ts: float
-    similarity: float
-    similarity_gap: float
+    selection_reason: str
     active_scenes: list[SceneRefDto]
-    matched_scenes: list[SceneRefDto]
+    candidate_scenes: list[SceneRefDto]
     action: Action
     paused: bool
     executed: bool
@@ -245,12 +237,8 @@ def _playlist_ref(playlist: str | None) -> PlaylistRefDto | None:
     return PlaylistRefDto(name=normalized_playlist)
 
 
-def _tag_weights(values: dict[str, float]) -> list[TagWeightDto]:
-    return [TagWeightDto(tag=tag, weight=_round_float(weight)) for tag, weight in _sorted_tag_items(values)]
-
-
-def _resolved_tag_weights(values: dict[str, float]) -> list[ResolvedTagWeightDto]:
-    return [ResolvedTagWeightDto(resolved_tag=tag, weight=_round_float(weight)) for tag, weight in _sorted_tag_items(values)]
+def _salience_values(values: dict[str, float]) -> list[SemanticSalienceDto]:
+    return [SemanticSalienceDto(item=item, value=_round_float(value)) for item, value in _sorted_tag_items(values)]
 
 
 def _weather_snapshot(weather: WeatherData | None) -> WeatherSnapshotDto:
@@ -282,15 +270,7 @@ def _clock_snapshot(local_time: time.struct_time) -> ClockSnapshotDto:
 def _policy_base_dto(policy: PolicyEvaluation) -> BaseEvaluationDto:
     return BaseEvaluationDto(
         policy_id=policy.policy_id,
-        active=policy.active,
-        weight=_round_float(policy.weight),
-        salience=_round_float(policy.salience),
-        intensity=_round_float(policy.intensity),
-        effective_magnitude=_round_float(policy.effective_magnitude),
-        direction=_tag_weights(policy.direction),
-        raw_contribution=_tag_weights(policy.raw_contribution),
-        resolved_contribution=_tag_weights(policy.resolved_contribution),
-        dominant_tag=policy.dominant_tag,
+        salience=_salience_values(policy.salience),
     )
 
 
@@ -306,7 +286,6 @@ def _policy_snapshot(policy: PolicyEvaluation) -> EvaluationDto:
                 matched_tag=policy.details.matched_tag,
                 window_title=policy.details.window_title,
                 process=policy.details.process,
-                ema_active=policy.details.ema_active,
             ),
         )
     if isinstance(policy, TimeEvaluation):
@@ -360,8 +339,8 @@ def _controller_evaluation(
 
 
 def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
-    matched_scene_refs = _scene_refs(trace.match.best_scenes)
-    action_matched_scene_refs = _scene_refs(trace.decision.target)
+    candidate_scene_refs = _scene_refs(trace.selection.scenes)
+    action_candidate_scene_refs = _scene_refs(trace.decision.target)
     target_refs = _scene_refs(trace.target)
     active_scene_refs = _scene_refs(trace.active_scenes)
     target_playlist_ref = _playlist_ref(trace.action.target_playlist)
@@ -371,10 +350,9 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
         summary=TickSummaryDto(
             tick_id=trace.tick_id,
             ts=trace.ts,
-            similarity=_round_float(trace.match.similarity),
-            similarity_gap=_round_float(trace.match.similarity_gap),
+            selection_reason=trace.selection.reason,
             active_scenes=target_refs,
-            matched_scenes=matched_scene_refs,
+            candidate_scenes=candidate_scene_refs,
             action=trace.decision.action,
             paused=trace.paused,
             executed=trace.action.executed,
@@ -392,29 +370,32 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
             clock=_clock_snapshot(trace.context.time),
         ),
         think=ThinkSnapshotDto(
-            raw_context_vector=_tag_weights(trace.match.raw_context_vector),
-            resolved_context_vector=_tag_weights(trace.match.resolved_context_vector),
-            fallback_expansions={
-                source_tag: _resolved_tag_weights(expansions) for source_tag, expansions in sorted(trace.match.fallback_expansions.items())
-            },
-            policies=[_policy_snapshot(policy) for policy in trace.match.policy_evaluations],
+            salience=_salience_values(trace.selection.salience),
+            selection=SelectionExplanationDto(
+                reason=trace.selection.reason,
+                selected_tier=trace.selection.selected_tier,
+                sources=trace.selection.sources,
+                excluded_scenes={scene_id: sorted(items) for scene_id, items in trace.selection.excluded_scenes.items()},
+            ),
+            policies=[_policy_snapshot(policy) for policy in trace.selection.policy_evaluations],
             controller=ControllerDto(evaluation=_controller_evaluation(trace.decision.evaluation)),
             decision=ActionDecisionDto(
                 action=trace.decision.action,
                 executed=trace.action.executed,
                 active_scenes=active_scene_refs,
                 target_scenes=target_refs,
-                matched_scenes=action_matched_scene_refs,
+                candidate_scenes=action_candidate_scene_refs,
                 target_playlist=target_playlist_ref,
+                selected_scene=_scene_ref(trace.action.selected_scene) if trace.action.selected_scene is not None else None,
             ),
         ),
         act=ActSnapshotDto(
-            top_matches=[
-                TopMatchDto(
+            scene_probabilities=[
+                SceneProbabilityDto(
                     scene=_scene_ref(scene_id),
-                    score=_round_float(score),
+                    probability=_round_float(probability),
                 )
-                for scene_id, score in trace.match.scene_matches[:5]
+                for scene_id, probability in sorted(trace.selection.probabilities.items(), key=lambda item: (-item[1], item[0]))
             ],
         ),
     )

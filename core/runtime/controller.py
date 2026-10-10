@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import time
 from collections.abc import Callable
 from enum import StrEnum
@@ -17,20 +16,10 @@ from core.models.trace import (
     BlockerEvaluation,
     Decision,
     DecisionMode,
-    Match,
+    Selection,
 )
 
 logger = logging.getLogger("Tunalo.Controller")
-
-CONTINUITY_REFERENCE_OVERLAP = 1.0 / 3.0
-CONTINUITY_REFERENCE_HOLD_TICKS = 120
-CONTINUITY_THRESHOLD = 0.2
-
-CONTINUITY_DECAY_PER_TICK = (CONTINUITY_THRESHOLD / CONTINUITY_REFERENCE_OVERLAP) ** (1.0 / CONTINUITY_REFERENCE_HOLD_TICKS)
-CONTINUITY_SWITCH_BOUNDARY = math.nextafter(
-    CONTINUITY_REFERENCE_OVERLAP * (CONTINUITY_DECAY_PER_TICK**CONTINUITY_REFERENCE_HOLD_TICKS),
-    math.inf,
-)
 
 
 class Intent(StrEnum):
@@ -61,56 +50,8 @@ class FullscreenGate:
         return None
 
 
-class Decisions:
-    @staticmethod
-    def make(
-        action: Action,
-        target: Scenes,
-        evaluation: BlockerEvaluation | None = None,
-    ) -> Decision:
-        return Decision(
-            action=action,
-            target=target,
-            evaluation=evaluation,
-        )
-
-    @classmethod
-    def no_match(cls, active: Scenes) -> Decision:
-        return cls.make(
-            Action.HOLD if active else Action.NONE,
-            Scenes(),
-        )
-
-    @classmethod
-    def allowed(
-        cls,
-        intent: Intent,
-        matched: Scenes,
-        evaluation: BlockerEvaluation,
-        active_scenes: Scenes,
-    ) -> Decision:
-        target = matched if intent == Intent.SWITCH else active_scenes
-        action = Action.SWITCH if intent == Intent.SWITCH else Action.CYCLE
-        return cls.make(action, target, evaluation)
-
-    @classmethod
-    def blocked(
-        cls,
-        intent: Intent,
-        matched: Scenes,
-        evaluation: BlockerEvaluation,
-        active_scenes: Scenes,
-    ) -> Decision:
-        target = matched if intent == Intent.SWITCH else active_scenes
-        return cls.make(Action.HOLD, target, evaluation)
-
-    @classmethod
-    def pause(cls, target: Scenes) -> Decision:
-        return cls.make(Action.PAUSE, target)
-
-
 class Controller:
-    def __init__(self, config: SchedulingConfig, clock: Callable[[], float] | None = None):
+    def __init__(self, config: SchedulingConfig, clock: Callable[[], float] | None = None) -> None:
         self._clock = clock if clock is not None else time.monotonic
         self.idle_threshold = config.idle_threshold
         self.force_after = config.force_after
@@ -127,87 +68,28 @@ class Controller:
             self._gates.append(CpuGate(self.cpu_threshold))
         if self.pause_on_fullscreen:
             self._gates.append(FullscreenGate())
-        self.semantic_continuity_score = 1.0
 
     def decide_action(
         self,
         plan: ActPlan,
         context: Context,
-        match: Match,
+        selection: Selection,
     ) -> Decision:
-        match plan.mode:
-            case DecisionMode.NORMAL:
-                return self._decide_normal(match, plan.active_scenes, context)
-            case DecisionMode.MANUAL:
-                return self._decide_manual(match, plan.active_scenes)
-            case DecisionMode.RECOVERY:
-                return self._decide_recovery(match, plan.active_scenes)
-            case DecisionMode.PAUSE:
-                return self._decide_pause(match)
+        selected = selection.scenes
+        probabilities = dict(selection.probabilities)
+        if plan.mode == DecisionMode.PAUSE:
+            return Decision(Action.PAUSE, selected, probabilities=probabilities)
+        if not selected:
+            return Decision(Action.HOLD if plan.active_scenes else Action.NONE, Scenes())
 
-    def _decide_normal(
-        self,
-        match: Match,
-        active_scenes: Scenes,
-        context: Context,
-    ) -> Decision:
-        matched = match.best_scenes
-
-        if not matched:
-            self.semantic_continuity_score = 0.0
-            return Decisions.no_match(active_scenes)
-
-        if matched == active_scenes:
-            self.semantic_continuity_score = 1.0
-            intent = Intent.CYCLE
-        else:
-            overlap_score = weighted_jaccard(matched, active_scenes)
-            self.semantic_continuity_score *= CONTINUITY_DECAY_PER_TICK
-            is_continuous = self.semantic_continuity_score * overlap_score > CONTINUITY_SWITCH_BOUNDARY
-            intent = Intent.CYCLE if is_continuous else Intent.SWITCH
-
-        evaluation = self._evaluate_blockers(context, intent)
-        if evaluation.allowed:
-            return Decisions.allowed(intent, matched, evaluation, active_scenes)
-        return Decisions.blocked(intent, matched, evaluation, active_scenes)
-
-    def _decide_manual(
-        self,
-        match: Match,
-        active_scenes: Scenes,
-    ) -> Decision:
-        matched = match.best_scenes
-
-        if not matched:
-            self.semantic_continuity_score = 0.0
-            return Decisions.no_match(active_scenes)
-
-        if matched == active_scenes:
-            self.semantic_continuity_score = 1.0
-            return Decisions.make(Action.CYCLE, active_scenes)
-
-        self.semantic_continuity_score = 1.0
-        return Decisions.make(Action.SWITCH, matched)
-
-    def _decide_recovery(
-        self,
-        match: Match,
-        active_scenes: Scenes,
-    ) -> Decision:
-        matched = match.best_scenes
-        if not matched:
-            return Decisions.make(
-                Action.HOLD if active_scenes else Action.NONE,
-                Scenes(),
-            )
-        self.semantic_continuity_score = 1.0
-        return Decisions.make(Action.SWITCH, matched)
-
-    def _decide_pause(
-        self,
-        match: Match,
-    ) -> Decision:
-        return Decisions.pause(match.best_scenes)
+        intent = Intent.CYCLE if selected == plan.active_scenes else Intent.SWITCH
+        if plan.mode == DecisionMode.RECOVERY:
+            intent = Intent.SWITCH
+        evaluation = self._evaluate_blockers(context, intent) if plan.mode == DecisionMode.NORMAL else None
+        action = Action.SWITCH if intent == Intent.SWITCH else Action.CYCLE
+        if evaluation is not None and not evaluation.allowed:
+            action = Action.HOLD
+        return Decision(action, selected, evaluation=evaluation, probabilities=probabilities)
 
     def _evaluate_blockers(
         self,
@@ -267,29 +149,9 @@ class Controller:
     def export_state(self) -> dict[str, Any]:
         return {
             "last_action_time": self.last_action_time,
-            "semantic_continuity_score": self.semantic_continuity_score,
             "startup_end": self.startup_end,
         }
 
     def import_state(self, state: dict[str, Any]) -> None:
-        self.last_action_time = state.get("last_action_time", self.last_action_time)
-        self.semantic_continuity_score = state.get("semantic_continuity_score", self.semantic_continuity_score)
-        self.startup_end = state.get("startup_end", self.startup_end)
-
-
-def weighted_jaccard(left: Scenes, right: Scenes) -> float:
-    # Semantic continuity compares candidate Scene identities before lowering.
-    # Item counts intentionally weight each Scene's contribution, while a shared
-    # physical Playlist does not make distinct Scenes semantically identical.
-    left_ids = set(left.ids())
-    right_ids = set(right.ids())
-    union = left_ids | right_ids
-    intersection = left_ids & right_ids
-
-    if not union:
-        return 0.0
-
-    item_counts = Scenes.managed().item_counts()
-    intersection_weight = sum(math.sqrt(item_counts.get(scene_id, 1)) for scene_id in intersection)
-    union_weight = sum(math.sqrt(item_counts.get(scene_id, 1)) for scene_id in union)
-    return intersection_weight / union_weight
+        self.last_action_time = state["last_action_time"]
+        self.startup_end = state["startup_end"]

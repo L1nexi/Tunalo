@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from core.models.scene import SceneId, Scenes
-from core.models.trace import Action, ActionResult, ActPlan, Decision, DecisionMode, Match, ScheduleTrace, TickTrace
+from core.models.trace import Action, ActionResult, ActPlan, Decision, DecisionMode, ScheduleTrace, Selection, TickTrace
 from core.state.scheduler import SchedulerState
 
 
@@ -26,7 +26,7 @@ def test_cache_update_only_on_executed_switch():
     )
     schedule = ScheduleTrace(
         context=None,
-        match=Match(best_scenes=Scenes([SceneId.RAIN])),
+        selection=Selection(probabilities={SceneId.RAIN: 1}, salience={}, reason="neutral"),
         plan=plan,
         decision=decision,
         action=executed_action,
@@ -51,7 +51,7 @@ def test_cache_update_only_on_executed_switch():
         pause_until=0.0,
         schedule=ScheduleTrace(
             context=None,
-            match=schedule.match,
+            selection=schedule.selection,
             plan=plan,
             decision=decision,
             action=not_executed_action,
@@ -78,7 +78,7 @@ def test_cache_update_none_for_non_switch():
             pause_until=0.0,
             schedule=ScheduleTrace(
                 context=None,
-                match=Match(best_scenes=Scenes([SceneId.DAY_WORK])),
+                selection=Selection(probabilities={SceneId.DAY_WORK: 1}, salience={}, reason="neutral"),
                 plan=plan,
                 decision=decision,
                 action=action,

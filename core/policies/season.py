@@ -2,43 +2,33 @@ from __future__ import annotations
 
 from configurations.runtime_models import SeasonPolicyConfig
 from core.models.context import Context
+from core.models.semantics import VARIABLE_ITEMS, ContextVariable
 from core.models.trace import SeasonDetails, SeasonEvaluation
-from core.policies.base import Policy, _circular_distance, _hann
+from core.policies.base import Policy, _periodic_salience
 
 
 class SeasonPolicy(Policy):
     config_key = "season"
-    evaluation_cls = SeasonEvaluation
-    fixed_output_tags = ("spring", "summer", "autumn", "winter")
 
-    def __init__(self, config: SeasonPolicyConfig):
+    def __init__(self, config: SeasonPolicyConfig) -> None:
         super().__init__(config)
-        self._peaks = {
-            "spring": config.spring_peak,
-            "summer": config.summer_peak,
-            "autumn": config.autumn_peak,
-            "winter": config.winter_peak,
-        }
-        self._H = 365 / len(self._peaks)
+        self._peaks = {"spring": config.spring_peak, "summer": config.summer_peak, "autumn": config.autumn_peak, "winter": config.winter_peak}
+        self._half_width = config.plateau_half_width
+        self._curve_q = config.curve_q
 
     def evaluate(self, context: Context) -> SeasonEvaluation:
-        day_of_year = context.time.tm_yday
-        details = SeasonDetails(
-            day_of_year=day_of_year,
-            peaks=self._peaks.copy(),
-        )
-
-        raw: dict[str, float] = {}
-        best_weight = 0.0
-        for tag, peak in self._peaks.items():
-            distance = _circular_distance(day_of_year, peak, 365)
-            weight = _hann(distance, self._H)
-            if weight > 1e-4:
-                raw[tag] = weight
-                best_weight = max(best_weight, weight)
-        return self._make_evaluation(
-            details=details,
-            raw_direction=raw,
-            salience=best_weight,
-            intensity=1.0 if raw else 0.0,
+        items = VARIABLE_ITEMS[ContextVariable.SEASON]
+        values = (1.0, 0.0, -1.0, 0.0)
+        salience = {
+            item: _periodic_salience(
+                context.time.tm_yday,
+                [(self._peaks[anchor], values[(index - own_index) % 4]) for index, anchor in enumerate(items)],
+                365,
+                self._half_width,
+                self._curve_q,
+            )
+            for own_index, item in enumerate(items)
+        }
+        return SeasonEvaluation(
+            policy_id=self.config_key, salience=salience, details=SeasonDetails(day_of_year=context.time.tm_yday, peaks=self._peaks.copy())
         )

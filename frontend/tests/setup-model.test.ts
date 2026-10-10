@@ -27,7 +27,7 @@ test("disturbance values must be non-negative integers", () => {
 test("server validation paths map to setup fields", () => {
   expect(validationIssueField(["weather", "api_key"])).toBe("weather.api_key")
   expect(validationIssueField(["weather", "location", "latitude"])).toBe("weather.location.latitude")
-  expect(validationIssueField(["activity", "work_processes", 0])).toBe("activity")
+  expect(validationIssueField(["matching", "preference_tiers", 0])).toBe("matching.preference_tiers")
   expect(validationIssueField(["scenes", "day_work"])).toBe("scenes")
 })
 
@@ -37,7 +37,7 @@ test("server validation paths map to the owning setup step", () => {
   expect(stepForIssue(["weather", "location"])).toBe("weather")
   expect(stepForIssue(["scenes"])).toBe("scenes")
   expect(stepForIssue(["disturbance", "startup_grace_seconds"])).toBe("scheduling")
-  expect(stepForIssue(["activity"])).toBe("activity")
+  expect(stepForIssue(["matching", "preference_tiers"])).toBe("scheduling")
 })
 
 test("scene fingerprints ignore map key order, so restoring a binding stays clean", () => {

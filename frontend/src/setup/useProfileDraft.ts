@@ -3,8 +3,8 @@ import { computed, reactive, ref, watch } from "vue"
 import type { Locale, Profile } from "@/api/profile"
 import { STEP_ORDER, stepFingerprint } from "./flow"
 import type { EditableStepId } from "./flow"
-import { createProfileDraft, emptyPendingActivity, profileFingerprint } from "./model"
-import type { ActivityField, ProfileDraft } from "./model"
+import { createProfileDraft, profileFingerprint } from "./model"
+import type { ProfileDraft } from "./model"
 
 export type SetupMode = "setup" | "settings"
 
@@ -15,16 +15,12 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
   const draft = reactive<ProfileDraft>(createProfileDraft(initialProfile, locale.value))
   const savedDraft = ref<ProfileDraft>(createProfileDraft(initialProfile, locale.value))
   const baseline = ref(profileFingerprint(savedDraft.value))
-  const pendingActivity = reactive(emptyPendingActivity())
   const rememberedScenes = reactive<ProfileDraft["scenes"]>({})
   let pathTouched = false
 
-  const pendingActivityFields = computed(() => (Object.keys(pendingActivity) as ActivityField[])
-    .filter((field) => pendingActivity[field].trim().length > 0))
   const changedSteps = computed(() => new Set(STEP_ORDER.filter((id): id is EditableStepId => id !== "review")
-    .filter((id) => stepFingerprint(draft, id) !== stepFingerprint(savedDraft.value, id)
-      || (id === "activity" && pendingActivityFields.value.length > 0))))
-  const isDirty = computed(() => profileFingerprint(draft) !== baseline.value || pendingActivityFields.value.length > 0)
+    .filter((id) => stepFingerprint(draft, id) !== stepFingerprint(savedDraft.value, id))))
+  const isDirty = computed(() => profileFingerprint(draft) !== baseline.value)
 
   watch(locale, (value, previous) => {
     if (previous !== undefined) draft.language = value
@@ -62,7 +58,7 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
   }
 
   return {
-    mode, locale, draft, savedDraft, pendingActivity, pendingActivityFields,
+    mode, locale, draft, savedDraft,
     rememberedScenes, changedSteps, isDirty,
     setLocale, updatePath, acceptDetectedPath, rememberScene, commit,
   }

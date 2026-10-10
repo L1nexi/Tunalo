@@ -2,7 +2,7 @@
 
 更新：2026-10-10。**当前没有阻挡本计划实施的开放项。**
 
-本轮结论已写入 [SPEC](SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](SCENE_SELECTION_MODEL_DEFAULTS.md)。以下保留原问题编号用于追溯，不再作为待答问卷。内部初值和规则由实施者维护，不要求用户逐项定值。
+本轮结论已写入 [SPEC](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_SPEC.md)、[实施计划](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_IMPLEMENTATION_PLAN.md) 和[构建参数及规则表](archived/done/scene-selection-model/SCENE_SELECTION_MODEL_DEFAULTS.md)。以下保留原问题编号用于追溯，不再作为待答问卷。内部初值和规则由实施者维护，不要求用户逐项定值。
 
 ## 本轮已关闭的问题
 

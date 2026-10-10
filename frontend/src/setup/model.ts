@@ -1,7 +1,7 @@
-import type { Locale, Profile, ResponseStyle, SceneId } from "@/api/profile"
+import type { Locale, Profile, ContextVariable, SceneId } from "@/api/profile"
 
 export interface ProfileDraft {
-  version: 1
+  version: 2
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
@@ -14,31 +14,13 @@ export interface ProfileDraft {
   }
   scenes: Partial<Record<SceneId, string>>
   matching: {
-    response_style: ResponseStyle
+    preference_tiers: ContextVariable[][]
   }
   disturbance: {
     startup_grace_seconds: number | null
     idle_before_switch_seconds: number | null
     maximum_deferral_minutes: number | null
     cycle_interval_minutes: number | null
-  }
-  activity: {
-    work_processes: string[]
-    leisure_processes: string[]
-    work_title_keywords: string[]
-    leisure_title_keywords: string[]
-  }
-}
-
-export type ActivityField = keyof ProfileDraft["activity"]
-export type PendingActivity = Record<ActivityField, string>
-
-export function emptyPendingActivity(): PendingActivity {
-  return {
-    work_processes: "",
-    leisure_processes: "",
-    work_title_keywords: "",
-    leisure_title_keywords: "",
   }
 }
 
@@ -94,7 +76,7 @@ export function isNonNegativeInteger(value: number | null): value is number {
 
 export function validationIssueField(path: Array<string | number>): string {
   const root = typeof path[0] === "string" ? path[0] : "profile"
-  if (root === "activity" || root === "scenes") return root
+  if (root === "scenes") return root
   if (root === "weather" && path[1] === "location") {
     return typeof path[2] === "string" ? `weather.location.${path[2]}` : "weather.location"
   }
@@ -112,7 +94,7 @@ function requireNonNegativeInteger(value: number | null): number {
 export function createProfileDraft(profile: Profile | null, locale: Locale): ProfileDraft {
   if (profile !== null) {
     return {
-      version: 1,
+      version: 2,
       setup_complete: true,
       wallpaper_engine_path: profile.wallpaper_engine_path,
       language: profile.language,
@@ -124,19 +106,12 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
         },
       },
       scenes: { ...profile.scenes },
-      matching: { ...profile.matching },
+      matching: { preference_tiers: profile.matching.preference_tiers.map((tier) => [...tier]) },
       disturbance: { ...profile.disturbance },
-      activity: {
-        work_processes: [...profile.activity.work_processes],
-        leisure_processes: [...profile.activity.leisure_processes],
-        work_title_keywords: [...profile.activity.work_title_keywords],
-        leisure_title_keywords: [...profile.activity.leisure_title_keywords],
-      },
     }
   }
-
   return {
-    version: 1,
+    version: 2,
     setup_complete: true,
     wallpaper_engine_path: "",
     language: locale,
@@ -155,15 +130,9 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
       rain: "",
     },
     matching: {
-      response_style: "balanced",
+      preference_tiers: [],
     },
     disturbance: { ...DISTURBANCE_PRESETS.balanced },
-    activity: {
-      work_processes: [],
-      leisure_processes: [],
-      work_title_keywords: [],
-      leisure_title_keywords: [],
-    },
   }
 }
 
@@ -175,7 +144,7 @@ export function buildProfile(draft: ProfileDraft): Profile {
   }
 
   return {
-    version: 1,
+    version: 2,
     setup_complete: true,
     wallpaper_engine_path: draft.wallpaper_engine_path,
     language: draft.language,
@@ -187,20 +156,15 @@ export function buildProfile(draft: ProfileDraft): Profile {
       },
     },
     scenes: { ...draft.scenes },
-    matching: { ...draft.matching },
+    matching: { preference_tiers: draft.matching.preference_tiers.map((tier) => [...tier]) },
     disturbance: {
       startup_grace_seconds: requireNonNegativeInteger(draft.disturbance.startup_grace_seconds),
       idle_before_switch_seconds: requireNonNegativeInteger(draft.disturbance.idle_before_switch_seconds),
       maximum_deferral_minutes: requireNonNegativeInteger(draft.disturbance.maximum_deferral_minutes),
       cycle_interval_minutes: requireNonNegativeInteger(draft.disturbance.cycle_interval_minutes),
     },
-    activity: {
-      work_processes: [...draft.activity.work_processes],
-      leisure_processes: [...draft.activity.leisure_processes],
-      work_title_keywords: [...draft.activity.work_title_keywords],
-      leisure_title_keywords: [...draft.activity.leisure_title_keywords],
-    },
   }
+
 }
 
 export function detectDisturbancePreset(draft: Pick<ProfileDraft, "disturbance">): DisturbancePreset | "custom" {
@@ -210,26 +174,6 @@ export function detectDisturbancePreset(draft: Pick<ProfileDraft, "disturbance">
     ),
   )
   return (match?.[0] as DisturbancePreset | undefined) ?? "custom"
-}
-
-function normalizeProcess(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\.exe$/i, "")
-}
-
-function normalizeTitle(value: string): string {
-  return value.trim().toLocaleLowerCase()
-}
-
-export function activityConflicts(draft: ProfileDraft): string[] {
-  const workProcesses = new Set(draft.activity.work_processes.map(normalizeProcess))
-  const leisureProcesses = new Set(draft.activity.leisure_processes.map(normalizeProcess))
-  const workTitles = new Set(draft.activity.work_title_keywords.map(normalizeTitle))
-  const leisureTitles = new Set(draft.activity.leisure_title_keywords.map(normalizeTitle))
-
-  return [
-    ...[...workProcesses].filter((value) => leisureProcesses.has(value)),
-    ...[...workTitles].filter((value) => leisureTitles.has(value)),
-  ].filter(Boolean)
 }
 
 // 场景是封闭集合：序列化前按场景 ID 排序，映射键序不参与变化判定，

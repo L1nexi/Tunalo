@@ -7,17 +7,17 @@ import { describeError } from "./errorMessages"
 import { evaluateSteps, STEP_ORDER, stepForIssue, WIDE_STEPS } from "./flow"
 import type { StepId } from "./flow"
 import { hasValidTiming, validationIssueField } from "./model"
-import type { ActivityField, ProfileDraft } from "./model"
+import type { ProfileDraft } from "./model"
 import type { usePlaylistScan } from "./usePlaylistScan"
 import type { ProfileEditor } from "./useProfileDraft"
 
 /** 将编辑、跨步骤校验和错误定位收在同一处，步骤视图只接收自己的字段。 */
 export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof usePlaylistScan>) {
-  const { draft, locale, mode, pendingActivity, pendingActivityFields, changedSteps } = editor
+  const { draft, locale, mode, changedSteps } = editor
   const copy = computed(() => COPY[locale.value])
   const activeStep = ref<StepId>("wallpaper")
   const previousSection = ref<StepId>("wallpaper")
-  const stepError = ref<"validation" | "fieldValidation" | "pendingActivity" | null>(null)
+  const stepError = ref<"validation" | "fieldValidation" | null>(null)
   const validationIssues = ref<ValidationIssue[]>([])
   const submissionFailure = shallowRef<unknown>(null)
   const timingOpen = ref(false)
@@ -38,7 +38,6 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
       case "weather": return { title: content.weather.title, description: content.weather.description }
       case "scenes": return { title: content.scenes.title, description: content.scenes.description }
       case "scheduling": return { title: content.preferences.title, description: content.preferences.description }
-      case "activity": return { title: content.activity.title, description: content.activity.description }
       case "review": return {
         title: mode === "setup" ? content.nav.reviewSetup : content.nav.reviewSettings,
         description: content.review.description,
@@ -67,7 +66,7 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     if (id === "review") return ""
     if (mode === "settings") return changedSteps.value.has(id) ? copy.value.nav.changed : ""
     if (!isStepValid(id)) return copy.value.nav.pending
-    if ((id === "scheduling" || id === "activity") && !changedSteps.value.has(id)) return copy.value.nav.defaultReady
+    if ((id === "scheduling") && !changedSteps.value.has(id)) return copy.value.nav.defaultReady
     return copy.value.nav.complete
   }
 
@@ -135,25 +134,7 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     clearStepFeedback("scheduling")
   }
 
-  function updateActivity(value: ProfileDraft["activity"]): void {
-    draft.activity = value
-    const keepPendingWarning = stepError.value === "pendingActivity" && pendingActivityFields.value.length > 0
-    clearStepFeedback("activity")
-    if (keepPendingWarning) stepError.value = "pendingActivity"
-  }
-
-  function updatePendingActivity(field: ActivityField, value: string): void {
-    pendingActivity[field] = value
-    if (stepError.value === "pendingActivity" && pendingActivityFields.value.length === 0) stepError.value = null
-  }
-
   function prepareSubmission(): boolean {
-    if (pendingActivityFields.value.length > 0) {
-      navigateToStep("activity")
-      stepError.value = "pendingActivity"
-      void focusStep(true)
-      return false
-    }
     if (!allValid.value) {
       // allValid 为假时缺失步骤必然非空，两者由同一份 evaluation 推导。
       activeStep.value = missingSteps.value[0].id
@@ -191,7 +172,7 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     activeStep, previousSection, steps, activeHeading, stepContentClass,
     evaluation, allValid, missingSteps, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
     isStepValid, navigateTo, navigateToStep, clearStepFeedback, clearWeatherFieldFeedback,
-    updatePath, updateScenes, updateMatching, updateDisturbance, updateActivity, updatePendingActivity,
+    updatePath, updateScenes, updateMatching, updateDisturbance,
     prepareSubmission, reportSubmissionFailure, clearSubmissionFailure, resetFeedback,
   }
 }

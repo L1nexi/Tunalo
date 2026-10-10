@@ -1,0 +1,224 @@
+from __future__ import annotations
+
+import getpass
+import json
+import random
+import threading
+import time
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from app.event_logger import JsonlEventLogger
+from configurations.runtime_models import SceneConfig, SchedulerConfig, SchedulingConfig, WeatherPolicyConfig
+from core.models.scene import SceneId, Scenes
+from core.models.trace import Action, Decision, TickTrace
+from core.runtime.engine import Engine
+from core.state.action_events import ActionEventWriter
+from core.state.scheduler import SchedulerState
+from ui.tick_history import build_tick_snapshot
+
+
+@pytest.fixture
+def desktop(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    state = SimpleNamespace(process="code.exe", title="", idle=100.0, now=1000.0, executed=True, playlists=[], draws=0)
+    monkeypatch.setattr("core.sensors.window.win32gui.GetForegroundWindow", lambda: 1)
+    monkeypatch.setattr("core.sensors.window.win32gui.GetWindowText", lambda _hwnd: state.title)
+    monkeypatch.setattr("core.sensors.window.win32process.GetWindowThreadProcessId", lambda _hwnd: (1, 1))
+    monkeypatch.setattr("core.sensors.window.psutil.Process", lambda _pid: SimpleNamespace(name=lambda: state.process))
+    monkeypatch.setattr("core.sensors.cpu.psutil.cpu_percent", lambda: 0.0)
+
+    def last_input(info) -> int:
+        info._obj.dwTime = 0
+        return 1
+
+    monkeypatch.setattr("core.sensors.idle._user32.GetLastInputInfo", last_input)
+    monkeypatch.setattr("core.sensors.idle._kernel32.GetTickCount64", lambda: int(state.idle * 1000))
+    monkeypatch.setattr("core.runtime.controller.time.monotonic", lambda: state.now)
+
+    def execute(_executor, playlist: str) -> bool:
+        state.playlists.append(playlist)
+        return state.executed
+
+    def draw() -> float:
+        state.draws += 1
+        return 0.99
+
+    monkeypatch.setattr("core.runtime.executor.WEExecutor.open_playlist", execute)
+    monkeypatch.setattr(random._inst, "random", draw)
+    return state
+
+
+def engine_at(tmp_path: Path, scenes: dict[SceneId, SceneConfig] | None = None, **timing: float) -> Engine:
+    executable = tmp_path / "wallpaper64.exe"
+    executable.write_text("fixture", encoding="utf-8")
+    (tmp_path / "config.json").write_text(
+        json.dumps(
+            {
+                getpass.getuser(): {
+                    "general": {
+                        "wallpaperconfig": {"selectedwallpapers": {"monitor": {"playlist": {"name": "WORK"}}}},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    config = SchedulerConfig(
+        wallpaper_engine_path=str(executable),
+        scenes=scenes
+        or {
+            SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"focus"}),
+            SceneId.NIGHT_WORK: SceneConfig(playlist="OTHER", associations={"focus", "cloudy"}),
+        },
+        scheduling=SchedulingConfig(
+            **({"startup_delay": 0, "idle_threshold": 10, "force_after": 3600, "cycle_cooldown": 0, "pause_on_fullscreen": False} | timing)
+        ),
+    )
+    return Engine.from_config(config)
+
+
+def test_paused_ticks_observe_and_diagnostics_do_not_add_activity_history(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    for tick_id in range(180):
+        schedule = engine.schedule(Scenes(), paused=True, manual_requested=False)
+        trace = TickTrace(tick_id=tick_id, ts=0, paused=True, pause_until=0, schedule=schedule)
+        for _ in range(3):
+            build_tick_snapshot(trace)
+    assert schedule.selection.salience["focus"] == pytest.approx(0.649890150, abs=1e-9)
+    assert desktop.draws == 0
+    assert desktop.playlists == []
+
+
+def test_same_candidate_set_uses_latest_distribution_when_rotation_is_allowed(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    first = engine.schedule(Scenes([SceneId.DAY_WORK, SceneId.NIGHT_WORK]), paused=False, manual_requested=False)
+    for _ in range(599):
+        engine.schedule(Scenes(), paused=True, manual_requested=False)
+    latest = engine.schedule(first.selection.scenes, paused=False, manual_requested=False)
+    assert first.selection.scenes == latest.selection.scenes
+    assert first.selection.probabilities != latest.selection.probabilities
+    assert first.decision.action == latest.decision.action == Action.CYCLE
+    assert latest.decision.probabilities == latest.selection.probabilities
+    assert latest.action.selected_scene == SceneId.NIGHT_WORK
+    assert latest.action.target_playlist == "OTHER"
+    assert desktop.draws == 2
+
+
+def test_blocking_and_execution_failure_preserve_scheduler_cache(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    desktop.idle = 0
+    blocked = engine.schedule(Scenes([SceneId.DAY_WORK]), paused=False, manual_requested=False)
+    assert blocked.decision.action == Action.HOLD
+    assert desktop.draws == 0
+    desktop.idle = 100
+    desktop.executed = False
+    failed = engine.schedule(Scenes([SceneId.DAY_WORK]), paused=False, manual_requested=False)
+    trace = TickTrace(tick_id=2, ts=0, paused=False, pause_until=0, schedule=failed)
+    state = SchedulerState(cached_scenes=Scenes([SceneId.DAY_WORK]))
+    state.commit(trace)
+    assert failed.decision.action == Action.SWITCH
+    assert not failed.action.executed
+    assert state.cached_scenes == Scenes([SceneId.DAY_WORK])
+    assert trace.cache_update is None
+    assert desktop.draws == 1
+
+
+def test_hot_replacement_imports_direction_history_without_aliasing(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    for _ in range(180):
+        engine.schedule(Scenes(), paused=True, manual_requested=False)
+    prepared = engine.prepare_replacement(engine.config)
+    # Preparation must snapshot the current state; later live samples cannot
+    # alter the prepared Policy's deque.
+    for _ in range(120):
+        engine.schedule(Scenes(), paused=True, manual_requested=False)
+    engine.install_replacement(prepared)
+    desktop.process = "chrome.exe"
+    resumed = engine.schedule(Scenes(), paused=True, manual_requested=False)
+    fresh = Engine.from_config(engine.config).schedule(Scenes(), paused=True, manual_requested=False)
+    assert 0.5 < resumed.selection.salience["focus"] < 0.649890150
+    assert fresh.selection.salience["focus"] == 0
+
+
+def test_execution_uses_scene_probability_even_with_unequal_sizes_and_shared_playlist(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    scenes = {
+        SceneId.DAY_WORK: SceneConfig(playlist="SHARED", associations={"focus"}, item_count=10000),
+        SceneId.RAIN: SceneConfig(playlist="SHARED", associations={"rain"}, item_count=1),
+    }
+    engine = engine_at(tmp_path, scenes=scenes)
+    result = engine.actuator.act(Decision(Action.SWITCH, Scenes(list(scenes)), probabilities={SceneId.DAY_WORK: 0.01, SceneId.RAIN: 0.99}))
+    assert result.selected_scene == SceneId.RAIN
+    assert result.target_playlist == "SHARED"
+    assert result.executed
+
+
+def test_tick_dto_and_sparse_event_preserve_full_probability_meaning(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    scenes = {scene_id: SceneConfig(playlist=scene_id.value, associations={"focus"}) for scene_id in SceneId}
+    engine = engine_at(tmp_path, scenes=scenes)
+    schedule = engine.schedule(Scenes(), paused=False, manual_requested=True)
+    trace = TickTrace(tick_id=1, ts=0, paused=False, pause_until=0, schedule=schedule)
+    snapshot = build_tick_snapshot(trace)
+    assert len(snapshot["act"]["sceneProbabilities"]) == 10
+    assert all(row["probability"] == 0.1 for row in snapshot["act"]["sceneProbabilities"])
+    assert "similarity" not in snapshot["summary"]
+    assert snapshot["think"]["salience"]
+    events = JsonlEventLogger(str(tmp_path / "events"))
+    ActionEventWriter(events).on_tick(trace)
+    rows = [json.loads(line) for path in (tmp_path / "events").glob("*.jsonl") for line in path.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["data"]["probabilities"] == {scene_id.value: 0.1 for scene_id in SceneId}
+    assert "directions" not in rows[0]["data"]
+
+
+def test_hot_replacement_reinterprets_retained_directions_with_new_product_parameters(desktop: SimpleNamespace, tmp_path: Path) -> None:
+    engine = engine_at(tmp_path)
+    for _ in range(180):
+        before = engine.schedule(Scenes(), paused=True, manual_requested=False)
+    config = engine.config.model_copy(deep=True)
+    config.policies.activity.curve_q = 0.8
+    replacement = engine.prepare_replacement(config)
+    engine.install_replacement(replacement)
+    desktop.process = "chrome.exe"
+    after = engine.schedule(Scenes(), paused=True, manual_requested=False)
+    assert 0 < after.selection.salience["focus"] < before.selection.salience["focus"]
+    assert after.selection.salience["chill"] == -after.selection.salience["focus"]
+
+
+def test_config_replacement_rebuilds_weather_cache(desktop: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    gate = threading.Event()
+
+    class RainResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"weather": [{"id": 504, "main": "Rain"}], "sys": {"sunrise": 1, "sunset": 2}}
+
+    def fetch(*_args, **_kwargs):
+        assert gate.wait(1)
+        return RainResponse()
+
+    monkeypatch.setattr("integrations.openweather.requests.get", fetch)
+    engine = engine_at(tmp_path)
+    config = engine.config.model_copy(deep=True)
+    config.policies.weather = WeatherPolicyConfig(api_key="fixture", lat=0, lon=0)
+    engine.install_replacement(engine.prepare_replacement(config))
+    try:
+        initial = engine.schedule(Scenes(), paused=True, manual_requested=False)
+        assert initial.context.weather is None
+        gate.set()
+        deadline = time.perf_counter() + 1
+        observed = engine.schedule(Scenes(), paused=True, manual_requested=False)
+        while observed.context.weather is None and time.perf_counter() < deadline:
+            time.sleep(0.005)
+            observed = engine.schedule(Scenes(), paused=True, manual_requested=False)
+        assert observed.selection.salience["rain"] == 2
+        gate.clear()
+        engine.install_replacement(engine.prepare_replacement(config))
+        replaced = engine.schedule(Scenes(), paused=True, manual_requested=False)
+        assert replaced.context.weather is None
+        assert replaced.selection.salience["rain"] == 0
+    finally:
+        gate.set()
