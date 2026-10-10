@@ -20,10 +20,10 @@ def _weather_salience(*, clear: float = 0.0, cloudy: float = 0.0, rain: float = 
     weak_precipitation = _WEAK_OPPOSITION * min(precipitation, 1.0)
     weak_cloudy = _WEAK_OPPOSITION * cloudy
     return {
-        "clear": clear - precipitation - weak_cloudy,
-        "cloudy": cloudy - _WEAK_OPPOSITION * clear - weak_precipitation,
-        "rain": rain - clear - weak_cloudy,
-        "snow": snow - clear - weak_cloudy,
+        SemanticItem.CLEAR: clear - precipitation - weak_cloudy,
+        SemanticItem.CLOUDY: cloudy - _WEAK_OPPOSITION * clear - weak_precipitation,
+        SemanticItem.RAIN: rain - clear - weak_cloudy,
+        SemanticItem.SNOW: snow - clear - weak_cloudy,
     }
 
 

@@ -18,16 +18,16 @@ from core.models.scene import SceneId
 from core.models.selection import SemanticItem
 
 _SCENE_PRESETS: dict[SceneId, frozenset[SemanticItem]] = {
-    SceneId.DAY_WORK: frozenset({"day", "focus"}),
-    SceneId.DAY_LEISURE: frozenset({"day", "chill"}),
-    SceneId.NIGHT_WORK: frozenset({"night", "focus"}),
-    SceneId.NIGHT_LEISURE: frozenset({"night", "chill"}),
-    SceneId.SPRING: frozenset({"spring"}),
-    SceneId.SUMMER: frozenset({"summer"}),
-    SceneId.AUTUMN: frozenset({"autumn"}),
-    SceneId.WINTER: frozenset({"winter"}),
-    SceneId.SUNSET: frozenset({"sunset"}),
-    SceneId.RAIN: frozenset({"rain"}),
+    SceneId.DAY_WORK: frozenset({SemanticItem.DAY, SemanticItem.FOCUS}),
+    SceneId.DAY_LEISURE: frozenset({SemanticItem.DAY, SemanticItem.CHILL}),
+    SceneId.NIGHT_WORK: frozenset({SemanticItem.NIGHT, SemanticItem.FOCUS}),
+    SceneId.NIGHT_LEISURE: frozenset({SemanticItem.NIGHT, SemanticItem.CHILL}),
+    SceneId.SPRING: frozenset({SemanticItem.SPRING}),
+    SceneId.SUMMER: frozenset({SemanticItem.SUMMER}),
+    SceneId.AUTUMN: frozenset({SemanticItem.AUTUMN}),
+    SceneId.WINTER: frozenset({SemanticItem.WINTER}),
+    SceneId.SUNSET: frozenset({SemanticItem.SUNSET}),
+    SceneId.RAIN: frozenset({SemanticItem.RAIN}),
 }
 
 

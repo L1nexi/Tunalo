@@ -13,7 +13,7 @@ from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import SchedulerConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
-from core.models.selection import SEMANTIC_ITEMS, Salience, Selection
+from core.models.selection import SEMANTIC_ITEMS, Salience, Selection, SemanticItem
 from core.policies import POLICY_REGISTRY
 from core.runtime.selector import Selector, calculate_distribution
 
@@ -77,7 +77,7 @@ class TuningModel:
         values = {item: 0.0 for item in SEMANTIC_ITEMS}
         for policy in self.policies:
             values.update(policy.evaluate(context).salience)
-        values.update(focus=activity_salience, chill=-activity_salience)
+        values.update({SemanticItem.FOCUS: activity_salience, SemanticItem.CHILL: -activity_salience})
         return calculate_distribution(Salience(values), self.associations, self.config.matching)
 
 

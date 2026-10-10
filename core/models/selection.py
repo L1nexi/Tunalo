@@ -16,28 +16,28 @@ class ContextVariable(StrEnum):
     ACTIVITY = "activity"
 
 
-type SemanticItem = Literal[
-    "spring",
-    "summer",
-    "autumn",
-    "winter",
-    "dawn",
-    "day",
-    "sunset",
-    "night",
-    "clear",
-    "cloudy",
-    "rain",
-    "snow",
-    "focus",
-    "chill",
-]
+class SemanticItem(StrEnum):
+    SPRING = "spring"
+    SUMMER = "summer"
+    AUTUMN = "autumn"
+    WINTER = "winter"
+    DAWN = "dawn"
+    DAY = "day"
+    SUNSET = "sunset"
+    NIGHT = "night"
+    CLEAR = "clear"
+    CLOUDY = "cloudy"
+    RAIN = "rain"
+    SNOW = "snow"
+    FOCUS = "focus"
+    CHILL = "chill"
+
 
 VARIABLE_ITEMS: dict[ContextVariable, tuple[SemanticItem, ...]] = {
-    ContextVariable.SEASON: ("spring", "summer", "autumn", "winter"),
-    ContextVariable.TIME: ("dawn", "day", "sunset", "night"),
-    ContextVariable.WEATHER: ("clear", "cloudy", "rain", "snow"),
-    ContextVariable.ACTIVITY: ("focus", "chill"),
+    ContextVariable.SEASON: (SemanticItem.SPRING, SemanticItem.SUMMER, SemanticItem.AUTUMN, SemanticItem.WINTER),
+    ContextVariable.TIME: (SemanticItem.DAWN, SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.NIGHT),
+    ContextVariable.WEATHER: (SemanticItem.CLEAR, SemanticItem.CLOUDY, SemanticItem.RAIN, SemanticItem.SNOW),
+    ContextVariable.ACTIVITY: (SemanticItem.FOCUS, SemanticItem.CHILL),
 }
 SEMANTIC_ITEMS: tuple[SemanticItem, ...] = tuple(item for items in VARIABLE_ITEMS.values() for item in items)
 

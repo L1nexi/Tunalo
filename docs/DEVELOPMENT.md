@@ -67,7 +67,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 ### 运行时契约与历史记录
 
-`core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。Policy、Selector 和配置编译直接使用这些选择契约。
+`core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。ContextVariable 和 SemanticItem 均为 StrEnum，序列化沿用原有小写字符串值。Policy、Selector 和配置编译直接使用这些选择契约。
 
 `core/models/scheduling.py` 定义规划、控制和执行契约。`Engine.schedule()` 返回 ScheduleResult，保留本次 Context、Selection、ActPlan、Decision 和 ActionResult。其 target 表示执行后的有效场景：成功切换时为决策目标，其余情况沿用执行前场景。
 

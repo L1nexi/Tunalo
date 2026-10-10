@@ -35,8 +35,8 @@ class ActivityKind(StrEnum):
 _ACTIVITY_BY_TAG = {"focus": ActivityKind.WORK, "chill": ActivityKind.LEISURE}
 # 每个类别明确指定支持项和反向项；OTHER 没有方向证据，但仍占据窗口槽位。
 _ACTIVITY_RELATIONS: dict[ActivityKind, tuple[SemanticItem, SemanticItem]] = {
-    ActivityKind.WORK: ("focus", "chill"),
-    ActivityKind.LEISURE: ("chill", "focus"),
+    ActivityKind.WORK: (SemanticItem.FOCUS, SemanticItem.CHILL),
+    ActivityKind.LEISURE: (SemanticItem.CHILL, SemanticItem.FOCUS),
 }
 
 
