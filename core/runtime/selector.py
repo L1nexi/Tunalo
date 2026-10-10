@@ -13,6 +13,10 @@ from core.models.trace import Selection
 from core.policies.base import Policy
 
 
+def salience_to_scene_scores(salience: Mapping[SemanticItem, float], associations: Mapping[SceneId, frozenset[SemanticItem]]) -> dict[SceneId, float]:
+    return {scene_id: math.fsum(salience[item] for item in sorted(items)) / math.sqrt(len(items)) for scene_id, items in associations.items()}
+
+
 def calculate_distribution(
     salience: Salience,
     associations: Mapping[SceneId, frozenset[SemanticItem]],
@@ -20,7 +24,7 @@ def calculate_distribution(
 ) -> Selection:
     """Calculate the full distribution from validated semantic and matching inputs.
 
-    This is also the tuning-tool entry point; it never advances Policy state.
+    This is independent of the Selector class so that it is pure functional and testable in isolation.
     """
     s = salience.root
     positive = {item for item, value in s.items() if value >= config.positive_boundary}
@@ -34,9 +38,7 @@ def calculate_distribution(
         variable: {scene_id: items for scene_id, items in safe.items() if items & positive & set(variable_items)}
         for variable, variable_items in VARIABLE_ITEMS.items()
     }
-    # Scale before summation so even large finite salience cannot overflow G.
-    scale = max(abs(value) for value in s.values()) or 1.0
-    scores = {scene_id: math.fsum(s[item] / scale for item in sorted(items)) / math.sqrt(len(items)) for scene_id, items in safe.items()}
+    scores = salience_to_scene_scores(s, safe)
 
     tiers = [*config.preference_tiers, list(ContextVariable)]
     for index, tier in enumerate(tiers):
@@ -50,7 +52,7 @@ def calculate_distribution(
         budgets = softmax(strengths, config.variable_temperature)
         probabilities = {scene_id: 0.0 for scene_id in associations}
         for variable in effective:
-            conditional = softmax({scene_id: scores[scene_id] for scene_id in candidates[variable]}, config.scene_temperature, scale)
+            conditional = softmax({scene_id: scores[scene_id] for scene_id in candidates[variable]}, config.scene_temperature)
             for scene_id, probability in conditional.items():
                 probabilities[scene_id] += budgets[variable] * probability
         return Selection(
@@ -62,7 +64,7 @@ def calculate_distribution(
             excluded_scenes=excluded,
         )
 
-    effort = softmax(scores, config.scene_temperature, scale)
+    effort = softmax(scores, config.scene_temperature)
     return Selection(
         probabilities={scene_id: effort.get(scene_id, 0.0) for scene_id in associations}, salience=s, reason="best_effort", excluded_scenes=excluded
     )

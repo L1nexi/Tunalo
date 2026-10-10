@@ -4,12 +4,14 @@ import math
 import re
 from collections import deque
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from configurations.runtime_models import ActivityPolicyConfig
-from core.math_utils import s_curve
+from core.math_utils import exponential_decay, s_curve
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
+from core.models.semantics import VARIABLE_ITEMS, ContextVariable, SemanticItem
 from core.models.trace import ActivityDetails, ActivityEvaluation
 from core.policies.base import Policy
 
@@ -25,12 +27,27 @@ _MATCH_TYPE_PRIORITY = {
 }
 
 
+class ActivityKind(StrEnum):
+    WORK = "work"
+    LEISURE = "leisure"
+    OTHER = "other"
+
+
+_ACTIVITY_BY_TAG = {"focus": ActivityKind.WORK, "chill": ActivityKind.LEISURE}
+# 每个类别明确指定支持项和反向项；OTHER 没有方向证据，但仍占据窗口槽位。
+_ACTIVITY_RELATIONS: dict[ActivityKind, tuple[SemanticItem, SemanticItem]] = {
+    ActivityKind.WORK: ("focus", "chill"),
+    ActivityKind.LEISURE: ("chill", "focus"),
+}
+
+
 @dataclass(frozen=True)
 class CompiledActivityMatcher:
     source: str
     match: str
     pattern: str
     tag: str
+    activity: ActivityKind
     case_sensitive: bool
     declaration_order: int
     regex: re.Pattern[str] | None = None
@@ -74,28 +91,43 @@ class ActivityPolicy(Policy):
                     match=matcher.match,
                     pattern=matcher.pattern,
                     tag=matcher.tag,
+                    activity=_ACTIVITY_BY_TAG[matcher.tag],
                     case_sensitive=matcher.case_sensitive,
                     declaration_order=declaration_order,
                     regex=compiled_regex,
                 )
             )
 
-        self._history: deque[int] = deque(maxlen=self.WINDOW_SIZE)
-        self._weights = tuple(2 ** (-((age / config.age_scale) ** 3)) for age in range(self.WINDOW_SIZE))
+        self._history: deque[ActivityKind] = deque(maxlen=self.WINDOW_SIZE)
+        self._weights = tuple(exponential_decay(age, scale=config.age_scale, power=3, base=2) for age in range(self.WINDOW_SIZE))
         self._denominator = math.fsum(self._weights)
         self._curve_q = config.curve_q
 
     def evaluate(self, context: Context) -> ActivityEvaluation:
-        direction, details = self._get_instant_signal(context)
-        self._history.appendleft(direction)
-        net_direction = math.fsum(weight * observed for weight, observed in zip(self._weights, self._history)) / self._denominator
-        focus = math.copysign(s_curve(abs(net_direction), self._curve_q), net_direction)
-        return ActivityEvaluation(policy_id=self.config_key, salience={"focus": focus, "chill": -focus}, details=details)
+        activity, details = self._classify_window(context)
+        self._history.appendleft(activity)
+        return ActivityEvaluation(policy_id=self.config_key, salience=self._build_salience(), details=details)
 
-    def _get_instant_signal(
+    def _build_salience(self) -> dict[SemanticItem, float]:
+        items = VARIABLE_ITEMS[ContextVariable.ACTIVITY]
+        support = {item: 0.0 for item in items}
+        opposition = {item: 0.0 for item in items}
+        for activity, (supported_item, opposed_item) in _ACTIVITY_RELATIONS.items():
+            evidence = math.fsum(weight for weight, observed in zip(self._weights, self._history) if observed == activity)
+            support[supported_item] = evidence
+            opposition[opposed_item] = evidence
+
+        salience: dict[SemanticItem, float] = {}
+        for item in items:
+            net_evidence = (support[item] - opposition[item]) / self._denominator
+            magnitude = s_curve(abs(net_evidence), self._curve_q)
+            salience[item] = magnitude if net_evidence >= 0 else -magnitude
+        return salience
+
+    def _classify_window(
         self,
         context: Context,
-    ) -> tuple[int, ActivityDetails]:
+    ) -> tuple[ActivityKind, ActivityDetails]:
         details = ActivityDetails(
             window_title=context.window.title,
             process=context.window.process,
@@ -106,9 +138,9 @@ class ActivityPolicy(Policy):
             details.match_source = matched.source
             details.matched_rule = matched.pattern
             details.matched_tag = matched.tag
-            return (1 if matched.tag == "focus" else -1), details
+            return matched.activity, details
 
-        return 0, details
+        return ActivityKind.OTHER, details
 
     def _select_matcher(self, context: Context) -> CompiledActivityMatcher | None:
         matched: CompiledActivityMatcher | None = None
@@ -156,7 +188,7 @@ class ActivityPolicy(Policy):
         return pattern in observed
 
     def export_state(self) -> dict[str, Any]:
-        return {"directions": list(self._history)}
+        return {"observations": list(self._history)}
 
     def import_state(self, state: dict[str, Any]) -> None:
-        self._history = deque(state["directions"], maxlen=self.WINDOW_SIZE)
+        self._history = deque(state["observations"], maxlen=self.WINDOW_SIZE)

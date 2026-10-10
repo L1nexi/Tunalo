@@ -127,9 +127,9 @@ def test_user_activity_rules_reject_normalized_conflicts_and_empty_targets(activ
         profile(activity=activity)
 
 
-@pytest.mark.parametrize("activity, direction", [(None, 1), ({}, 0), ({"leisure_processes": ["code.exe"]}, -1)])
-def test_activity_default_custom_and_empty_modes_survive_profile_store_round_trip(
-    tmp_path: Path, activity: dict[str, list[str]] | None, direction: int
+@pytest.mark.parametrize("activity, supported_item", [(None, "focus"), ({"leisure_processes": ["code.exe"]}, "chill")])
+def test_activity_default_and_custom_rules_survive_profile_store_round_trip(
+    tmp_path: Path, activity: dict[str, list[str]] | None, supported_item: str
 ) -> None:
     current = profile(activity=activity)
     store = ProfileStore(str(tmp_path))
@@ -140,7 +140,13 @@ def test_activity_default_custom_and_empty_modes_survive_profile_store_round_tri
     before = selector_for(current, {}).select(context)
     after = selector_for(restored, {}).select(context)
     assert after.salience == before.salience
-    if direction == 0:
-        assert after.salience["focus"] == after.salience["chill"] == 0
-    else:
-        assert after.salience["focus"] * direction > 0
+    assert after.salience[supported_item] > 0
+
+
+def test_empty_activity_rules_do_not_reenable_defaults_after_profile_reload(tmp_path: Path) -> None:
+    store = ProfileStore(str(tmp_path))
+    store.commit(profile(activity={}))
+    restored = store.load()
+    assert restored is not None
+    result = selector_for(restored, {}).select(Context(window=WindowData(process="code.exe")))
+    assert result.salience["focus"] == result.salience["chill"] == 0

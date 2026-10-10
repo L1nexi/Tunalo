@@ -22,7 +22,7 @@ from ui.tick_history import build_tick_snapshot
 
 @pytest.fixture
 def desktop(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    state = SimpleNamespace(process="code.exe", title="", idle=100.0, now=1000.0, executed=True, playlists=[], draws=0)
+    state = SimpleNamespace(process="code.exe", title="", idle=100.0, now=1000.0, executed=True, playlists=[])
     monkeypatch.setattr("core.sensors.window.win32gui.GetForegroundWindow", lambda: 1)
     monkeypatch.setattr("core.sensors.window.win32gui.GetWindowText", lambda _hwnd: state.title)
     monkeypatch.setattr("core.sensors.window.win32process.GetWindowThreadProcessId", lambda _hwnd: (1, 1))
@@ -41,12 +41,12 @@ def desktop(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         state.playlists.append(playlist)
         return state.executed
 
-    def draw() -> float:
-        state.draws += 1
-        return 0.99
+    class FixedRandom(random.Random):
+        def random(self) -> float:
+            return 0.525
 
     monkeypatch.setattr("core.runtime.executor.WEExecutor.open_playlist", execute)
-    monkeypatch.setattr(random._inst, "random", draw)
+    monkeypatch.setattr(random, "choices", FixedRandom().choices)
     return state
 
 
@@ -87,15 +87,17 @@ def engine_at(tmp_path: Path, scenes: dict[SceneId, SceneConfig] | None = None, 
     return Engine.from_config(config)
 
 
-def test_paused_ticks_observe_and_diagnostics_do_not_add_activity_history(desktop: SimpleNamespace, tmp_path: Path) -> None:
+def reject_sampling(*_args: object, **_kwargs: object) -> None:
+    """暂停或阻塞期间使用随机源会使测试失败。"""
+    pytest.fail("暂停或阻塞期间不得抽样")
+
+
+def test_paused_ticks_keep_observing_without_applying_a_playlist(desktop: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     engine = engine_at(tmp_path)
-    for tick_id in range(180):
+    monkeypatch.setattr(random, "choices", reject_sampling)
+    for _ in range(180):
         schedule = engine.schedule(Scenes(), paused=True, manual_requested=False)
-        trace = TickTrace(tick_id=tick_id, ts=0, paused=True, pause_until=0, schedule=schedule)
-        for _ in range(3):
-            build_tick_snapshot(trace)
     assert schedule.selection.salience["focus"] == pytest.approx(0.649890150, abs=1e-9)
-    assert desktop.draws == 0
     assert desktop.playlists == []
 
 
@@ -105,21 +107,20 @@ def test_same_candidate_set_uses_latest_distribution_when_rotation_is_allowed(de
     for _ in range(599):
         engine.schedule(Scenes(), paused=True, manual_requested=False)
     latest = engine.schedule(first.selection.scenes, paused=False, manual_requested=False)
-    assert first.selection.scenes == latest.selection.scenes
-    assert first.selection.probabilities != latest.selection.probabilities
     assert first.decision.action == latest.decision.action == Action.CYCLE
-    assert latest.decision.probabilities == latest.selection.probabilities
-    assert latest.action.selected_scene == SceneId.NIGHT_WORK
-    assert latest.action.target_playlist == "OTHER"
-    assert desktop.draws == 2
+    # 同一随机位置在初始弱证据下落入 OTHER，持续工作后应落入 WORK。
+    # 若执行侧复用旧分布或均匀抽样，这里的实际播单序列会错误。
+    assert desktop.playlists == ["OTHER", "WORK"]
 
 
-def test_blocking_and_execution_failure_preserve_scheduler_cache(desktop: SimpleNamespace, tmp_path: Path) -> None:
+def test_blocking_and_execution_failure_preserve_scheduler_cache(desktop: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     engine = engine_at(tmp_path)
     desktop.idle = 0
-    blocked = engine.schedule(Scenes([SceneId.DAY_WORK]), paused=False, manual_requested=False)
+    with monkeypatch.context() as blocked_random:
+        blocked_random.setattr(random, "choices", reject_sampling)
+        blocked = engine.schedule(Scenes([SceneId.DAY_WORK]), paused=False, manual_requested=False)
     assert blocked.decision.action == Action.HOLD
-    assert desktop.draws == 0
+    assert desktop.playlists == []
     desktop.idle = 100
     desktop.executed = False
     failed = engine.schedule(Scenes([SceneId.DAY_WORK]), paused=False, manual_requested=False)
@@ -130,23 +131,24 @@ def test_blocking_and_execution_failure_preserve_scheduler_cache(desktop: Simple
     assert not failed.action.executed
     assert state.cached_scenes == Scenes([SceneId.DAY_WORK])
     assert trace.cache_update is None
-    assert desktop.draws == 1
 
 
-def test_hot_replacement_imports_direction_history_without_aliasing(desktop: SimpleNamespace, tmp_path: Path) -> None:
+def test_prepared_replacement_preserves_observations_at_preparation_time(desktop: SimpleNamespace, tmp_path: Path) -> None:
     engine = engine_at(tmp_path)
+    control = Engine.from_config(engine.config)
     for _ in range(180):
         engine.schedule(Scenes(), paused=True, manual_requested=False)
+        control.schedule(Scenes(), paused=True, manual_requested=False)
     prepared = engine.prepare_replacement(engine.config)
-    # Preparation must snapshot the current state; later live samples cannot
-    # alter the prepared Policy's deque.
     for _ in range(120):
         engine.schedule(Scenes(), paused=True, manual_requested=False)
     engine.install_replacement(prepared)
     desktop.process = "chrome.exe"
     resumed = engine.schedule(Scenes(), paused=True, manual_requested=False)
+    expected = control.schedule(Scenes(), paused=True, manual_requested=False)
     fresh = Engine.from_config(engine.config).schedule(Scenes(), paused=True, manual_requested=False)
-    assert 0.5 < resumed.selection.salience["focus"] < 0.649890150
+    assert resumed.selection.salience == expected.selection.salience
+    assert resumed.selection.salience["focus"] > 0
     assert fresh.selection.salience["focus"] == 0
 
 
@@ -180,7 +182,7 @@ def test_tick_dto_and_sparse_event_preserve_full_probability_meaning(desktop: Si
     assert "directions" not in rows[0]["data"]
 
 
-def test_hot_replacement_reinterprets_retained_directions_with_new_product_parameters(desktop: SimpleNamespace, tmp_path: Path) -> None:
+def test_hot_replacement_reinterprets_retained_observations_with_new_product_parameters(desktop: SimpleNamespace, tmp_path: Path) -> None:
     engine = engine_at(tmp_path)
     for _ in range(180):
         before = engine.schedule(Scenes(), paused=True, manual_requested=False)

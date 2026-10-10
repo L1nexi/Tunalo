@@ -9,6 +9,7 @@ from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
+from core.models.trace import Selection
 from core.policies import ActivityPolicy, SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import Selector
 
@@ -195,36 +196,119 @@ def test_time_missing_initial_weather_is_neutral_and_later_missing_weather_retai
     assert policy.evaluate(missing).salience == established
 
 
-@pytest.mark.parametrize(
-    "code,rain,snow",
-    [
-        (300, 0.1, 0),
-        (302, 0.35, 0),
-        (500, 0.25, 0),
-        (501, 0.5, 0),
-        (502, 1, 0),
-        (503, 1.5, 0),
-        (504, 2, 0),
-        (511, 0.75, 0),
-        (615, 0.25, 0.25),
-        (616, 0.5, 0.5),
-        (601, 0, 0.75),
-        (602, 0, 1.5),
-        (621, 0, 0.85),
-    ],
-)
-def test_s10_weather_code_mapping_preserves_intermediate_and_unbounded_strength(code: int, rain: float, snow: float) -> None:
-    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=code, main="Unknown")))
-    assert result.salience == {"clear": 0, "cloudy": 0, "rain": rain, "snow": snow}
+def test_drizzle_strengthening_is_observable_below_the_rain_threshold() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    light = policy.evaluate(Context(weather=WeatherData(id=300))).salience
+    heavy = policy.evaluate(Context(weather=WeatherData(id=302))).salience
+    assert 0 < light["rain"] < heavy["rain"] < 0.5
 
 
-@pytest.mark.parametrize("code", [800, 801, 802, 803, 804])
-def test_s11_clear_and_cloudy_are_neutral_even_when_main_says_rain(code: int) -> None:
-    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=code, main="Rain")))
+def test_rain_strength_follows_weather_severity_and_can_exceed_one() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    results = [policy.evaluate(Context(weather=WeatherData(id=code))).salience for code in [500, 501, 502, 503, 504]]
+    strengths = [result["rain"] for result in results]
+    assert all(earlier < later for earlier, later in zip(strengths, strengths[1:]))
+    assert strengths[-1] > 1
+    assert all(result["snow"] == 0 for result in results)
+
+
+def test_snow_strength_increases_without_inventing_rain() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    ordinary = policy.evaluate(Context(weather=WeatherData(id=601))).salience
+    heavy = policy.evaluate(Context(weather=WeatherData(id=602))).salience
+    assert 0 < ordinary["snow"] < heavy["snow"]
+    assert ordinary["rain"] == heavy["rain"] == 0
+
+
+def test_freezing_rain_remains_rain_evidence() -> None:
+    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=511, main="Snow"))).salience
+    assert result["rain"] > 0
+    assert result["snow"] == 0
+
+
+def test_mixed_precipitation_does_not_double_the_common_reverse_evidence() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    rain = policy.evaluate(Context(weather=WeatherData(id=501))).salience
+    mixed = policy.evaluate(Context(weather=WeatherData(id=616))).salience
+    assert mixed["rain"] > 0 and mixed["snow"] > 0
+    assert mixed["clear"] == rain["clear"]
+    assert mixed["cloudy"] == rain["cloudy"]
+
+
+def test_heavier_rain_strengthens_clear_opposition_but_cloudy_stays_weakly_opposed() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    moderate = policy.evaluate(Context(weather=WeatherData(id=501))).salience
+    violent = policy.evaluate(Context(weather=WeatherData(id=504))).salience
+    assert violent["clear"] < moderate["clear"] < 0
+    assert -0.5 < moderate["cloudy"] < 0
+    assert -0.5 < violent["cloudy"] < 0
+
+
+def test_sunny_sky_supports_clear_and_opposes_precipitation() -> None:
+    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=800, main="Rain"))).salience
+    assert result["clear"] >= 0.5
+    assert result["rain"] <= -0.5 and result["snow"] <= -0.5
+    assert -0.5 < result["cloudy"] < 0
+
+
+def test_overcast_sky_supports_cloudy_but_only_weakly_opposes_clear_and_precipitation() -> None:
+    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=804))).salience
+    assert result["cloudy"] >= 0.5
+    assert all(-0.5 < result[item] < 0 for item in ["clear", "rain", "snow"])
+
+
+def test_cloud_cover_changes_clear_and_cloudy_evidence_gradually() -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    results = [policy.evaluate(Context(weather=WeatherData(id=code))).salience for code in [800, 801, 802, 803, 804]]
+    assert all(before["clear"] > after["clear"] for before, after in zip(results, results[1:]))
+    assert all(before["cloudy"] < after["cloudy"] for before, after in zip(results, results[1:]))
+
+
+@pytest.mark.parametrize("main, known_code", [("Rain", 501), ("Drizzle", 301), ("Snow", 601), ("Clear", 800), ("cLoUdS", 804)])
+def test_unknown_weather_code_uses_the_main_category(main: str, known_code: int) -> None:
+    policy = WeatherPolicy(WeatherPolicyConfig())
+    known = policy.evaluate(Context(weather=WeatherData(id=known_code)))
+    fallback = policy.evaluate(Context(weather=WeatherData(id=999, main=main)))
+    assert fallback.salience == known.salience
+
+
+def test_known_neutral_code_takes_precedence_over_main_rain() -> None:
+    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=211, main="Rain")))
     assert result.salience == {"clear": 0, "cloudy": 0, "rain": 0, "snow": 0}
 
 
-@pytest.mark.parametrize("main,rain,snow", [("Rain", 0.5, 0), ("Drizzle", 0.2, 0), ("Snow", 0, 0.75), ("Thunderstorm", 0, 0), ("Unknown", 0, 0)])
-def test_weather_unknown_code_falls_back_to_main_without_inventing_evidence(main: str, rain: float, snow: float) -> None:
-    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=WeatherData(id=999, main=main)))
-    assert result.salience == {"clear": 0, "cloudy": 0, "rain": rain, "snow": snow}
+@pytest.mark.parametrize("weather", [None, WeatherData(id=999, main="Unknown")])
+def test_missing_or_unrecognized_weather_has_no_evidence(weather: WeatherData | None) -> None:
+    result = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=weather))
+    assert result.salience == {"clear": 0, "cloudy": 0, "rain": 0, "snow": 0}
+
+
+def established_work_selection(weather_code: int) -> Selection:
+    selector = Selector(
+        {
+            SceneId.DAY_WORK: frozenset({"focus"}),
+            SceneId.DAY_LEISURE: frozenset({"focus", "clear"}),
+            SceneId.NIGHT_WORK: frozenset({"focus", "cloudy"}),
+            SceneId.RAIN: frozenset({"focus", "rain"}),
+        },
+        [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
+        MatchingConfig(preference_tiers=[["activity"]]),
+    )
+    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(id=weather_code))
+    for _ in range(600):
+        result = selector.select(context)
+    return result
+
+
+@pytest.mark.parametrize("code, preferred, excluded", [(800, SceneId.DAY_LEISURE, SceneId.RAIN), (502, SceneId.RAIN, SceneId.DAY_LEISURE)])
+def test_weather_strong_opposition_excludes_scenes_even_when_activity_has_priority(code: int, preferred: SceneId, excluded: SceneId) -> None:
+    result = established_work_selection(code)
+    assert result.probabilities[excluded] == 0
+    assert max(result.probabilities, key=result.probabilities.__getitem__) == preferred
+
+
+def test_overcast_weak_opposition_keeps_clear_work_and_rain_work_available() -> None:
+    result = established_work_selection(804)
+    assert result.probabilities[SceneId.RAIN] > 0
+    assert result.probabilities[SceneId.DAY_LEISURE] > 0
+    assert max(result.probabilities, key=result.probabilities.__getitem__) == SceneId.NIGHT_WORK

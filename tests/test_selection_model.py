@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import pytest
-from pydantic import ValidationError
 
 from configurations.runtime_models import MatchingConfig, SceneConfig
 from core.models.scene import SceneId
@@ -161,25 +160,10 @@ def test_equivalent_associations_and_input_orders_have_equivalent_probabilities(
     assert p[WORK] == pytest.approx(p[RAIN_WORK])
 
 
-@pytest.mark.parametrize("temperature", [1.5, 0.00001, 1e-300])
-def test_large_finite_evidence_and_small_temperature_produce_finite_probabilities(temperature: float) -> None:
+def test_product_evidence_produces_a_complete_probability_distribution() -> None:
     p = choose(
-        {"focus": 1e308, "day": 1e308, "summer": 1e308, "rain": 1e308},
-        {WORK: {"focus", "day", "summer"}, RAIN: {"rain"}},
-        scene_temperature=temperature,
+        {"focus": 1, "day": 1, "summer": 1, "rain": 2},
+        {WORK: {"focus", "day", "summer"}, RAIN: {"rain", "focus"}},
     ).probabilities
     assert all(math.isfinite(value) and value >= 0 for value in p.values())
     assert math.fsum(p.values()) == pytest.approx(1)
-
-
-@pytest.mark.parametrize("value", [math.inf, -math.inf, math.nan])
-def test_model_input_rejects_nonfinite_salience(value: float) -> None:
-    with pytest.raises(ValidationError):
-        Salience({"rain": value})
-
-
-@pytest.mark.parametrize("field", ["positive_boundary", "negative_boundary", "variable_temperature", "scene_temperature"])
-@pytest.mark.parametrize("value", [0, -1, math.inf, math.nan])
-def test_matching_parameters_require_finite_positive_values(field: str, value: float) -> None:
-    with pytest.raises(ValidationError):
-        MatchingConfig(**{field: value})

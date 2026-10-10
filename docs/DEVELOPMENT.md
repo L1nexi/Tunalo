@@ -48,7 +48,7 @@ npm run build-only
 - `app/main.py`：托盘进程、首次设置和本地服务启动。
 - `core/runtime/profile_manager.py`：配置读取、编译、保存和运行时应用。
 - `core/runtime/selector.py`：Policy 求值、有符号显著度汇集，以及共用的确定性概率计算。
-- `core/math_utils.py`：softmax、S 形曲线与周期插值的共用数学工具。
+- `core/math_utils.py`：概率归一化、幅度曲线、单点指数衰减与周期插值的纯数学函数。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
@@ -65,7 +65,21 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。`trace` 与 `semantics` 的职责及类型归属调整留到后续提交，本轮不改诊断实现。
 
-Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。活动轨迹每次新观测推进一槽，诊断读取不推进；状态热替换只传递分类后的方向。
+### 天气共同推导
+
+天气按“晴朗／阴天／降水，降水内分雨雪”共享关系。代码表只给出正向依据，`WeatherPolicy` 统一推导支持与反向证据，不为四个语义项各写一张独立代码表。
+
+记晴朗、阴天、雨、雪的正向依据为 `c`、`o`、`r`、`s`，公共降水强度 `p=max(r,s)`，弱反向系数 `a=0.25`。当前计算为：晴朗 `c-p-a*o`；阴天 `o-a*c-a*min(p,1)`；雨 `r-c-a*o`；雪 `s-c-a*o`。降水对晴朗的强反向随强度变化，对阴天的弱反向在降水强度超过 1 后保持为 -0.25。
+
+800～804 的正向依据依次为晴朗 1、晴朗 0.75、晴朗／阴天各 0.25、阴天 0.75、阴天 1。它们是内部校准初值。示例：晴朗输出 `(1,-0.25,-1,-1)`，全阴输出 `(-0.25,1,-0.25,-0.25)`，大雨输出 `(-1,-0.25,1,0)`，暴雨输出 `(-2,-0.25,2,0)`；元组顺序为晴朗、阴天、雨、雪。
+
+已知代码优先，即使推导结果全零也不按主分类重解释。未知代码时，`Clear`、`Clouds` 分别提供晴朗／阴天 1，`Rain`、`Drizzle`、`Snow` 沿用雨 0.5、雨 0.2、雪 0.75 的初值。没有观测或无法识别时保持全零；请求失败时继续解释 Sensor 的既有缓存。归档规则表中的雨雪正向强度仍沿用，晴朗／阴云全零的旧说明已由这里取代。
+
+Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；它调用匹配流程中的 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
+
+活动轨迹保存工作、休闲、OTHER 类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别汇总各语义项的证据后再应用幅度曲线。ActivityPolicy 组织 600 个年龄采样点，并选定指数衰减的尺度、底数和幂次；数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
+
+模型回归在既有公开入口验证：纯概率入口的独立 SPEC 算例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及真实 Engine 的执行结果。不会为私有分类器、评分辅助函数或状态容器单开测试；测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
 
 ```powershell
 .\.venv\Scripts\python.exe tools/tuning/calibrate.py
