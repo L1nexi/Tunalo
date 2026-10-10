@@ -4,10 +4,11 @@ import logging
 import time
 
 from configurations.runtime_models import TimePolicyConfig
+from core.math_utils import periodic_salience
 from core.models.context import Context
 from core.models.semantics import VARIABLE_ITEMS, ContextVariable
 from core.models.trace import TimeDetails, TimeEvaluation
-from core.policies.base import Policy, _periodic_salience
+from core.policies.base import Policy
 
 logger = logging.getLogger("Tunalo.Policy")
 
@@ -85,7 +86,7 @@ class TimePolicy(Policy):
 
         values = (1.0, 0.0, -1.0, 0.0)
         salience = {
-            item: _periodic_salience(
+            item: periodic_salience(
                 t_virtual, [(peak, values[(index - own_index) % 4]) for index, peak in enumerate(self._VIRTUAL_PEAKS)], 24, 0, self._curve_q
             )
             for own_index, item in enumerate(self._TAG_ORDER)

@@ -12,7 +12,12 @@ export type SceneId =
 
 export type Locale = "zh" | "en"
 
-export type ContextVariable = "season" | "time" | "weather" | "activity"
+export type ResponseStyle =
+  | "background"
+  | "background_leaning"
+  | "balanced"
+  | "current_leaning"
+  | "current"
 
 export interface WeatherLocationProfile {
   name?: string
@@ -21,7 +26,7 @@ export interface WeatherLocationProfile {
 }
 
 export interface Profile {
-  version: 2
+  version: 1
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
@@ -31,13 +36,19 @@ export interface Profile {
   }
   scenes: Partial<Record<SceneId, string>>
   matching: {
-    preference_tiers: ContextVariable[][]
+    response_style: ResponseStyle
   }
   disturbance: {
     startup_grace_seconds: number
     idle_before_switch_seconds: number
     maximum_deferral_minutes: number
     cycle_interval_minutes: number
+  }
+  activity: {
+    work_processes: string[]
+    leisure_processes: string[]
+    work_title_keywords: string[]
+    leisure_title_keywords: string[]
   }
 }
 

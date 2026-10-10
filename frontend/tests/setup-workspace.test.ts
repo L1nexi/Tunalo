@@ -28,7 +28,7 @@ vi.mock("@/api/profile", async (importOriginal) => ({
 }))
 
 const profile: Profile = {
-  version: 2,
+  version: 1,
   setup_complete: true,
   wallpaper_engine_path: "C:\\Wallpaper Engine",
   language: "en",
@@ -41,12 +41,18 @@ const profile: Profile = {
     },
   },
   scenes: { day_work: "Work" },
-  matching: { preference_tiers: [] },
+  matching: { response_style: "balanced" },
   disturbance: {
     startup_grace_seconds: 15,
     idle_before_switch_seconds: 20,
     maximum_deferral_minutes: 60,
     cycle_interval_minutes: 15,
+  },
+  activity: {
+    work_processes: [],
+    leisure_processes: [],
+    work_title_keywords: [],
+    leisure_title_keywords: [],
   },
 }
 
@@ -136,9 +142,9 @@ test("editing one step keeps server errors that belong to another step", async (
           message: "invalid API key",
         },
         {
-          path: ["matching", "preference_tiers"],
-          code: "value_error",
-          message: "Preference tiers invalid",
+          path: ["activity"],
+          code: "activity_invalid",
+          message: "Activity targets conflict",
         },
       ],
     }),
@@ -153,10 +159,10 @@ test("editing one step keeps server errors that belong to another step", async (
   await flushPromises()
 
   await wrapper.get("#weather-api-key").setValue("replacement-key")
-  await wrapper.findAll("button").find((button) => button.text().includes("Context and interruption"))!.trigger("click")
+  await wrapper.findAll("button").find((button) => button.text().includes("Activity detection"))!.trigger("click")
 
-  expect(wrapper.get("h1").text()).toBe("Tune scheduling")
-  expect(wrapper.text()).toContain("Preference tiers invalid")
+  expect(wrapper.get("h1").text()).toBe("Recognize activity")
+  expect(wrapper.text()).toContain("Activity targets conflict")
   expect(wrapper.text()).not.toContain("This API key is invalid.")
 })
 
@@ -267,10 +273,8 @@ test("a native close request asks before discarding unsaved changes", async () =
   const wrapper = mountWorkspace(profile)
   await flushPromises()
 
-  await wrapper.findAll("button").find((button) => button.text().includes("Context and interruption"))!.trigger("click")
-  const preference = wrapper.findAllComponents({ name: "Select" }).find((select) => select.props("modelValue") === "neutral")!
-  preference.vm.$emit("update:modelValue", "1")
-  await flushPromises()
+  await wrapper.findAll("button").find((button) => button.text().includes("Scheduling feel"))!.trigger("click")
+  await wrapper.findAll("button").find((button) => button.text().trim() === "Current first")!.trigger("click")
 
   window.dispatchEvent(new CustomEvent("tunalo:native-close-request"))
   await flushPromises()

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.event_logger import JsonlEventLogger
-from configurations.runtime_models import SceneConfig, SchedulerConfig, SchedulingConfig, WeatherPolicyConfig
+from configurations.runtime_models import ActivityPolicyConfig, PoliciesConfig, SceneConfig, SchedulerConfig, SchedulingConfig, WeatherPolicyConfig
 from core.models.scene import SceneId, Scenes
 from core.models.trace import Action, Decision, TickTrace
 from core.runtime.engine import Engine
@@ -72,6 +72,14 @@ def engine_at(tmp_path: Path, scenes: dict[SceneId, SceneConfig] | None = None, 
             SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"focus"}),
             SceneId.NIGHT_WORK: SceneConfig(playlist="OTHER", associations={"focus", "cloudy"}),
         },
+        policies=PoliciesConfig(
+            activity=ActivityPolicyConfig(
+                matchers=[
+                    {"source": "process", "match": "exact", "pattern": "code", "tag": "focus"},
+                    {"source": "process", "match": "exact", "pattern": "vlc", "tag": "chill"},
+                ]
+            )
+        ),
         scheduling=SchedulingConfig(
             **({"startup_delay": 0, "idle_threshold": 10, "force_after": 3600, "cycle_cooldown": 0, "pause_on_fullscreen": False} | timing)
         ),

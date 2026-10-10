@@ -1,4 +1,4 @@
-"""Product-maintained window classification rules, in declaration order."""
+"""Default window classification rules used when a Profile omits activity rules."""
 
 from typing import Literal
 

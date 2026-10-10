@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from configurations.runtime_models import SeasonPolicyConfig
+from core.math_utils import periodic_salience
 from core.models.context import Context
 from core.models.semantics import VARIABLE_ITEMS, ContextVariable
 from core.models.trace import SeasonDetails, SeasonEvaluation
-from core.policies.base import Policy, _periodic_salience
+from core.policies.base import Policy
 
 
 class SeasonPolicy(Policy):
@@ -20,7 +21,7 @@ class SeasonPolicy(Policy):
         items = VARIABLE_ITEMS[ContextVariable.SEASON]
         values = (1.0, 0.0, -1.0, 0.0)
         salience = {
-            item: _periodic_salience(
+            item: periodic_salience(
                 context.time.tm_yday,
                 [(self._peaks[anchor], values[(index - own_index) % 4]) for index, anchor in enumerate(items)],
                 365,

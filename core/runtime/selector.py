@@ -5,18 +5,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from configurations.runtime_models import MatchingConfig
+from core.math_utils import softmax
 from core.models.context import Context
 from core.models.scene import SceneId
 from core.models.semantics import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariable, Salience, SemanticItem
 from core.models.trace import Selection
 from core.policies.base import Policy
-
-
-def _softmax[K](scores: Mapping[K, float], temperature: float, scale: float = 1.0) -> dict[K, float]:
-    peak = max(scores.values())
-    weights = {key: math.exp(((value - peak) / temperature) * scale) for key, value in scores.items()}
-    total = math.fsum(weights.values())
-    return {key: weight / total for key, weight in weights.items()}
 
 
 def calculate_distribution(
@@ -53,10 +47,10 @@ def calculate_distribution(
         strengths = {variable: max(max(s[item], 0.0) for item in VARIABLE_ITEMS[variable]) for variable in effective}
         # Softmax on effective sources equals dropping empty sources and
         # proportionally renormalizing the tier's original budgets.
-        budgets = _softmax(strengths, config.variable_temperature)
+        budgets = softmax(strengths, config.variable_temperature)
         probabilities = {scene_id: 0.0 for scene_id in associations}
         for variable in effective:
-            conditional = _softmax({scene_id: scores[scene_id] for scene_id in candidates[variable]}, config.scene_temperature, scale)
+            conditional = softmax({scene_id: scores[scene_id] for scene_id in candidates[variable]}, config.scene_temperature, scale)
             for scene_id, probability in conditional.items():
                 probabilities[scene_id] += budgets[variable] * probability
         return Selection(
@@ -68,7 +62,7 @@ def calculate_distribution(
             excluded_scenes=excluded,
         )
 
-    effort = _softmax(scores, config.scene_temperature, scale)
+    effort = softmax(scores, config.scene_temperature, scale)
     return Selection(
         probabilities={scene_id: effort.get(scene_id, 0.0) for scene_id in associations}, salience=s, reason="best_effort", excluded_scenes=excluded
     )

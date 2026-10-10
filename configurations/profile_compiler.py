@@ -2,8 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from configurations.profile import Profile
-from configurations.runtime_models import MatchingConfig, PoliciesConfig, SceneConfig, SchedulerConfig, SchedulingConfig, WeatherPolicyConfig
+from configurations.activity_rules import RULE_GROUPS
+from configurations.profile import ActivityProfile, Profile
+from configurations.runtime_models import (
+    ActivityMatcherConfig,
+    ActivityPolicyConfig,
+    MatchingConfig,
+    PoliciesConfig,
+    SceneConfig,
+    SchedulerConfig,
+    SchedulingConfig,
+    WeatherPolicyConfig,
+)
 from core.models.scene import SceneId
 from core.models.semantics import SemanticItem
 
@@ -37,13 +47,14 @@ class ProfileCompiler:
             },
             matching=MatchingConfig(preference_tiers=profile.matching.preference_tiers),
             policies=PoliciesConfig(
+                activity=ActivityPolicyConfig(matchers=cls._compile_activity_matchers(profile.activity)),
                 weather=WeatherPolicyConfig(
                     api_key=profile.weather.api_key,
                     lat=location.latitude,
                     lon=location.longitude,
                     fetch_interval=600,
                     request_timeout=10,
-                )
+                ),
             ),
             scheduling=SchedulingConfig(
                 startup_delay=disturbance.startup_grace_seconds,
@@ -54,3 +65,22 @@ class ProfileCompiler:
                 cpu_sample_window=10,
             ),
         )
+
+    @staticmethod
+    def _compile_activity_matchers(activity: ActivityProfile | None) -> list[ActivityMatcherConfig]:
+        """Compile user rules, or product defaults when no rules are supplied."""
+        groups = (
+            RULE_GROUPS
+            if activity is None
+            else (
+                ("process", "focus", activity.work_processes),
+                ("process", "chill", activity.leisure_processes),
+                ("title", "focus", activity.work_title_keywords),
+                ("title", "chill", activity.leisure_title_keywords),
+            )
+        )
+        return [
+            ActivityMatcherConfig(source=source, match="exact" if source == "process" else "contains", pattern=pattern, tag=tag)
+            for source, tag, patterns in groups
+            for pattern in patterns
+        ]

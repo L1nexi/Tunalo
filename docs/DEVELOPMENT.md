@@ -48,6 +48,7 @@ npm run build-only
 - `app/main.py`：托盘进程、首次设置和本地服务启动。
 - `core/runtime/profile_manager.py`：配置读取、编译、保存和运行时应用。
 - `core/runtime/selector.py`：Policy 求值、有符号显著度汇集，以及共用的确定性概率计算。
+- `core/math_utils.py`：softmax、S 形曲线与周期插值的共用数学工具。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
@@ -56,7 +57,13 @@ npm run build-only
 
 ## 场景选择模型
 
-Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表表示中立回退。旧响应风格和用户活动规则已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表表示中立回退。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+
+`activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity` 或设为 `null` 时使用内置默认规则；显式提供对象时完全使用其中的规则，空对象表示不识别活动。这三种状态在保存和重新加载后保持不变。
+
+`ProfileCompiler` 处理用户 Profile 和内置规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
+
+前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。`trace` 与 `semantics` 的职责及类型归属调整留到后续提交，本轮不改诊断实现。
 
 Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。活动轨迹每次新观测推进一槽，诊断读取不推进；状态热替换只传递分类后的方向。
 

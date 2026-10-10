@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from configurations.profile import Profile
+from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
@@ -32,22 +34,32 @@ def replay(policy: ActivityPolicy, processes: list[str]) -> dict[str, float]:
     return result.salience
 
 
+def activity_config(**parameters: float) -> ActivityPolicyConfig:
+    return ActivityPolicyConfig(
+        matchers=[
+            {"source": "process", "match": "exact", "pattern": "code", "tag": "focus"},
+            {"source": "process", "match": "exact", "pattern": "vlc", "tag": "chill"},
+        ],
+        **parameters,
+    )
+
+
 @pytest.mark.parametrize("slots, expected", [(1, 0.000000200), (60, 0.042110997), (120, 0.284477721), (180, 0.649890150), (600, 1)])
 def test_s05_startup_uses_full_window_denominator_with_spec_numeric_anchors(slots: int, expected: float) -> None:
-    policy = ActivityPolicy(ActivityPolicyConfig(age_scale=300, curve_q=0.5))
+    policy = ActivityPolicy(activity_config(age_scale=300, curve_q=0.5))
     result = replay(policy, ["code.exe"] * slots)
     assert result["focus"] == pytest.approx(expected, abs=1e-9)
     assert result["chill"] == pytest.approx(-expected, abs=1e-9)
 
 
 def test_s02_new_observation_has_more_effect_than_same_direction_at_oldest_slot() -> None:
-    old = replay(ActivityPolicy(ActivityPolicyConfig()), ["code.exe"] + ["chrome.exe"] * 599)
-    new = replay(ActivityPolicy(ActivityPolicyConfig()), ["chrome.exe"] * 599 + ["code.exe"])
+    old = replay(ActivityPolicy(activity_config()), ["code.exe"] + ["chrome.exe"] * 599)
+    new = replay(ActivityPolicy(activity_config()), ["chrome.exe"] * 599 + ["code.exe"])
     assert new["focus"] > old["focus"] > 0
 
 
 def test_s02_sampling_intervals_do_not_change_slot_weights() -> None:
-    fast, slow = ActivityPolicy(ActivityPolicyConfig()), ActivityPolicy(ActivityPolicyConfig())
+    fast, slow = ActivityPolicy(activity_config()), ActivityPolicy(activity_config())
     for index, process in enumerate(["code.exe"] * 100 + ["chrome.exe"] * 50 + ["vlc.exe"] * 20):
         a = fast.evaluate(observation(process, hour=12))
         b = slow.evaluate(observation(process, day=1 + index, hour=3))
@@ -55,21 +67,21 @@ def test_s02_sampling_intervals_do_not_change_slot_weights() -> None:
 
 
 def test_s03_last_600_observations_completely_replace_previous_activity() -> None:
-    policy = ActivityPolicy(ActivityPolicyConfig())
+    policy = ActivityPolicy(activity_config())
     replay(policy, ["code.exe"] * 900)
     result = replay(policy, ["vlc.exe"] * 600)
     assert result == {"focus": -1, "chill": 1}
 
 
 def test_s04_swap_work_and_leisure_before_nonlinear_mapping() -> None:
-    first = replay(ActivityPolicy(ActivityPolicyConfig()), ["code.exe"] * 120 + ["chrome.exe"] * 20 + ["vlc.exe"] * 80)
-    second = replay(ActivityPolicy(ActivityPolicyConfig()), ["vlc.exe"] * 120 + ["chrome.exe"] * 20 + ["code.exe"] * 80)
+    first = replay(ActivityPolicy(activity_config()), ["code.exe"] * 120 + ["chrome.exe"] * 20 + ["vlc.exe"] * 80)
+    second = replay(ActivityPolicy(activity_config()), ["vlc.exe"] * 120 + ["chrome.exe"] * 20 + ["code.exe"] * 80)
     assert first["focus"] == pytest.approx(second["chill"])
     assert first["chill"] == pytest.approx(second["focus"])
 
 
 def test_other_adds_zero_direction_without_immediately_clearing_existing_history() -> None:
-    policy = ActivityPolicy(ActivityPolicyConfig())
+    policy = ActivityPolicy(activity_config())
     established = replay(policy, ["code.exe"] * 180)
     one_unknown = replay(policy, ["chrome.exe"])
     no_history = replay(policy, ["chrome.exe"] * 600)
@@ -93,7 +105,13 @@ def test_other_adds_zero_direction_without_immediately_clearing_existing_history
     ],
 )
 def test_built_in_window_rules_and_title_priority(process: str, title: str, expected: str | None) -> None:
-    result = ActivityPolicy(ActivityPolicyConfig()).evaluate(observation(process, title))
+    profile = Profile(
+        wallpaper_engine_path="C:/fixture/wallpaper64.exe",
+        weather={"api_key": "fixture", "location": {"latitude": 0, "longitude": 0}},
+        scenes={SceneId.DAY_WORK: "WORK"},
+    )
+    config = ProfileCompiler.compile(profile)
+    result = ActivityPolicy(config.policies.activity).evaluate(observation(process, title))
     if expected is None:
         assert result.salience == {"focus": 0, "chill": 0}
     else:
@@ -107,12 +125,10 @@ def test_literal_activity_matching_keeps_unicode_casefolding() -> None:
 
 def test_s01_semantics_independent_of_preference_scene_catalog_and_playlists() -> None:
     selectors = [
-        Selector(
-            {SceneId.RAIN: frozenset({"rain"})}, [ActivityPolicy(ActivityPolicyConfig()), WeatherPolicy(WeatherPolicyConfig())], MatchingConfig()
-        ),
+        Selector({SceneId.RAIN: frozenset({"rain"})}, [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())], MatchingConfig()),
         Selector(
             {SceneId.DAY_WORK: frozenset({"focus", "day"})},
-            [ActivityPolicy(ActivityPolicyConfig()), WeatherPolicy(WeatherPolicyConfig())],
+            [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
             MatchingConfig(preference_tiers=[["activity"], ["weather"]]),
         ),
     ]

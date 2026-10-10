@@ -6,7 +6,7 @@ import type { Locale, SceneId } from "@/api/profile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { COPY, DISTURBANCE_LABELS, preferenceSummary, SCENE_LABELS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS, RESPONSE_STYLE_LABELS, SCENE_LABELS } from "@/setup/copy"
 import type { StepId } from "@/setup/flow"
 import { detectDisturbancePreset } from "@/setup/model"
 import type { ProfileDraft } from "@/setup/model"
@@ -22,6 +22,7 @@ const props = defineProps<{
   weatherTestedAtText: string
   weatherConnectionError: string
   validatingWeather: boolean
+  hasPendingActivity: boolean
 }>()
 
 const emit = defineEmits<{
@@ -82,8 +83,8 @@ const changes = computed(() => {
     add("scenes", SCENE_LABELS[props.locale][id], before.scenes[id] || copy.value.review.disabled, after.scenes[id] || (id in after.scenes ? copy.value.review.awaitingPlaylist : copy.value.review.disabled))
   }
   add("scheduling", copy.value.review.response,
-    preferenceSummary(before.matching.preference_tiers, props.locale),
-    preferenceSummary(after.matching.preference_tiers, props.locale))
+    RESPONSE_STYLE_LABELS[props.locale][before.matching.response_style],
+    RESPONSE_STYLE_LABELS[props.locale][after.matching.response_style])
   const timingRows = [
     { field: "startup_grace_seconds", label: copy.value.preferences.startupGrace, unit: copy.value.preferences.seconds },
     { field: "idle_before_switch_seconds", label: copy.value.preferences.idleBeforeSwitch, unit: copy.value.preferences.seconds },
@@ -93,6 +94,11 @@ const changes = computed(() => {
   for (const { field, label, unit } of timingRows) {
     const withUnit = (value: unknown) => value === null || value === undefined ? empty : `${String(value)} ${unit}`
     add("scheduling", label, withUnit(before.disturbance[field]), withUnit(after.disturbance[field]))
+  }
+  for (const field of ["work_processes", "leisure_processes", "work_title_keywords", "leisure_title_keywords"] as const) {
+    const group = field.startsWith("work") ? copy.value.activity.workTitle : copy.value.activity.leisureTitle
+    const kind = field.endsWith("processes") ? copy.value.activity.processLabel : copy.value.activity.titleKeywordLabel
+    add("activity", `${group} · ${kind}`, before.activity[field].join("、") || empty, after.activity[field].join("、") || empty)
   }
   const languageName = (value: string | null) => value === "zh" ? "中文" : value === "en" ? "English" : empty
   add("review", copy.value.nav.languageLabel, languageName(before.language), languageName(after.language))
@@ -119,9 +125,16 @@ const reviewGroups = computed(() => [
   {
     id: "scheduling" as const,
     rows: [
-      { id: "response", label: copy.value.review.response, value: preferenceSummary(props.draft.matching.preference_tiers, props.locale) },
+      { id: "response", label: copy.value.review.response, value: RESPONSE_STYLE_LABELS[props.locale][props.draft.matching.response_style] },
       { id: "disturbance", label: copy.value.review.disturbance, value: preset.value === "custom" ? copy.value.common.custom : DISTURBANCE_LABELS[props.locale][preset.value] },
     ],
+  },
+  {
+    id: "activity" as const,
+    rows: [{ id: "activity", label: copy.value.review.activity, value: copy.value.review.activityCount(
+      props.draft.activity.work_title_keywords.length + props.draft.activity.leisure_title_keywords.length,
+      props.draft.activity.work_processes.length + props.draft.activity.leisure_processes.length,
+    ) }],
   },
 ])
 </script>
@@ -130,7 +143,7 @@ const reviewGroups = computed(() => [
   <section class="flex flex-col gap-6">
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
       <h2 id="changes-heading" class="mb-3 text-base font-semibold">{{ copy.review.changesTitle }}</h2>
-      <p v-if="changes.length === 0" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
+      <p v-if="changes.length === 0 && !hasPendingActivity" role="status" class="text-sm text-muted-foreground">{{ copy.review.noChanges }}</p>
       <ul v-else-if="changes.length > 0" class="divide-y rounded-lg border">
         <li v-for="(change, index) in changes" :key="`${change.id}-${index}`" class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
           <div class="min-w-0">
@@ -141,6 +154,7 @@ const reviewGroups = computed(() => [
           <Button type="button" variant="ghost" size="sm" @click="emit('openStep', change.id)">{{ copy.review.edit }}</Button>
         </li>
       </ul>
+      <p v-if="hasPendingActivity" role="status" class="text-sm text-warning">{{ copy.review.pendingInputNotice }}</p>
     </section>
 
     <details :open="mode === 'setup' || undefined">

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
+from configurations.profile_store import ProfileStore
 from configurations.runtime_models import SceneConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
@@ -34,7 +37,7 @@ def test_profile_rejects_empty_repeated_or_unknown_preference_variables(tiers):
         profile(matching={"preference_tiers": tiers})
 
 
-@pytest.mark.parametrize("overrides", [{"version": 1}, {"activity": {}}, {"matching": {"response_style": "balanced"}}, {"policies": {}}])
+@pytest.mark.parametrize("overrides", [{"version": 1}, {"matching": {"response_style": "balanced"}}, {"policies": {}}])
 def test_profile_rejects_old_format_and_internal_configuration(overrides):
     with pytest.raises(ValidationError):
         profile(**overrides)
@@ -89,3 +92,55 @@ def test_product_defaults_satisfy_violent_rain_budget_constraint():
         Salience({"rain": 2, "focus": 1, "day": 1}), {scene_id: scene.associations for scene_id, scene in config.scenes.items()}, config.matching
     )
     assert result.probabilities[SceneId.RAIN] > result.probabilities[SceneId.DAY_WORK]
+
+
+@pytest.mark.parametrize(
+    "activity, process, title, expected",
+    [
+        ({"work_processes": ["custom.EXE"]}, "CUSTOM.exe", "", "focus"),
+        ({"leisure_processes": ["code"]}, "code.exe", "", "chill"),
+        ({"work_title_keywords": ["YouTube"]}, "chrome.exe", "YouTube - watch", "focus"),
+        ({"leisure_title_keywords": ["GitHub"]}, "chrome.exe", "GitHub - review", "chill"),
+    ],
+)
+def test_user_activity_rules_replace_defaults_and_classify_all_four_groups(
+    activity: dict[str, list[str]], process: str, title: str, expected: str
+) -> None:
+    selector = selector_for(profile(activity=activity), {})
+    result = selector.select(Context(window=WindowData(process=process, title=title)))
+    assert result.salience[expected] > 0
+    # Product-only rules must not sneak into a custom classifier.
+    unrelated = selector_for(profile(activity=activity), {}).select(Context(window=WindowData(process="vlc.exe")))
+    assert unrelated.salience["focus"] == unrelated.salience["chill"] == 0
+
+
+@pytest.mark.parametrize(
+    "activity",
+    [
+        {"work_processes": ["CODE.EXE"], "leisure_processes": ["code"]},
+        {"work_title_keywords": ["Straße"], "leisure_title_keywords": ["STRASSE"]},
+        {"work_processes": [" "]},
+    ],
+)
+def test_user_activity_rules_reject_normalized_conflicts_and_empty_targets(activity: dict[str, list[str]]) -> None:
+    with pytest.raises(ValidationError):
+        profile(activity=activity)
+
+
+@pytest.mark.parametrize("activity, direction", [(None, 1), ({}, 0), ({"leisure_processes": ["code.exe"]}, -1)])
+def test_activity_default_custom_and_empty_modes_survive_profile_store_round_trip(
+    tmp_path: Path, activity: dict[str, list[str]] | None, direction: int
+) -> None:
+    current = profile(activity=activity)
+    store = ProfileStore(str(tmp_path))
+    store.commit(current)
+    restored = store.load()
+    assert restored is not None
+    context = Context(window=WindowData(process="code.exe"))
+    before = selector_for(current, {}).select(context)
+    after = selector_for(restored, {}).select(context)
+    assert after.salience == before.salience
+    if direction == 0:
+        assert after.salience["focus"] == after.salience["chill"] == 0
+    else:
+        assert after.salience["focus"] * direction > 0

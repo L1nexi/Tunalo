@@ -59,7 +59,7 @@
 
 返回后的输入框为空，规则列表中也没有该内容。待输入文字只保存在被切换销毁的组件内部，未进入整体草稿。
 
-代码依据：`ActivityListInput.vue`（当时的活动规则输入；现已删除） 中的 `input` 与 `addValue()`，审查时第 22–30 行。证据：[交互观察记录](assets/frontend-review-2026-09-28/observations.json)。
+代码依据：[ActivityListInput.vue](../frontend/src/components/setup/ActivityListInput.vue) 中的 `input` 与 `addValue()`，审查时第 22–30 行。证据：[交互观察记录](assets/frontend-review-2026-09-28/observations.json)。
 
 #### UX-03：场景重新启用后绑定第一个播单
 
@@ -325,13 +325,13 @@
 | 文件                                                                                  | 审查关联                                         |
 | ------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | [SetupWorkspace.vue](../frontend/src/components/setup/SetupWorkspace.vue)             | 双模式导航、草稿、保存、关闭确认、外框与滚动区域 |
-| `ActivityListInput.vue`（当时的活动规则输入；现已删除）       | 待添加规则输入与标签                             |
+| [ActivityListInput.vue](../frontend/src/components/setup/ActivityListInput.vue)       | 待添加规则输入与标签                             |
 | [SceneBindingsStep.vue](../frontend/src/components/setup/steps/SceneBindingsStep.vue) | 场景启停、绑定选择与列表分组                     |
 | [ReviewStep.vue](../frontend/src/components/setup/steps/ReviewStep.vue)               | 配置摘要、数量显示和缺失项入口                   |
 | [SchedulingStep.vue](../frontend/src/components/setup/steps/SchedulingStep.vue)       | 五档选择、自定义时间字段与响应式排布             |
 | [WeatherKeyStep.vue](../frontend/src/components/setup/steps/WeatherKeyStep.vue)       | 密钥输入、测试反馈和帮助区域                     |
 | [LocationStep.vue](../frontend/src/components/setup/steps/LocationStep.vue)           | 坐标、估算反馈与表单宽度                         |
-| `ActivityRulesStep.vue`（当时的活动规则页面；现已删除） | 工作与休闲分组的双栏表现                         |
+| [ActivityRulesStep.vue](../frontend/src/components/setup/steps/ActivityRulesStep.vue) | 工作与休闲分组的双栏表现                         |
 | [copy.ts](../frontend/src/setup/copy.ts)                                              | 导航、草稿、状态、提示与档位文案                 |
 | [style.css](../frontend/src/style.css)                                                | 字体、语义色、深浅主题与圆角变量                 |
 | [Card.vue](../frontend/src/components/ui/card/Card.vue)                               | 主面板内边距、间距与圆角                         |

@@ -2,7 +2,7 @@
 import type { Component } from "vue"
 import { computed } from "vue"
 import {
-  ClipboardCheckIcon, CloudSunIcon, LayersIcon,
+  AppWindowIcon, ClipboardCheckIcon, CloudSunIcon, LayersIcon,
   MonitorIcon, MoonIcon, SlidersHorizontalIcon, SunIcon,
 } from "@lucide/vue"
 
@@ -37,6 +37,7 @@ const stepIcons: Record<StepId, Component> = {
   weather: CloudSunIcon,
   scenes: LayersIcon,
   scheduling: SlidersHorizontalIcon,
+  activity: AppWindowIcon,
   review: ClipboardCheckIcon,
 }
 const themeIcon = computed(() => ({ auto: MonitorIcon, light: SunIcon, dark: MoonIcon })[themeMode.value])

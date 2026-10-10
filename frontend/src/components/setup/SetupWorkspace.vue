@@ -5,6 +5,7 @@ import { computed, onMounted, ref, shallowRef, toRef } from "vue"
 import type { Locale, Profile, SceneCatalogItem } from "@/api/profile"
 import { getSceneCatalog } from "@/api/profile"
 import SetupSidebar from "@/components/setup/SetupSidebar.vue"
+import ActivityRulesStep from "@/components/setup/steps/ActivityRulesStep.vue"
 import LocationStep from "@/components/setup/steps/LocationStep.vue"
 import ReviewStep from "@/components/setup/steps/ReviewStep.vue"
 import SceneBindingsStep from "@/components/setup/steps/SceneBindingsStep.vue"
@@ -35,7 +36,7 @@ const props = defineProps<{
 }>()
 
 const editor = useProfileDraft(props.initialProfile, props.initialLocale)
-const { mode, locale, draft, savedDraft, isDirty, rememberedScenes, rememberScene, setLocale } = editor
+const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale } = editor
 const copy = computed(() => COPY[locale.value])
 // 坐标是否偏离已保存基线：驱动就近纠错提示，跨步骤切换不丢失。
 const locationEdited = computed(() =>
@@ -44,9 +45,9 @@ const scan = usePlaylistScan(toRef(draft, "wallpaper_engine_path"))
 const flow = useSetupFlow(editor, scan)
 const {
   activeStep, previousSection, steps, activeHeading, stepContentClass,
-  allValid, missingSteps, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
+  allValid, missingSteps, evaluation, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
   isStepValid, navigateTo, navigateToStep,
-  updatePath, updateScenes, updateMatching, updateDisturbance,
+  updatePath, updateScenes, updateMatching, updateDisturbance, updateActivity, updatePendingActivity,
 } = flow
 const weather = useWeatherServices(toRef(draft, "weather"), locale, flow.clearWeatherFieldFeedback)
 const {
@@ -201,6 +202,17 @@ onMounted(() => {
             @update:disturbance="updateDisturbance"
             @update:timing-open="timingOpen = $event"
           />
+          <ActivityRulesStep
+            v-else-if="activeStep === 'activity'"
+            :locale="locale"
+            :activity="draft.activity"
+            :pending="pendingActivity"
+            :show-pending="stepError === 'pendingActivity'"
+            :conflicts="evaluation.conflicts"
+            :errors="issuesByStep.activity.activity ?? []"
+            @update:activity="updateActivity"
+            @update:pending="updatePendingActivity"
+          />
           <ReviewStep
             v-else
             :locale="locale"
@@ -213,6 +225,7 @@ onMounted(() => {
             :weather-tested-at-text="weatherTestedAtText"
             :weather-connection-error="weatherConnectionError"
             :validating-weather="validatingWeather"
+            :has-pending-activity="pendingActivityFields.length > 0"
             @validate-weather="testWeatherKey"
             @open-step="navigateToStep"
           />

@@ -5,10 +5,8 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from configurations.activity_rules import RULE_GROUPS
-from configurations.profile import MatchingProfile
 from core.models.scene import SceneId
-from core.models.semantics import SemanticItem
+from core.models.semantics import ContextVariable, SemanticItem
 
 FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
@@ -33,18 +31,10 @@ class BasePolicyConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-def built_in_activity_matchers() -> list[ActivityMatcherConfig]:
-    return [
-        ActivityMatcherConfig(source=source, match="exact" if source == "process" else "contains", pattern=pattern, tag=tag)
-        for source, tag, patterns in RULE_GROUPS
-        for pattern in patterns
-    ]
-
-
 class ActivityPolicyConfig(BasePolicyConfig):
     age_scale: FinitePositive = 300.0
     curve_q: FinitePositive = 0.5
-    matchers: list[ActivityMatcherConfig] = Field(default_factory=built_in_activity_matchers)
+    matchers: list[ActivityMatcherConfig] = Field(default_factory=list)
 
 
 class TimePolicyConfig(BasePolicyConfig):
@@ -96,7 +86,9 @@ class SchedulingConfig(BaseModel):
     pause_on_fullscreen: bool = True
 
 
-class MatchingConfig(MatchingProfile):
+class MatchingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    preference_tiers: list[list[ContextVariable]] = Field(default_factory=list)
     positive_boundary: FinitePositive = 0.5
     negative_boundary: FinitePositive = 0.5
     variable_temperature: FinitePositive = 1.4

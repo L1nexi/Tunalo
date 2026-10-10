@@ -1,4 +1,4 @@
-import type { ContextVariable, Locale, SceneId } from "@/api/profile";
+import type { Locale, SceneId } from "@/api/profile";
 import type { DisturbancePreset } from "@/setup/model";
 
 const zh = {
@@ -18,7 +18,8 @@ const zh = {
     weather: { title: "天气服务" },
     location: { title: "天气位置" },
     scenes: { title: "场景绑定" },
-    scheduling: { title: "响应与打扰" },
+    scheduling: { title: "调度风格" },
+    activity: { title: "活动识别" },
     review: { title: "查看配置草稿" },
   },
   nav: {
@@ -171,11 +172,18 @@ const zh = {
     matchExplanation: "天气、时段、季节和活动会共同参与场景匹配；同时成立时由匹配结果决定候选场景，不按此处的列表顺序固定优先。",
   },
   preferences: {
-    title: "调整响应与打扰",
+    title: "调整调度风格",
     description: "",
-    responseTitle: "响应偏好",
+    responseTitle: "响应风格",
     responseDescription:
-      "选择希望优先响应的情境；相同层级同等重要。",
+      "决定匹配场景时更看重长期情境，还是当前天气与活动；不改变允许切换的时机。",
+    responseExplanations: {
+      background: "季节与时段相对更有影响；天气和活动仍参与匹配。",
+      background_leaning: "与平衡档相比，长期情境的影响更大。",
+      balanced: "长期情境与当前天气、活动共同参与匹配。",
+      current_leaning: "与平衡档相比，当前天气和活动的影响更大。",
+      current: "五档中最重视当前天气和活动；仍结合时段与季节。",
+    },
     disturbanceTitle: "防打扰程度",
     disturbanceDescription: "调节调度器执行壁纸切换时的防打扰程度。",
     timingSummary: (startup: number | null, idle: number | null, deferral: number | null, cycle: number | null) =>
@@ -189,6 +197,25 @@ const zh = {
     minutes: "分钟",
     nonNegative: "请输入不小于 0 的整数。",
   },
+  activity: {
+    title: "识别当前活动",
+    description: "确定调度器如何根据当前前台窗口信息判定当前活动状态。",
+    workTitle: "工作场景规则",
+    leisureTitle: "休闲场景规则",
+    processLabel: "进程名",
+    titleKeywordLabel: "窗口标题关键词",
+    processPlaceholder: "例如 Photoshop.exe",
+    keywordPlaceholder: "例如 项目计划",
+    processHelp: "填写可执行文件名，例如 Photoshop.exe；按回车或点“添加”。",
+    titleHelp: "填写窗口标题中会出现的文字，例如“项目计划”；按回车或点“添加”。",
+    add: "添加",
+    empty: "暂未添加",
+    conflictTitle: "存在冲突规则",
+    conflictDescription: (values: string) =>
+      `这些项目同时出现在工作和休闲场景规则中：${values}`,
+    matchingHelp: "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。两类规则都未命中时，不据此判断为工作或休闲。",
+    pendingWarning: "输入框中有尚未添加的文字。请按回车或点“添加”，或者清空后再保存。",
+  },
   review: {
     title: "查看配置草稿",
     description: "",
@@ -198,19 +225,23 @@ const zh = {
     weather: "本次草稿的天气测试",
     location: "经纬度",
     scenes: "场景绑定",
-    response: "响应偏好",
+    response: "响应风格",
     disturbance: "防打扰程度",
+    activity: "活动识别规则",
     weatherUntested: "当前草稿密钥尚未手动测试",
     weatherNote: "此结果仅针对当前草稿密钥的联网测试，不代表已运行配置的实时健康状态。",
     testedAt: (date: string) => `测试时间：${date}`,
     sceneCount: (bound: number, pending: number) => `已绑定 ${bound} 个，待绑定 ${pending} 个`,
     changesTitle: "本次修改",
     noChanges: "所有修改已保存。",
+    pendingInputNotice: "活动识别中有尚未添加的文字，处理后才会保存。",
     currentDetails: "查看当前草稿全部设置",
     edit: "修改",
     disabled: "未启用",
     awaitingPlaylist: "待绑定播放列表",
     secretChanged: "已更改（内容不显示）",
+    activityCount: (windows: number, processes: number) =>
+      `窗口名规则 ${windows} 条，进程名规则 ${processes} 条`,
     coordinates: (latitude: number, longitude: number) =>
       `纬度 ${latitude}，经度 ${longitude}`,
     create: "完成设置",
@@ -222,6 +253,7 @@ const zh = {
   },
   errors: {
     validation: "请完成当前配置项的全部必填内容。",
+    pendingActivity: "请先处理尚未添加的活动规则文字。",
     fieldValidation: "配置存在无效字段，请按下方提示修正。",
     profileAlreadyExists: "配置已存在。请关闭窗口后从托盘重新打开设置。",
     applyTimeout: "调度器暂时没有完成应用，请重试。",
@@ -287,8 +319,9 @@ const en: typeof zh = {
     weather: { title: "Weather service" },
     location: { title: "Location" },
     scenes: { title: "Scene assignments" },
-    scheduling: { title: "Context and interruption" },
-    review: { title: "Review draft" },
+    scheduling: { title: "Scheduling feel" },
+    activity: { title: "Activity detection" },
+    review: { title: "Review and finish" },
   },
   nav: {
     settingsDescription: "Changes stay in this draft until you save them.",
@@ -456,10 +489,17 @@ const en: typeof zh = {
   preferences: {
     title: "Tune scheduling",
     description:
-      "Choose which contexts to follow first and when switching is appropriate.",
-    responseTitle: "Context preference",
+      "Response style sets what matters most. Interruption level controls when a switch is appropriate.",
+    responseTitle: "Response style",
     responseDescription:
-      "Choose which contexts to follow first. Contexts at the same priority are equal.",
+      "Choose what matters more when matching Scenes: longer-term context or current weather and activity. This does not change when switches are allowed.",
+    responseExplanations: {
+      background: "Season and time have relatively more influence; weather and activity still contribute.",
+      background_leaning: "Longer-term context has more influence than in Balanced.",
+      balanced: "Longer-term context, current weather, and activity all contribute.",
+      current_leaning: "Current weather and activity have more influence than in Balanced.",
+      current: "Current weather and activity have the most influence of the five choices; time and season still contribute.",
+    },
     disturbanceTitle: "Interruption level",
     disturbanceDescription:
       "Choose a preset, or expand the exact timing values.",
@@ -474,6 +514,26 @@ const en: typeof zh = {
     minutes: "minutes",
     nonNegative: "Enter a non-negative whole number.",
   },
+  activity: {
+    title: "Recognize activity",
+    description:
+      "This step is optional. Matching ignores letter case and the .exe suffix in process names.",
+    workTitle: "Work",
+    leisureTitle: "Leisure",
+    processLabel: "Process names",
+    titleKeywordLabel: "Window title keywords",
+    processPlaceholder: "Enter a process and press Enter",
+    keywordPlaceholder: "Enter a keyword and press Enter",
+    processHelp: "Enter an executable name, such as Photoshop.exe, then press Enter or Add.",
+    titleHelp: "Enter text found in a window title, such as Project plan, then press Enter or Add.",
+    add: "Add",
+    empty: "Nothing added",
+    conflictTitle: "Conflicting rules",
+    conflictDescription: (values: string) =>
+      `These items appear in both work and leisure: ${values}`,
+    matchingHelp: "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. When no rule matches, activity does not identify work or leisure.",
+    pendingWarning: "Text is still waiting in an activity field. Press Enter or Add, or clear it before saving.",
+  },
   review: {
     title: "Review and save",
     description:
@@ -484,8 +544,9 @@ const en: typeof zh = {
     weather: "Weather test for this draft",
     location: "Location",
     scenes: "Scene assignments",
-    response: "Context preference",
+    response: "Response style",
     disturbance: "Interruption level",
+    activity: "Activity rules",
     weatherUntested: "This draft key has not been tested manually",
     weatherNote:
       "This online test checks the current draft key. It is not the live health of the running configuration; saving also validates the location.",
@@ -493,11 +554,14 @@ const en: typeof zh = {
     sceneCount: (bound: number, pending: number) => `${bound} assigned, ${pending} awaiting playlists`,
     changesTitle: "Changes to apply",
     noChanges: "All changes saved.",
+    pendingInputNotice: "Activity rules still have text waiting to be added; handle it before saving.",
     currentDetails: "Review all draft settings",
     edit: "Edit",
     disabled: "Disabled",
     awaitingPlaylist: "Playlist needed",
     secretChanged: "Changed (value hidden)",
+    activityCount: (windows: number, processes: number) =>
+      `${windows} window rules, ${processes} process names`,
     coordinates: (latitude: number, longitude: number) =>
       `Latitude ${latitude}, longitude ${longitude}`,
     create: "Finish setup",
@@ -509,6 +573,7 @@ const en: typeof zh = {
   },
   errors: {
     validation: "Complete the required fields on this page first.",
+    pendingActivity: "Finish or clear the text waiting in an activity field.",
     fieldValidation:
       "The server found fields that need changes. Follow the messages below.",
     profileAlreadyExists:
@@ -581,6 +646,9 @@ export const ZH_TIMING_HINTS = {
     "保持在同一场景时，在当前场景对应的播放列表内进行壁纸轮播时允许的最短间隔。",
 } as const;
 
+export const ZH_ACTIVITY_NOTE =
+  "休闲指有意进行的娱乐活动。对于不具明确指向性活动，无需进行场景规则配置。";
+
 export const ZH_WEATHER_SAVE_PROMPT = {
   title: "API Key 连通性测试未通过，仍要保存吗？",
   description: "保存后，天气相关场景可能暂时无法响应。你可以稍后重新测试连接。",
@@ -619,36 +687,46 @@ export const SCENE_DESCRIPTIONS: Record<Locale, Record<SceneId, string>> = {
     day_leisure: "白天、当前活动为休闲时参与匹配。",
     night_work: "夜间、当前活动为工作时参与匹配。",
     night_leisure: "夜间、当前活动为休闲时参与匹配。",
-    spring: "响应春季情境。",
-    summer: "响应夏季情境。",
-    autumn: "响应秋季情境。",
-    winter: "响应冬季情境。",
+    spring: "春季白天更契合，晴好天气加分。",
+    summer: "夏季白天更契合，晴好天气加分。",
+    autumn: "秋季整体契合，黄昏时加分。",
+    winter: "冬季整体契合，黄昏与下雪时加分。",
     sunset: "黄昏时分的氛围场景。",
-    rain: "响应下雨情境，明显降雨获得更多机会。",
+    rain: "下雨时参与匹配，雷雨时加分。",
   },
   en: {
     day_work: "Matches on daytime while working.",
     day_leisure: "Matches on daytime during leisure.",
     night_work: "Matches at night while working.",
     night_leisure: "Matches at night during leisure.",
-    spring: "Responds to spring.",
-    summer: "Responds to summer.",
-    autumn: "Responds to autumn.",
-    winter: "Responds to winter.",
+    spring: "Fits spring days; clear weather adds weight.",
+    summer: "Fits summer days; clear weather adds weight.",
+    autumn: "Fits autumn; sunset hours add weight.",
+    winter: "Fits winter; sunset and snow add weight.",
     sunset: "An atmosphere scene for sunset hours.",
-    rain: "Responds to rain, with more opportunity during pronounced rainfall.",
+    rain: "Matches while raining; storms add weight.",
   },
 };
 
-export const VARIABLE_LABELS: Record<Locale, Record<ContextVariable, string>> = {
-  zh: { season: "季节", time: "时段", weather: "天气", activity: "活动" },
-  en: { season: "Season", time: "Time of day", weather: "Weather", activity: "Activity" },
+export const RESPONSE_STYLE_LABELS: Record<
+  Locale,
+  Record<import("@/api/profile").ResponseStyle, string>
+> = {
+  zh: {
+    background: "背景优先",
+    background_leaning: "偏向背景",
+    balanced: "平衡",
+    current_leaning: "偏向当前",
+    current: "当前优先",
+  },
+  en: {
+    background: "Background first",
+    background_leaning: "Lean background",
+    balanced: "Balanced",
+    current_leaning: "Lean current",
+    current: "Current first",
+  },
 };
-
-export function preferenceSummary(tiers: ContextVariable[][], locale: Locale): string {
-  if (tiers.length === 0) return locale === "zh" ? "综合当前情境" : "Follow current context";
-  return tiers.map((tier) => tier.map((variable) => VARIABLE_LABELS[locale][variable]).join(" / ")).join(" → ");
-}
 
 export const DISTURBANCE_LABELS: Record<
   Locale,

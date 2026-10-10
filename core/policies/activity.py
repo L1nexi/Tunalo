@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from configurations.runtime_models import ActivityPolicyConfig
+from core.math_utils import s_curve
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
 from core.models.trace import ActivityDetails, ActivityEvaluation
-from core.policies.base import Policy, _s_curve
+from core.policies.base import Policy
 
 _MATCH_SOURCE_PRIORITY = {
     "process": 0,
@@ -55,7 +56,7 @@ class ActivityPolicy(Policy):
     WINDOW_SIZE = 600
 
     def __init__(self, config: ActivityPolicyConfig) -> None:
-        """Build the product classifier and observation window.
+        """Build the configured classifier and observation window.
 
         Raises:
             re.error: If a configured regular expression is invalid.
@@ -88,7 +89,7 @@ class ActivityPolicy(Policy):
         direction, details = self._get_instant_signal(context)
         self._history.appendleft(direction)
         net_direction = math.fsum(weight * observed for weight, observed in zip(self._weights, self._history)) / self._denominator
-        focus = math.copysign(_s_curve(abs(net_direction), self._curve_q), net_direction)
+        focus = math.copysign(s_curve(abs(net_direction), self._curve_q), net_direction)
         return ActivityEvaluation(policy_id=self.config_key, salience={"focus": focus, "chill": -focus}, details=details)
 
     def _get_instant_signal(
