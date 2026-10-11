@@ -11,7 +11,7 @@
 - `main.py` 是启动 shim，负责 DPI 初始化并委托 `app/main.py`。
 - `app/` 放应用入口、应用路径和持久事件日志。
 - `configurations/` 放用户 Profile、Profile Compiler、原子持久化以及内部运行时配置模型。
-- `core/models/` 放数据模型。
+- `core/models/` 放运行时数据模型及契约。
 - `core/state/` 放运行时状态。
 - `core/runtime/` 放 Scheduler、Engine 及 Profile 运行时应用组件。
 - `core/policies/` 放 Policy 基类及具体实现。
@@ -99,7 +99,7 @@ Python 代码使用完整类型注解。代码应尽量自解释；会抛出异�
 
 pytest 配置以 `pytest.ini` 为准，这是测试隔离契约的一部分：`testpaths = tests`、`norecursedirs = data .pytest_tmp`。优先通过 `.\scripts\test.ps1 -q` 或 `.\scripts\test.ps1 tests/test_foo.py -q` 运行测试；脚本会为每次运行分配 `.pytest_tmp/<run-id>/tmp` 和 `.pytest_tmp/<run-id>/cache`，让多个 pytest 进程可以并行运行且测试产物仍集中在 `.pytest_tmp/`。不要把多个 pytest 进程固定到同一个 basetemp/cache 目录。
 
-新增测试应验证行为、边界条件或非显然回归。测试不是仪式；不要为了简单属性透传、平凡分支或无算法价值的断言写测试。前端改动至少验证 `npm run type-check` 和 `npm run build-only`。
+前端改动至少验证 `npm run type-check` 和 `npm run build-only`。
 
 ## 配置与架构约束
 
