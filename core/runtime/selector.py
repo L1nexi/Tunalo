@@ -12,15 +12,17 @@ from core.models.selection import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariabl
 from core.policies.base import Policy
 
 
-def salience_to_scene_scores(salience: Mapping[SemanticItem, float], associations: Mapping[SceneId, frozenset[SemanticItem]]) -> dict[SceneId, float]:
+def salience_to_scene_scores[SceneKey: str](
+    salience: Mapping[SemanticItem, float], associations: Mapping[SceneKey, frozenset[SemanticItem]]
+) -> dict[SceneKey, float]:
     return {scene_id: math.fsum(salience[item] for item in sorted(items)) / math.sqrt(len(items)) for scene_id, items in associations.items()}
 
 
-def calculate_distribution(
+def calculate_distribution[SceneKey: str](
     salience: Salience,
-    associations: Mapping[SceneId, frozenset[SemanticItem]],
+    associations: Mapping[SceneKey, frozenset[SemanticItem]],
     config: MatchingConfig,
-) -> Selection:
+) -> Selection[SceneKey]:
     """Calculate the full distribution from validated semantic and matching inputs.
 
     This is independent of the Selector class so that it is pure functional and testable in isolation.

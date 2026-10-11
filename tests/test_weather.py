@@ -84,7 +84,7 @@ def test_failed_weather_refresh_keeps_cached_semantic_evidence(monkeypatch, capl
     while (cached := sensor.collect()) is None and time.monotonic() < deadline:
         time.sleep(0.005)
     assert cached is not None
-    assert WeatherPolicy(_config()).evaluate(Context(weather=cached)).salience["rain"] == 2
+    assert WeatherPolicy(_config()).evaluate(Context(weather=cached)).salience["rain"] == 4
 
     def fail(*_args, **_kwargs):
         raise requests.Timeout("fixture timeout")
@@ -96,4 +96,4 @@ def test_failed_weather_refresh_keeps_cached_semantic_evidence(monkeypatch, capl
     while not any("reason=timeout" in record.message for record in caplog.records) and time.monotonic() < deadline:
         time.sleep(0.005)
     assert any("reason=timeout" in record.message for record in caplog.records)
-    assert WeatherPolicy(_config()).evaluate(Context(weather=sensor.collect())).salience["rain"] == 2
+    assert WeatherPolicy(_config()).evaluate(Context(weather=sensor.collect())).salience["rain"] == 4

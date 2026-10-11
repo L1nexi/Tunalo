@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from configurations.runtime_models import ActivityPolicyConfig
-from core.math_utils import exponential_decay, s_curve
+from core.math_utils import exponential_decay
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
 from core.models.selection import VARIABLE_ITEMS, ActivityDetails, ActivityEvaluation, ContextVariable, SemanticItem
@@ -100,7 +100,6 @@ class ActivityPolicy(Policy):
         self._history: deque[ActivityKind] = deque(maxlen=self.WINDOW_SIZE)
         self._weights = tuple(exponential_decay(age, scale=config.age_scale, power=3, base=2) for age in range(self.WINDOW_SIZE))
         self._denominator = math.fsum(self._weights)
-        self._curve_q = config.curve_q
 
     def evaluate(self, context: Context) -> ActivityEvaluation:
         activity, details = self._classify_window(context)
@@ -116,12 +115,7 @@ class ActivityPolicy(Policy):
             support[supported_item] = evidence
             opposition[opposed_item] = evidence
 
-        salience: dict[SemanticItem, float] = {}
-        for item in items:
-            net_evidence = (support[item] - opposition[item]) / self._denominator
-            magnitude = s_curve(abs(net_evidence), self._curve_q)
-            salience[item] = magnitude if net_evidence >= 0 else -magnitude
-        return salience
+        return {item: (support[item] - opposition[item]) / self._denominator for item in items}
 
     def _classify_window(
         self,

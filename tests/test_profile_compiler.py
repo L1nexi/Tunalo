@@ -76,14 +76,14 @@ def test_m20_playlist_name_size_and_many_to_one_binding_do_not_change_scene_prob
     first = selector_for(profile(scenes={"day_work": "WORK", "rain": "RAIN"}), {"WORK": 1, "RAIN": 9000})
     second = selector_for(profile(scenes={"day_work": "SHARED", "rain": "SHARED"}), {"SHARED": 0})
     context = Context(window=WindowData(process="code.exe"), weather=WeatherData(id=502, main="Rain"))
-    for _ in range(180):
+    for _ in range(600):
         a, b = first.select(context), second.select(context)
     assert a.probabilities == b.probabilities
     assert a.probabilities[SceneId.RAIN] > 0
     assert a.probabilities[SceneId.DAY_WORK] > 0
 
 
-def test_product_defaults_satisfy_violent_rain_budget_constraint():
+def test_product_defaults_satisfy_strength_two_rain_budget_constraint():
     from core.models.selection import Salience
     from core.runtime.selector import calculate_distribution
 

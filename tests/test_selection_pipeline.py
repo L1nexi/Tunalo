@@ -98,7 +98,7 @@ def test_paused_ticks_keep_observing_without_applying_a_playlist(desktop: Simple
     monkeypatch.setattr(random, "choices", reject_sampling)
     for _ in range(180):
         schedule = engine.schedule(Scenes(), paused=True, manual_requested=False)
-    assert schedule.selection.salience["focus"] == pytest.approx(0.649890150, abs=1e-9)
+    assert schedule.selection.salience["focus"] == pytest.approx(0.572826991, abs=1e-9)
     assert desktop.playlists == []
 
 
@@ -188,7 +188,7 @@ def test_hot_replacement_reinterprets_retained_observations_with_new_product_par
     for _ in range(180):
         before = engine.schedule(Scenes(), paused=True, manual_requested=False)
     config = engine.config.model_copy(deep=True)
-    config.policies.activity.curve_q = 0.8
+    config.policies.activity.age_scale = 500
     replacement = engine.prepare_replacement(config)
     engine.install_replacement(replacement)
     desktop.process = "chrome.exe"
@@ -225,7 +225,7 @@ def test_config_replacement_rebuilds_weather_cache(desktop: SimpleNamespace, tmp
         while observed.context.weather is None and time.perf_counter() < deadline:
             time.sleep(0.005)
             observed = engine.schedule(Scenes(), paused=True, manual_requested=False)
-        assert observed.selection.salience["rain"] == 2
+        assert observed.selection.salience["rain"] == 4
         gate.clear()
         engine.install_replacement(engine.prepare_replacement(config))
         replaced = engine.schedule(Scenes(), paused=True, manual_requested=False)

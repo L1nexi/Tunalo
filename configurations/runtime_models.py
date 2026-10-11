@@ -33,7 +33,6 @@ class BasePolicyConfig(BaseModel):
 
 class ActivityPolicyConfig(BasePolicyConfig):
     age_scale: FinitePositive = 300.0
-    curve_q: FinitePositive = 0.5
     matchers: list[ActivityMatcherConfig] = Field(default_factory=list)
 
 
@@ -89,7 +88,7 @@ class SchedulingConfig(BaseModel):
 class MatchingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     preference_tiers: list[list[ContextVariable]] = Field(default_factory=list)
-    positive_boundary: FinitePositive = 0.5
+    positive_boundary: FinitePositive = 0.75
     negative_boundary: FinitePositive = 0.5
     variable_temperature: FinitePositive = 1.4
     scene_temperature: FinitePositive = 1.5

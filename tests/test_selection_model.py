@@ -138,10 +138,17 @@ def test_m19_no_available_or_safe_scenes_returns_empty_distribution(scenes: dict
     assert result.probabilities == {}
 
 
-@pytest.mark.parametrize("rain, expected", [(0.499999, "best_effort"), (0.5, "neutral"), (0.500001, "neutral")])
+@pytest.mark.parametrize("rain, expected", [(0.749999, "best_effort"), (0.75, "neutral"), (0.750001, "neutral")])
 def test_positive_boundary_includes_equality(rain: float, expected: str) -> None:
     result = choose({"rain": rain}, {RAIN: {"rain"}})
     assert result.reason == expected
+
+
+@pytest.mark.parametrize("rain, source", [(0.749999, "activity"), (0.75, "weather")])
+def test_positive_boundary_controls_when_preferred_weather_stops_cascading(rain: float, source: str) -> None:
+    result = choose({"rain": rain, "focus": 1}, {RAIN: {"rain"}, WORK: {"focus"}}, [["weather"], ["activity"]])
+    assert result.sources == [source]
+    assert result.probabilities[RAIN if source == "weather" else WORK] == 1
 
 
 @pytest.mark.parametrize("winter, excluded", [(-0.499999, False), (-0.5, True), (-0.500001, True)])

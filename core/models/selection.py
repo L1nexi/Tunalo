@@ -113,15 +113,15 @@ type PolicyEvaluation = ActivityEvaluation | TimeEvaluation | SeasonEvaluation |
 
 
 @dataclass
-class Selection:
-    probabilities: dict[SceneId, float]
+class Selection[SceneKey: str = SceneId]:
+    probabilities: dict[SceneKey, float]
     salience: dict[SemanticItem, float]
     reason: Literal["preference", "neutral", "best_effort", "no_safe_scenes"]
     selected_tier: int | None = None
     sources: list[ContextVariable] = field(default_factory=list)
-    excluded_scenes: dict[SceneId, frozenset[SemanticItem]] = field(default_factory=dict)
+    excluded_scenes: dict[SceneKey, frozenset[SemanticItem]] = field(default_factory=dict)
     policy_evaluations: list[PolicyEvaluation] = field(default_factory=list)
 
     @property
-    def scenes(self) -> Scenes:
+    def scenes(self: Selection[SceneId]) -> Scenes:
         return Scenes([scene_id for scene_id, probability in self.probabilities.items() if probability > 0])
