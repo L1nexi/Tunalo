@@ -98,7 +98,7 @@ def test_paused_ticks_keep_observing_without_applying_a_playlist(desktop: Simple
     monkeypatch.setattr(random, "choices", reject_sampling)
     for _ in range(180):
         schedule = engine.schedule(Scenes(), paused=True, manual_requested=False)
-    assert schedule.selection.salience["focus"] == pytest.approx(0.572826991, abs=1e-9)
+    assert schedule.selection.salience["focus"] == pytest.approx(0.571668849, abs=1e-9)
     assert desktop.playlists == []
 
 

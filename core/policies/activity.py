@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from configurations.runtime_models import ActivityPolicyConfig
-from core.math_utils import exponential_decay
+from core.math_utils import time_decaying_activation
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
 from core.models.selection import VARIABLE_ITEMS, ActivityDetails, ActivityEvaluation, ContextVariable, SemanticItem
@@ -98,7 +98,7 @@ class ActivityPolicy(Policy):
             )
 
         self._history: deque[ActivityKind] = deque(maxlen=self.WINDOW_SIZE)
-        self._weights = tuple(exponential_decay(age, scale=config.age_scale, power=3, base=2) for age in range(self.WINDOW_SIZE))
+        self._weights = tuple(time_decaying_activation(age, scale=config.age_scale) for age in range(self.WINDOW_SIZE))
         self._denominator = math.fsum(self._weights)
 
     def evaluate(self, context: Context) -> ActivityEvaluation:

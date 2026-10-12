@@ -24,10 +24,11 @@ from tools.tuning.harness import build_context, build_selector, synthetic_config
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Export product salience curves and full Scene distributions")
+    parser.add_argument("--alpha", type=float, default=2.0, help="Time/Season activation exponent (>1, default 2)")
     parser.add_argument("--out", type=Path, default=Path("tools/tuning/runs/model-calibration"))
     args = parser.parse_args()
+    config = synthetic_config(activation_alpha=args.alpha)
     args.out.mkdir(parents=True, exist_ok=True)
-    config = synthetic_config()
     activity = ActivityPolicy(config.policies.activity)
     season = SeasonPolicy(config.policies.season)
     time_policy = TimePolicy(config.policies.time)
@@ -68,6 +69,15 @@ def main() -> int:
     fig.savefig(args.out / "salience-curves.png", dpi=160)
     plt.close(fig)
     (args.out / "replay.json").write_text(json.dumps(replay, ensure_ascii=False), encoding="utf-8")
+    parameters = {
+        "curve": "current",
+        "alpha": args.alpha,
+        "periodic_policies": {"time": config.policies.time.model_dump(), "season": config.policies.season.model_dump()},
+        "activity_age_scale": config.policies.activity.age_scale,
+        "activity_decay_alpha": 2.0,
+        "matching": config.matching.model_dump(mode="json"),
+    }
+    (args.out / "parameters.json").write_text(json.dumps(parameters, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"written curves and 1800 full distributions: {args.out.resolve()}")
     return 0
 

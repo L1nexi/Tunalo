@@ -28,6 +28,15 @@ def test_m01_four_equal_independent_sources_each_receive_a_quarter() -> None:
     assert selection.probabilities == pytest.approx({RAIN: 0.25, WORK: 0.25, DAY: 0.25, SUMMER: 0.25})
 
 
+def test_two_significant_time_items_share_one_source_budget() -> None:
+    values = {"day": 0.8, "sunset": 0.8, "rain": 1}
+    one = choose(values, {DAY: {"day"}, RAIN: {"rain"}}).probabilities
+    two = choose(values, {DAY: {"day"}, WORK: {"sunset"}, RAIN: {"rain"}}).probabilities
+    assert two[RAIN] == pytest.approx(one[RAIN])
+    assert two[DAY] + two[WORK] == pytest.approx(one[DAY])
+    assert two[DAY] == pytest.approx(two[WORK])
+
+
 def test_m02_m03_compound_scene_advantage_reverses_when_both_contexts_are_clear() -> None:
     scenes = {RAIN: {"rain"}, RAIN_WORK: {"rain", "focus"}}
     rain_only = choose({"rain": 1}, scenes).probabilities

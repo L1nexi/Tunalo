@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from configurations.runtime_models import SeasonPolicyConfig
-from core.math_utils import interpolate_periodic
+from core.math_utils import periodic_salience
 from core.models.context import Context
 from core.models.selection import VARIABLE_ITEMS, ContextVariable, SeasonDetails, SeasonEvaluation
 from core.policies.base import Policy
@@ -14,20 +14,19 @@ class SeasonPolicy(Policy):
         super().__init__(config)
         self._peaks = {"spring": config.spring_peak, "summer": config.summer_peak, "autumn": config.autumn_peak, "winter": config.winter_peak}
         self._half_width = config.plateau_half_width
-        self._curve_q = config.curve_q
+        self._activation_alpha = config.activation_alpha
 
     def evaluate(self, context: Context) -> SeasonEvaluation:
         items = VARIABLE_ITEMS[ContextVariable.SEASON]
-        values = (1.0, 0.0, -1.0, 0.0)
         salience = {
-            item: interpolate_periodic(
+            item: periodic_salience(
                 context.time.tm_yday,
-                [(self._peaks[anchor], values[(index - own_index) % 4]) for index, anchor in enumerate(items)],
+                self._peaks[item],
                 365,
-                self._half_width,
-                self._curve_q,
+                plateau_half_width=self._half_width,
+                alpha=self._activation_alpha,
             )
-            for own_index, item in enumerate(items)
+            for item in items
         }
         return SeasonEvaluation(
             policy_id=self.config_key, salience=salience, details=SeasonDetails(day_of_year=context.time.tm_yday, peaks=self._peaks.copy())

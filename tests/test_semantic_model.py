@@ -45,7 +45,7 @@ def activity_config(**parameters: float) -> ActivityPolicyConfig:
     )
 
 
-@pytest.mark.parametrize("slots, expected", [(1, 0.003299497), (60, 0.197704883), (120, 0.391674959), (180, 0.572826991), (600, 1)])
+@pytest.mark.parametrize("slots, expected", [(1, 0.003327787), (60, 0.198914147), (120, 0.392275167), (180, 0.571668849), (600, 1)])
 def test_s05_startup_uses_weighted_evidence_with_full_window_denominator(slots: int, expected: float) -> None:
     policy = ActivityPolicy(activity_config(age_scale=300))
     result = replay(policy, ["code.exe"] * slots)
@@ -142,29 +142,50 @@ def test_s01_semantics_independent_of_preference_scene_catalog_and_playlists() -
 @pytest.mark.parametrize("item, peak", [("spring", 80), ("summer", 172), ("autumn", 265), ("winter", 355)])
 def test_s06_each_season_has_platform_including_both_endpoints(item: str, peak: int) -> None:
     policy = SeasonPolicy(SeasonPolicyConfig())
-    assert all(policy.evaluate(observation(day=day)).salience[item] == 1 for day in range(peak - 10, peak + 11))
-    assert policy.evaluate(observation(day=peak - 11)).salience[item] < 1
-    assert policy.evaluate(observation(day=peak + 11)).salience[item] < 1
+    assert all(policy.evaluate(observation(day=day)).salience[item] == 1 for day in range(peak - 7, peak + 8))
+    assert policy.evaluate(observation(day=peak - 8)).salience[item] < 1
+    assert policy.evaluate(observation(day=peak + 8)).salience[item] < 1
 
 
-def test_s07_opposite_season_negative_and_adjacent_seasons_neutral() -> None:
+def test_s07_opposite_season_negative_and_adjacent_seasons_only_weak_evidence() -> None:
     policy = SeasonPolicy(SeasonPolicyConfig())
-    assert policy.evaluate(observation(day=172)).salience == {"spring": 0, "summer": 1, "autumn": 0, "winter": -1}
-    assert policy.evaluate(observation(day=355)).salience == {"spring": 0, "summer": -1, "autumn": 0, "winter": 1}
+    summer = policy.evaluate(observation(day=172)).salience
+    winter = policy.evaluate(observation(day=355)).salience
+    assert (summer["summer"], summer["winter"]) == (1, -1)
+    assert (winter["winter"], winter["summer"]) == (1, -1)
+    assert all(abs(result[item]) < 0.1 for result in (summer, winter) for item in ("spring", "autumn"))
 
 
 def test_s08_season_transitions_monotonic_connected_and_periodic() -> None:
     policy = SeasonPolicy(SeasonPolicyConfig())
-    rising = [policy.evaluate(observation(day=day)).salience["summer"] for day in range(90, 163)]
-    falling = [policy.evaluate(observation(day=day)).salience["summer"] for day in range(182, 256)]
+    rising = [policy.evaluate(observation(day=day)).salience["summer"] for day in range(87, 166)]
+    falling = [policy.evaluate(observation(day=day)).salience["summer"] for day in range(179, 259)]
     assert rising == sorted(rising)
     assert falling == sorted(falling, reverse=True)
-    for boundary in [70, 90, 162, 182, 255, 275, 345, 365]:
+    for boundary in [73, 87, 165, 179, 258, 272, 348, 362, 365]:
         before = policy.evaluate(observation(day=boundary - 1)).salience
         current = policy.evaluate(observation(day=boundary)).salience
         assert all(abs(before[item] - current[item]) < 0.03 for item in current)
     leap = Context(time=datetime(2024, 12, 31).timetuple())  # tm_yday=366, same periodic position as day 1
     assert policy.evaluate(leap).salience == policy.evaluate(observation(day=1)).salience
+
+
+@pytest.mark.parametrize("alpha, expected", [(2, 0.8), (3, 0.9285714285714286)])
+def test_time_maps_equal_distance_from_peak_to_equal_salience(alpha: float, expected: float) -> None:
+    policy = TimePolicy(TimePolicyConfig(activation_alpha=alpha))
+    morning = policy.evaluate(observation(hour=9)).salience
+    afternoon = policy.evaluate(observation(hour=15)).salience
+    assert morning["day"] == pytest.approx(expected)
+    assert afternoon["day"] == pytest.approx(expected)
+    assert morning["night"] == pytest.approx(-expected)
+    assert afternoon["night"] == pytest.approx(-expected)
+
+
+def test_season_alpha_strengthens_partial_support_without_moving_peak() -> None:
+    mild = SeasonPolicy(SeasonPolicyConfig(activation_alpha=1.5))
+    steep = SeasonPolicy(SeasonPolicyConfig(activation_alpha=3))
+    assert 0 < mild.evaluate(observation(day=126)).salience["spring"] < steep.evaluate(observation(day=126)).salience["spring"] < 1
+    assert mild.evaluate(observation(day=80)).salience["spring"] == steep.evaluate(observation(day=80)).salience["spring"] == 1
 
 
 @pytest.mark.parametrize(

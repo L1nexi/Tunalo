@@ -37,7 +37,7 @@ class ActivityPolicyConfig(BasePolicyConfig):
 
 
 class TimePolicyConfig(BasePolicyConfig):
-    curve_q: FinitePositive = 0.5
+    activation_alpha: float = Field(2.0, gt=1, allow_inf_nan=False)
 
 
 class SeasonPolicyConfig(BasePolicyConfig):
@@ -45,8 +45,8 @@ class SeasonPolicyConfig(BasePolicyConfig):
     summer_peak: int = 172
     autumn_peak: int = 265
     winter_peak: int = 355
-    plateau_half_width: float = Field(10.0, ge=0, allow_inf_nan=False)
-    curve_q: FinitePositive = 0.5
+    plateau_half_width: float = Field(7.0, ge=0, lt=365 / 4, allow_inf_nan=False)
+    activation_alpha: float = Field(2.0, gt=1, allow_inf_nan=False)
 
 
 class WeatherPolicyConfig(BasePolicyConfig):

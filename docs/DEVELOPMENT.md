@@ -48,7 +48,7 @@ npm run build-only
 - `app/main.py`：托盘进程、首次设置和本地服务启动。
 - `core/runtime/profile_manager.py`：配置读取、编译、保存和运行时应用。
 - `core/runtime/selector.py`：Policy 求值、有符号显著度汇集，以及共用的确定性概率计算。
-- `core/math_utils.py`：概率归一化、幅度曲线、单点指数衰减与周期插值的纯数学函数。
+- `core/math_utils.py`：概率归一化、完整支持轴激活、时间衰减与周期距离映射的纯数学函数。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
@@ -71,20 +71,20 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 ### 内部参数与规则入口
 
-以下为 2026-10-11 的实现取值，不是用户设置，也不将所有初值固定成长期决策。调整参数继续满足 ADR 的感知锚点、分布性质与暴雨排序约束。
+以下为 2026-10-13 的实现取值，不是用户设置，也不将所有初值固定成长期决策。调整参数继续满足 ADR 的感知锚点、分布性质与暴雨排序约束。
 
 | 参数 | 当前值 | 实现入口 |
 | --- | --- | --- |
 | 正向边界、负向边界幅度 | 暂定 0.75、0.5 | `MatchingConfig` |
 | 变量温度、场景温度 | 1.4、1.5，分别控制来源预算和候选内部的探索程度 | `MatchingConfig` |
-| 活动窗口、年龄尺度 | 600 槽、300 槽 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
+| 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
 | 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |
-| 季节、时段曲线参数 | 各自的 `curve_q` 均为 0.5，两者独立 | 对应 PolicyConfig |
+| 季节、时段曲线参数 | 各自的 `activation_alpha` 均为 2，有限且大于 1，两者独立 | 对应 PolicyConfig |
 | 季节周期、四季峰值 | 365 日；80／172／265／355 | `SeasonPolicy`、`SeasonPolicyConfig` |
-| 季节平台半宽、时段平台 | 10 日；时段无平台 | `SeasonPolicyConfig`、`TimePolicy` |
+| 季节平台半宽、时段平台 | 本位与相对位置前后 7 日；时段无平台 | `SeasonPolicyConfig`、`TimePolicy` |
 | 天气弱反向系数 | 0.25 | `WeatherPolicy` |
 
-季节与时段的周期曲线仍在校准：线性、raised-cosine（Hann 上升半窗）和端点斜率非零的对称曲线都可纳入对照，不将端点导数为零作为硬约束。Hann 过渡为 `f(u)=(1-cos(πu))/2`。当前周期实现仍使用原三次幂指数函数；尚未选定替代曲线。活动直接输出加权净证据，不参与周期曲线替换。
+`salience_activation(x, alpha=2)` 使用对称幂函数覆盖完整的 [-1,1] 支持轴，保持零点和正负对称，两端平、中心陡。`periodic_salience` 将距各自峰值的最短周期距离归一到这条支持轴，平台只位于最支持与最不支持两端。季节采用实际年内日期，邻季峰值的输出接近零而不强制精确为零；时段保留真实昼夜锚点到虚拟时间的映射。完整轴上的 Hann 对照为 `sin(πx/2)`。
 
 变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
 
@@ -120,13 +120,14 @@ Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导�
 
 Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；它调用匹配流程中的 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
 
-活动轨迹保存工作、休闲、OTHER 类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，并选定指数衰减的尺度、底数和幂次；数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
+活动轨迹保存工作、休闲、OTHER 类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，调用 `time_decaying_activation(age, scale=age_scale)`；该函数以默认 alpha=2 激活 `max(1-age/scale,-1)`，再将输出平移到 [0,1]。不新增活动 alpha 参数，数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
 
 模型回归在既有公开入口验证：ADR 中的约束实例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及真实 Engine 的执行结果。不会为私有分类器、评分辅助函数或状态容器单开测试；测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
 
 | 行为证据 | 入口 |
 | --- | --- |
 | 中立基准、简单与复合场景、预算、级联、排除、尽力选择与边界 | [test_selection_model.py](../tests/test_selection_model.py) |
+| 完整支持轴、有限衰减终点、周期最短距离和峰值平台 | [test_math_utils.py](../tests/test_math_utils.py) |
 | 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系 | [test_semantic_model.py](../tests/test_semantic_model.py) |
 | 偏好编译、播单名称与大小无关、自定义活动规则及保存回填 | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
 | 最新概率消费、暂停观察、阻塞不抽样、热替换和执行失败 | [test_selection_pipeline.py](../tests/test_selection_pipeline.py)、[test_profile_manager.py](../tests/test_profile_manager.py) |
@@ -135,14 +136,15 @@ Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_dis
 确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。模型与后端消费的验收不覆盖当前尚未接入的新版设置界面；后续事项见 [TODO](TODO.md)。
 
 ```powershell
-.\.venv\Scripts\python.exe tools/tuning/calibrate.py
-.\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --out single-hann
-.\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --curve hann --out pairs-hann
-.\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --curve hann --out weather-activity-pair
+.\.venv\Scripts\python.exe tools/tuning/calibrate.py --alpha 2 --out tools/tuning/runs/model-calibration-power-alpha2
+.\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --alpha 2 --out single-power-alpha2
+.\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --alpha 2 --out pairs-power-alpha2
+.\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --out single-hann-full-axis
+.\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --alpha 2 --out weather-activity-pair
 .\.venv\Scripts\python.exe tools/tuning/scan.py --suite product --mode wx-act --out product-wx-act
 ```
 
-`calibrate.py` 导出三类显著度曲线及 1800 槽的完整场景分布。`scan.py` 默认扫描单语义项 suite，可通过 `--suite product` 使用产品场景。`--curve current` 为默认生产曲线；`--curve hann` 在独立调参进程中替换周期过渡函数，沿用真实 Policy 的锚点、平台和概率计算。
+`calibrate.py` 导出三类显著度曲线、1800 槽的完整场景分布及 `parameters.json`。`scan.py` 默认扫描单语义项 suite，可通过 `--suite product` 使用产品场景。两个工具的 `--alpha` 都只控制 Time、Season；Activity 的年龄权重仍使用默认 alpha=2。`--curve current` 使用默认生产激活曲线；`--curve hann` 在独立调参进程中替换完整支持轴的激活函数，沿用真实 Policy 的峰值、平台和概率计算，Hann 不使用 alpha。
 
 单语义项 suite 有 13 个场景：春、夏、秋、冬；晴朗、阴天、雨；黎明、白天、黄昏、夜晚；工作、娱乐。每个场景只关联对应的一个语义项。调参场景有自己的标识，产品场景仍由 ProfileCompiler 定义；共享概率入口按输入关联计算。偏好默认为空。
 

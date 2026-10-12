@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
-from configurations.runtime_models import SchedulerConfig
+from configurations.runtime_models import SchedulerConfig, SeasonPolicyConfig, TimePolicyConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
 from core.models.selection import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariable, Salience, Selection, SemanticItem
@@ -86,7 +86,7 @@ def suite_associations(config: SchedulerConfig, suite: SceneSuite) -> dict[str, 
     return baseline if suite == "single" else {**baseline, **PAIR_SCENES[suite]}
 
 
-def synthetic_config(enabled: tuple[SceneId, ...] = tuple(SceneId)) -> SchedulerConfig:
+def synthetic_config(enabled: tuple[SceneId, ...] = tuple(SceneId), *, activation_alpha: float = 2.0) -> SchedulerConfig:
     """Compile dedicated calibration data without reading the real Profile."""
     profile = Profile(
         wallpaper_engine_path="C:/wallpaper_engine",
@@ -94,7 +94,10 @@ def synthetic_config(enabled: tuple[SceneId, ...] = tuple(SceneId)) -> Scheduler
         weather={"api_key": "tuning-key", "location": {"latitude": 39.9, "longitude": 116.4}},
         scenes={scene_id: f"playlist_{scene_id.value}" for scene_id in enabled},
     )
-    return ProfileCompiler.compile(profile)
+    config = ProfileCompiler.compile(profile)
+    config.policies.time = TimePolicyConfig(activation_alpha=activation_alpha)
+    config.policies.season = SeasonPolicyConfig(activation_alpha=activation_alpha)
+    return config
 
 
 def build_selector(config: SchedulerConfig) -> Selector:

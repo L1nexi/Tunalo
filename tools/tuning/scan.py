@@ -2,17 +2,20 @@ r"""扫描场景概率，输出逐场景热图、胜者图与完整概率数据�
 
 在仓库根目录运行：
 
-单语义项 suite，扫描全部六种模式，使用 Hann 过渡：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --out single-hann
+单语义项 suite，扫描全部六种模式，使用对称幂函数 alpha=2：
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve current --alpha 2 --out single-power-alpha2
 
 六套二项复合 suite，各自扫描对应的两条轴：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --curve hann --out pairs-hann
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --curve current --alpha 2 --out pairs-power-alpha2
 
 只扫描天气×活动的二项 suite：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --curve hann --out pairs-hann
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --alpha 2 --out pairs-power-alpha2
 
-只扫描单语义项 suite 的活动×日期模式（--mode 可以重复指定）：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --mode act-doy --out single-act-doy
+只扫描单语义项 suite 的活动×日期模式，并比较 alpha=1.5（--mode 可以重复指定）：
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --alpha 1.5 --mode act-doy --out single-act-doy-alpha1.5
+
+完整支持轴上的 Hann 对照：
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --out single-hann-full-axis
 
 产品场景，使用当前生产曲线：
     .\.venv\Scripts\python.exe tools/tuning/scan.py --suite product --curve current --out product-current
@@ -39,9 +42,9 @@ from tools.tuning.harness import PAIR_SCENES, SceneSuite, suite_associations, sy
 from tools.tuning.heatmaps import MODE_AXES, HeatmapSampling, evaluate_cases, fixed_axis_points, render_mode_figures
 
 
-def hann_rise(u: float, q: float) -> float:
-    """Use the rising Hann half-window between the existing periodic anchors."""
-    return (1 - math.cos(math.pi * u)) / 2
+def hann_activation(value: float, alpha: float = 2.0) -> float:
+    """Use Hann on the complete [-1, 1] support axis; alpha is unused."""
+    return math.sin(math.pi * value / 2)
 
 
 def main() -> int:
@@ -53,8 +56,9 @@ def main() -> int:
         help="single semantics (default), product presets, one pair suite, or all six pairs",
     )
     parser.add_argument(
-        "--curve", choices=("current", "hann"), default="current", help="periodic transition: production curve (default) or Hann comparison"
+        "--curve", choices=("current", "hann"), default="current", help="periodic activation: symmetric power (default) or full-axis Hann comparison"
     )
+    parser.add_argument("--alpha", type=float, default=2.0, help="Time/Season power-curve exponent (>1, default 2); unused by Hann")
     parser.add_argument(
         "--mode",
         action="append",
@@ -67,17 +71,18 @@ def main() -> int:
     run_name = args.out or datetime.now().strftime("run-%Y%m%d-%H%M%S")
     run_dir = Path(__file__).resolve().parent / "runs" / run_name
     suites: tuple[SceneSuite, ...] = tuple(PAIR_SCENES) if args.suite == "pairs" else (args.suite,)
-    config = synthetic_config()
+    config = synthetic_config(activation_alpha=args.alpha)
     sampling = HeatmapSampling()
     for suite in suites:
         out_dir = run_dir / suite
         # Hann is an isolated calibration experiment, using the real periodic Policies.
-        with patch("core.math_utils.s_curve", hann_rise) if args.curve == "hann" else nullcontext():
+        with patch("core.math_utils.salience_activation", hann_activation) if args.curve == "hann" else nullcontext():
             grids_by_mode = evaluate_cases(config, sampling, modes=tuple(args.mode) if args.mode else None, suite=suite)
         out_dir.mkdir(parents=True, exist_ok=True)
         payload = {
             "suite": suite,
             "curve": args.curve,
+            "alpha": args.alpha,
             "periodic_policies": {"time": config.policies.time.model_dump(), "season": config.policies.season.model_dump()},
             "scenes": {scene: sorted(item.value for item in items) for scene, items in suite_associations(config, suite).items()},
             "sampling": asdict(sampling),

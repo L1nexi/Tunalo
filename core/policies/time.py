@@ -4,7 +4,7 @@ import logging
 import time
 
 from configurations.runtime_models import TimePolicyConfig
-from core.math_utils import interpolate_periodic
+from core.math_utils import periodic_salience
 from core.models.context import Context
 from core.models.selection import VARIABLE_ITEMS, ContextVariable, TimeDetails, TimeEvaluation
 from core.policies.base import Policy
@@ -18,7 +18,7 @@ class TimePolicy(Policy):
     def __init__(self, config: TimePolicyConfig) -> None:
         super().__init__(config)
         self._peaks: dict[str, float] = {}
-        self._curve_q = config.curve_q
+        self._activation_alpha = config.activation_alpha
 
     @staticmethod
     def _compute_peaks(ds: float, ns: float) -> dict[str, float]:
@@ -83,11 +83,7 @@ class TimePolicy(Policy):
             peaks=self._peaks.copy(),
         )
 
-        values = (1.0, 0.0, -1.0, 0.0)
         salience = {
-            item: interpolate_periodic(
-                t_virtual, [(peak, values[(index - own_index) % 4]) for index, peak in enumerate(self._VIRTUAL_PEAKS)], 24, 0, self._curve_q
-            )
-            for own_index, item in enumerate(self._TAG_ORDER)
+            item: periodic_salience(t_virtual, peak, 24, alpha=self._activation_alpha) for item, peak in zip(self._TAG_ORDER, self._VIRTUAL_PEAKS)
         }
         return TimeEvaluation(policy_id=self.config_key, salience=salience, details=details)

@@ -140,3 +140,29 @@ def test_work_cannot_recall_rain_work_during_clear_weather() -> None:
 
     assert selection.probabilities["rain_focus"] == 0
     assert selection.excluded_scenes["rain_focus"] == {"rain"}
+
+
+@pytest.mark.parametrize("hour", [8.5, 15.5])
+def test_clear_daytime_work_excludes_night_work(hour: float) -> None:
+    selection = TuningModel(synthetic_config()).evaluate(build_context(hour, 126, "clear"), 1)
+
+    assert selection.probabilities["night_work"] == 0
+    assert selection.excluded_scenes["night_work"] == {"night"}
+    assert selection.probabilities["day_work"] > 0
+
+
+def test_tuning_alpha_changes_both_periodic_policies() -> None:
+    context = build_context(15, 126, None)
+    default = TuningModel(synthetic_config()).evaluate(context, 0)
+    steeper = TuningModel(synthetic_config(activation_alpha=3)).evaluate(context, 0)
+
+    assert default.salience["day"] == pytest.approx(0.8)
+    assert steeper.salience["day"] == pytest.approx(0.9285714285714286)
+    assert steeper.salience["spring"] > default.salience["spring"]
+
+
+def test_hann_comparison_uses_the_complete_support_axis() -> None:
+    from tools.tuning.scan import hann_activation
+
+    assert (hann_activation(-1), hann_activation(0), hann_activation(1)) == (-1, 0, 1)
+    assert hann_activation(0.5) == pytest.approx(0.7071067811865476)
