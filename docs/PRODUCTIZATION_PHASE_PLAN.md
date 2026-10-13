@@ -1,6 +1,6 @@
 # 产品化转向简要规划
 
-> 2026-10-11 更新：本文保留早期产品化规划，五档响应风格、Policy 权重和调参未接入等描述已由场景模型重构覆盖。已确认决策见 [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004](adr/0004-context-salience-and-observation-boundaries.md) 和 [ADR-0005](adr/0005-selection-and-scheduling-boundary.md)；当前后端使用新版 Profile，前端接入仍待界面设计，实际状态见[开发指引](DEVELOPMENT.md#场景选择模型)及 [TODO](TODO.md)。
+> 2026-10-11 更新：本文保留早期产品化规划，五档响应风格、Policy 权重和调参未接入等描述已由场景模型重构覆盖。已确认决策见 [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004](adr/0004-context-salience-and-observation-boundaries.md) ；当前后端使用新版 Profile，前端接入仍待界面设计，实际状态见[开发指引](DEVELOPMENT.md#场景选择模型)及 [TODO](TODO.md)。
 
 状态：实施中；Profile 契约、原子持久化、运行时构造边界、独立的 `ProfileManager`、单写者应用队列、`server/` 中的 Bottle 资源接口、首次启动宿主分支、Scene 目录与 Playlist 扫描、Tick History 导出和旧 Diagnostics 下线已经建立。首次创建与运行时设置共用 `frontend/`；旧六 YAML 后端、配置 CLI、样例和发布入口已经删除。独立冻结包构建及本地服务冒烟验证通过，仍需在真实桌面与目标网络环境验收。`tools/tuning` 保留用于后续 Preset 校准，当前尚未与新的配置层对齐。
 

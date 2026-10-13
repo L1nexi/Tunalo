@@ -48,7 +48,7 @@ npm run build-only
 - `app/main.py`：托盘进程、首次设置和本地服务启动。
 - `core/runtime/profile_manager.py`：配置读取、编译、保存和运行时应用。
 - `core/runtime/selector.py`：Policy 求值、有符号显著度汇集，以及共用的确定性概率计算。
-- `core/math_utils.py`：概率归一化、完整支持轴激活、时间衰减与周期距离映射的纯数学函数。
+- `core/math_utils.py`：概率归一化、完整支持轴激活、时间衰减、相位映射与周期距离映射的纯数学函数。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
@@ -57,11 +57,11 @@ npm run build-only
 
 ## 场景选择模型
 
-决策与取舍分别见 [ADR-0003：偏好级联与概率预算](adr/0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](adr/0004-context-salience-and-observation-boundaries.md)、[ADR-0005：选择与调度边界](adr/0005-selection-and-scheduling-boundary.md)。本文维护当前实现入口与可调整的内部取值，领域概念见 [CONTEXT.md](../CONTEXT.md)。
+决策与取舍分别见 [ADR-0003：偏好级联与概率预算](adr/0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](adr/0004-context-salience-and-observation-boundaries.md)。本文维护当前实现入口与可调整的内部取值，领域概念见 [CONTEXT.md](../CONTEXT.md)。
 
 ### Profile 与界面接入
 
-Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表表示中立回退。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
 
 `activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity` 或设为 `null` 时使用内置默认规则；显式提供对象时完全使用其中的规则，空对象表示不识别活动。这三种状态在保存和重新加载后保持不变。
 
@@ -76,17 +76,20 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 | 参数 | 当前值 | 实现入口 |
 | --- | --- | --- |
 | 正向边界、负向边界幅度 | 暂定 0.9、0.1；`s >= 0.9` 召回，`s <= -0.1` 排除 | `MatchingConfig` |
-| 变量温度、场景温度 | 1.4、1.5，分别控制来源预算和候选内部的探索程度 | `MatchingConfig` |
+| 变量温度、场景温度 | 1.4、1.5；前者控制显式偏好层的来源预算，后者控制场景概率的探索程度 | `MatchingConfig` |
 | 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
 | 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |
 | 季节、时段曲线参数 | 各自的 `activation_alpha` 均为 2，有限且大于 1，两者独立 | 对应 PolicyConfig |
+| 时段相位映射参数 | `phase_gamma` 默认 2，有限且不小于 1；1 为线性映射 | `math_utils.mirrored_phase` 的函数参数 |
 | 季节周期、四季峰值 | 365 日；80／172／265／355 | `SeasonPolicy`、`SeasonPolicyConfig` |
 | 季节平台半宽、时段平台 | 本位与相对位置前后 7 日；时段无平台 | `SeasonPolicyConfig`、`TimePolicy` |
 | 天气弱反向系数 | 0.25 | `WeatherPolicy` |
 
 `salience_activation(x, alpha=2)` 使用对称幂函数覆盖完整的 [-1,1] 支持轴，保持零点和正负对称，两端平、中心陡。`periodic_salience` 将距各自峰值的最短周期距离归一到这条支持轴，平台只位于最支持与最不支持两端。季节采用实际年内日期，邻季峰值的输出接近零而不强制精确为零；时段保留真实昼夜锚点到虚拟时间的映射。完整轴上的 Hann 对照为 `sin(πx/2)`。
 
-变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
+`mirrored_phase(u, phase_gamma=2, reverse=False)` 负责段内幂映射。TimePolicy 在黎明→白天、夕阳→夜晚时使用镜像 `1-(1-u)^gamma`，白天→夕阳、夜晚→黎明时使用 `u^gamma`；调用函数默认参数，再放入对应的六个虚拟小时区间，逐项计算周期显著度。镜像映射拓宽白天、夜晚的高显著区，收窄黎明、夕阳，保留峰值、零点、周期闭合和两对语义的取反关系。日出 06:00、日落 18:00、alpha=2、gamma=2 时，达到 0.9 的范围分别约为 7.33 小时与 2.50 小时。
+
+天气、活动、时段显式同层时，变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
 
 配置定义见 [runtime_models.py](../configurations/runtime_models.py)。十个 Scene 的直接语义关联集中在 [ProfileCompiler](../configurations/profile_compiler.py)：四个日间／夜间工作和娱乐场景分别关联时段与活动，四季、黄昏和雨天分别关联对应单项语义。雪、黎明等没有独立预设，不补回旧标签回退，也不由讨论中的复合例子自动扩充产品目录。
 
@@ -94,7 +97,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 ### 运行时契约与历史记录
 
-`core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。ContextVariable 和 SemanticItem 均为 StrEnum，序列化沿用原有小写字符串值。Policy、Selector 和配置编译直接使用这些选择契约。
+`core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。ContextVariable 和 SemanticItem 均为 StrEnum，序列化使用小写字符串值，活动语义项为 `work/leisure`。Policy、Selector 和配置编译直接使用这些选择契约。
 
 `core/models/scheduling.py` 定义规划、控制和执行契约。`Engine.schedule()` 返回 ScheduleResult，保留本次 Context、Selection、ActPlan、Decision 和 ActionResult。其 target 表示执行后的有效场景：成功切换时为决策目标，其余情况沿用执行前场景。
 
@@ -120,18 +123,18 @@ Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导�
 
 Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；它调用匹配流程中的 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
 
-活动轨迹保存工作、休闲、OTHER 类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，调用 `time_decaying_activation(age, scale=age_scale)`；该函数以默认 alpha=2 激活 `max(1-age/scale,-1)`，再将输出平移到 [0,1]。不新增活动 alpha 参数，数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
+活动轨迹保存工作（`work`）、娱乐（`leisure`）、游移（`other`）类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，调用 `time_decaying_activation(age, scale=age_scale)`；该函数以默认 alpha=2 激活 `max(1-age/scale,-1)`，再将输出平移到 [0,1]。不新增活动 alpha 参数，数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
 
 模型回归在既有公开入口验证：ADR 中的约束实例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及真实 Engine 的执行结果。不会为私有分类器、评分辅助函数或状态容器单开测试；测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
 
 | 行为证据 | 入口 |
 | --- | --- |
-| 中立基准、简单与复合场景、预算、级联、排除、尽力选择与边界 | [test_selection_model.py](../tests/test_selection_model.py) |
+| 无偏好分布、简单与复合场景、显式预算、级联、排除、尽力选择与边界 | [test_selection_model.py](../tests/test_selection_model.py) |
 | 完整支持轴、有限衰减终点、周期最短距离和峰值平台 | [test_math_utils.py](../tests/test_math_utils.py) |
 | 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系 | [test_semantic_model.py](../tests/test_semantic_model.py) |
 | 偏好编译、播单名称与大小无关、自定义活动规则及保存回填 | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
 | 最新概率消费、暂停观察、阻塞不抽样、热替换和执行失败 | [test_selection_pipeline.py](../tests/test_selection_pipeline.py)、[test_profile_manager.py](../tests/test_profile_manager.py) |
-| 单语义项 suite 的中立分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py) |
+| 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py) |
 
 确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。模型与后端消费的验收不覆盖当前尚未接入的新版设置界面；后续事项见 [TODO](TODO.md)。
 
@@ -148,7 +151,7 @@ Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_dis
 
 单语义项 suite 有 13 个场景：春、夏、秋、冬；晴朗、阴天、雨；黎明、白天、黄昏、夜晚；工作、娱乐。每个场景只关联对应的一个语义项。调参场景有自己的标识，产品场景仍由 ProfileCompiler 定义；共享概率入口按输入关联计算。偏好默认为空。
 
-二项复合按两个粗变量分为六套。每套保留全部 13 个单项基线，再加入两个变量间的全部组合；每个复合场景关联两个等地位语义项，例如 `rain_focus` 关联雨与工作。
+二项复合按两个粗变量分为六套。每套保留全部 13 个单项基线，再加入两个变量间的全部组合；每个复合场景关联两个等地位语义项，例如 `rain_work` 关联雨与工作。
 
 | suite | 复合变量 | 新增场景 | 默认扫描 |
 | --- | --- | ---: | --- |
@@ -172,7 +175,7 @@ Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_dis
 
 季节中点指日期中点，实际显著度由选定曲线决定。活动 0 表示无明确工作或娱乐方向，不单独建立空闲场景。扫描步长沿用时间 0.5 小时、日期 4 日、活动 0.05；天气扫描轴补齐小雨与暴雨。
 
-输出按 suite、再按扫描模式建目录。每个模式包含各场景的概率热图和一张 `winner-map.png`。概率图共用 `0–100%` 色标，胜者图展示每格概率最大的场景；并列时沿用 suite 的场景顺序，无正概率场景时标为 `no winner`。完整概率及 suite、曲线、场景关联、固定点和采样参数写入 suite 目录的 `distributions.json`。静态活动轴直接表示有符号显著度，不注入活动内部状态。工具只使用专用数据。
+输出按 suite、再按扫描模式建目录。每个模式包含各场景的概率热图和一张 `winner-map.png`。概率图共用 `0–100%` 色标，胜者图展示每格概率最大的场景；并列时沿用 suite 的场景顺序，无正概率场景时标为 `no winner`。完整概率及 suite、曲线、场景关联、固定点和采样参数写入 suite 目录的 `distributions.json`。`--alpha` 调整 Time、Season 的激活函数并写入运行参数，校准工具也支持；相位映射沿用数学函数默认值。静态活动轴直接表示有符号显著度，不注入活动内部状态。工具只使用专用数据。
 
 胜者图按场景语义配色：工作为蓝色、娱乐为粉紫色；春季新绿、夏季日光金、秋季落叶赭、冬季冰蓝；晴朗为天蓝、阴天为灰色、雨景为灰蓝；黎明浅桃、白天金黄、黄昏珊瑚橙、夜晚靛蓝。二项场景混合两项语义色并略微压暗，以区分单项基线；日间／夜间工作与娱乐复用产品对应场景的配色，日间浅、夜间深。图例只展示当前 suite，颜色定义集中在 `heatmaps.py` 的 `SCENE_COLORS`。
 
@@ -181,7 +184,7 @@ tools/tuning/runs/<run-name>/
 └── single/
     ├── distributions.json
     ├── cur-act-doy/
-    │   ├── focus.png
+    │   ├── work.png
     │   ├── day.png
     │   ├── rain.png
     │   ├── winner-map.png
