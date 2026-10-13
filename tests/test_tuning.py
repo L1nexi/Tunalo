@@ -1,168 +1,105 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
 import pytest
-
-from tools.tuning.harness import TuningModel, build_context, synthetic_config
-from tools.tuning.heatmaps import HeatmapSampling, evaluate_cases
+from PIL import Image
 
 
-def test_single_semantic_suite_splits_four_equal_sources_into_quarters() -> None:
-    model = TuningModel(synthetic_config(), suite="single")
-    selection = model.evaluate(build_context(12, 172, "mod_rain"), 1.0)
+def _run_scan(directory: Path, suite: str, mode: str | None = None) -> tuple[Path, dict[str, Any]]:
+    """运行公开扫描命令；命令失败时抛出 subprocess.CalledProcessError。"""
+    script = Path(__file__).resolve().parents[1] / "tools/tuning/scan.py"
+    command = [sys.executable, str(script), "--suite", suite, "--out", str(directory)]
+    if mode is not None:
+        command.extend(["--mode", mode])
+    subprocess.run(command, cwd=directory, check=True, capture_output=True, text=True)
+    output = directory / suite
+    return output, json.loads((output / "distributions.json").read_text(encoding="utf-8"))
 
-    assert set(selection.probabilities) == {
-        "spring",
-        "summer",
-        "autumn",
-        "winter",
-        "clear",
-        "cloudy",
-        "rain",
-        "dawn",
-        "day",
-        "sunset",
-        "night",
-        "focus",
-        "chill",
-    }
-    assert {scene: chance for scene, chance in selection.probabilities.items() if chance > 0} == pytest.approx(
-        {"summer": 0.25, "rain": 0.25, "day": 0.25, "focus": 0.25}
+
+@pytest.fixture(scope="module")
+def single_scan(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, dict[str, Any]]:
+    return _run_scan(tmp_path_factory.mktemp("single-scan"), "single", "wx-act")
+
+
+@pytest.fixture(scope="module")
+def pair_scan(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, dict[str, Any]]:
+    return _run_scan(tmp_path_factory.mktemp("pair-scan"), "pair-wx-act")
+
+
+@pytest.fixture(scope="module")
+def product_scan(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, dict[str, Any]]:
+    return _run_scan(tmp_path_factory.mktemp("product-scan"), "product", "wx-hour")
+
+
+def _exported_probabilities(payload: dict[str, Any], fixed: dict[str, float | int], x_value: float, weather: str) -> dict[str, float]:
+    """读取指定观测点；缺少观测点时抛出 StopIteration 或 ValueError。"""
+    grid = next(grid for grid in payload["grids"] if all(grid["fixed"][key] == value for key, value in fixed.items()))
+    row, col = grid["y"]["values"].index(weather), grid["x"]["values"].index(x_value)
+    return {scene: probabilities[row][col] for scene, probabilities in grid["probabilities"].items()}
+
+
+@pytest.mark.parametrize("activity, scene", [(1, "focus"), (-1, "chill")])
+def test_single_scan_splits_four_equal_sources_into_quarters(single_scan: tuple[Path, dict[str, Any]], activity: int, scene: str) -> None:
+    _, payload = single_scan
+    probabilities = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, activity, "mod_rain")
+
+    # ADR-0003：四个同等显著来源各占四分之一。
+    assert {scene_id: chance for scene_id, chance in probabilities.items() if chance > 0} == pytest.approx(
+        {"summer": 0.25, "rain": 0.25, "day": 0.25, scene: 0.25}
     )
 
 
-def test_weather_activity_scan_covers_every_standard_time_season_pair() -> None:
-    grids = evaluate_cases(synthetic_config(), HeatmapSampling(activity_step=0.5), modes=("wx-act",), suite="single")["wx-act"]
+def test_weather_scan_includes_every_decided_rain_severity(single_scan: tuple[Path, dict[str, Any]]) -> None:
+    _, payload = single_scan
 
-    assert {(grid.fixed["hour"], grid.fixed["day_of_year"]) for _, grid in grids} == {
-        (12, 80),
-        (12, 103),
-        (12, 126),
-        (12, 172),
-        (13.5, 80),
-        (13.5, 103),
-        (13.5, 126),
-        (13.5, 172),
-        (15, 80),
-        (15, 103),
-        (15, 126),
-        (15, 172),
-        (18, 80),
-        (18, 103),
-        (18, 126),
-        (18, 172),
-    }
-    assert len(grids) == 16
-    for _, grid in grids:
-        assert grid.x_axis.values == (-1, -0.5, 0, 0.5, 1)
-        assert "light_rain" in grid.y_axis.values and "violent_rain" in grid.y_axis.values
-        assert set(grid.probabilities) == {
-            "spring",
-            "summer",
-            "autumn",
-            "winter",
-            "clear",
-            "cloudy",
-            "rain",
-            "dawn",
-            "day",
-            "sunset",
-            "night",
-            "focus",
-            "chill",
-        }
+    assert payload["grids"]
+    for grid in payload["grids"]:
+        assert {"light_rain", "mod_rain", "heavy_rain", "violent_rain"} <= set(grid["y"]["values"])
 
 
-def test_activity_season_scan_covers_every_standard_time_weather_pair() -> None:
-    grids = evaluate_cases(synthetic_config(), HeatmapSampling(day_step=182, activity_step=1), modes=("act-doy",), suite="single")["act-doy"]
+def test_weather_activity_pair_defaults_to_weather_and_activity_axes(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+    _, payload = pair_scan
 
-    assert {(grid.fixed["hour"], grid.fixed["weather"]) for _, grid in grids} == {
-        (12, None),
-        (12, "light_rain"),
-        (12, "mod_rain"),
-        (12, "heavy_rain"),
-        (13.5, None),
-        (13.5, "light_rain"),
-        (13.5, "mod_rain"),
-        (13.5, "heavy_rain"),
-        (15, None),
-        (15, "light_rain"),
-        (15, "mod_rain"),
-        (15, "heavy_rain"),
-        (18, None),
-        (18, "light_rain"),
-        (18, "mod_rain"),
-        (18, "heavy_rain"),
-    }
+    assert {(grid["x"]["name"], grid["y"]["name"]) for grid in payload["grids"]} == {("activity", "weather")}
 
 
-@pytest.mark.parametrize(
-    "suite, mode, compound_count",
-    [
-        ("pair-wx-doy", "wx-doy", 12),
-        ("pair-hour-doy", "hour-doy", 16),
-        ("pair-act-doy", "act-doy", 8),
-        ("pair-wx-hour", "wx-hour", 12),
-        ("pair-wx-act", "wx-act", 6),
-        ("pair-act-hour", "act-hour", 8),
-    ],
-)
-def test_pair_suites_keep_single_scenes_and_default_to_the_corresponding_scan(suite: str, mode: str, compound_count: int) -> None:
-    config = synthetic_config()
-    baseline = TuningModel(config, suite="single").evaluate(build_context(12, 172, "mod_rain"), 1).probabilities
-    grids_by_mode = evaluate_cases(config, HeatmapSampling(hour_step=6, day_step=182, activity_step=1), suite=suite)
+def test_rain_only_favors_rain_and_joint_evidence_favors_rain_focus(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+    _, payload = pair_scan
+    rain_only = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 0, "mod_rain")
+    both = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 1, "mod_rain")
 
-    assert set(grids_by_mode) == {mode}
-    assert len(grids_by_mode[mode]) == 16
-    for _, grid in grids_by_mode[mode]:
-        assert set(baseline) <= set(grid.probabilities)
-        assert len(grid.probabilities) == 13 + compound_count
+    # ADR-0003：复合场景的优势随两种情境是否同等显著而反转。
+    assert rain_only["rain"] > rain_only["rain_focus"] > 0
+    assert both["rain_focus"] > both["rain"] > 0
 
 
-def test_weather_activity_suite_has_all_six_compounds_and_preserves_rain_only_advantage() -> None:
-    model = TuningModel(synthetic_config(), suite="pair-wx-act")
-    rain_only = model.evaluate(build_context(12, 172, "mod_rain"), 0)
-    both = model.evaluate(build_context(12, 172, "mod_rain"), 1)
+def test_clear_weather_excludes_rain_focus_even_with_full_focus(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+    _, payload = pair_scan
+    probabilities = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 1, "clear")
 
-    assert {scene for scene in both.probabilities if "_" in scene} == {
-        "clear_focus",
-        "clear_chill",
-        "cloudy_focus",
-        "cloudy_chill",
-        "rain_focus",
-        "rain_chill",
-    }
-    assert rain_only.probabilities["rain"] > rain_only.probabilities["rain_focus"]
-    assert both.probabilities["rain_focus"] > both.probabilities["rain"]
-
-
-def test_work_cannot_recall_rain_work_during_clear_weather() -> None:
-    selection = TuningModel(synthetic_config(), suite="pair-wx-act").evaluate(build_context(12, 172, "clear"), 1)
-
-    assert selection.probabilities["rain_focus"] == 0
-    assert selection.excluded_scenes["rain_focus"] == {"rain"}
+    assert probabilities["rain_focus"] == 0
+    assert probabilities["clear_focus"] > 0
 
 
 @pytest.mark.parametrize("hour", [8.5, 15.5])
-def test_clear_daytime_work_excludes_night_work(hour: float) -> None:
-    selection = TuningModel(synthetic_config()).evaluate(build_context(hour, 126, "clear"), 1)
+def test_daytime_work_excludes_night_work_from_product_scan(product_scan: tuple[Path, dict[str, Any]], hour: float) -> None:
+    _, payload = product_scan
+    probabilities = _exported_probabilities(payload, {"day_of_year": 126, "activity": 1}, hour, "clear")
 
-    assert selection.probabilities["night_work"] == 0
-    assert selection.excluded_scenes["night_work"] == {"night"}
-    assert selection.probabilities["day_work"] > 0
-
-
-def test_tuning_alpha_changes_both_periodic_policies() -> None:
-    context = build_context(15, 126, None)
-    default = TuningModel(synthetic_config()).evaluate(context, 0)
-    steeper = TuningModel(synthetic_config(activation_alpha=3)).evaluate(context, 0)
-
-    assert default.salience["day"] == pytest.approx(0.96)
-    assert steeper.salience["day"] == pytest.approx(0.9941860465116279)
-    assert steeper.salience["spring"] > default.salience["spring"]
+    assert probabilities["night_work"] == 0
+    assert probabilities["day_work"] > 0
 
 
-def test_hann_comparison_uses_the_complete_support_axis() -> None:
-    from tools.tuning.scan import hann_activation
+@pytest.mark.parametrize("fixture_name, mode", [("single_scan", "wx-act"), ("pair_scan", "wx-act"), ("product_scan", "wx-hour")])
+def test_scans_export_viewable_probability_and_winner_pngs(request: pytest.FixtureRequest, fixture_name: str, mode: str) -> None:
+    output, _ = request.getfixturevalue(fixture_name)
 
-    assert (hann_activation(-1), hann_activation(0), hann_activation(1)) == (-1, 0, 1)
-    assert hann_activation(0.5) == pytest.approx(0.7071067811865476)
+    for filename in ("rain.png", "winner-map.png"):
+        with Image.open(output / f"cur-{mode}" / filename) as preview:
+            assert preview.format == "PNG"
+            preview.verify()

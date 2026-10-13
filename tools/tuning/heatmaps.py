@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import math
-import sys
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
 from itertools import product
 from pathlib import Path
 from typing import Literal
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib
 
@@ -19,19 +18,23 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.collections import QuadMesh
 from matplotlib.ticker import PercentFormatter
 
 from configurations.runtime_models import SchedulerConfig
+from core.models.selection import VARIABLE_ITEMS, ContextVariable, Salience, SemanticItem
+from core.policies import SeasonPolicy, TimePolicy, WeatherPolicy
+from core.runtime.selector import calculate_distribution
 from tools.tuning.harness import (
     PAIR_SCENES,
     SceneSuite,
-    TuningModel,
     build_context,
-    coerce_activity,
+    suite_associations,
 )
 
 type HeatmapMode = Literal["wx-hour", "act-hour", "wx-act", "wx-doy", "act-doy", "hour-doy"]
 type AxisName = Literal["weather", "hour", "activity", "day_of_year"]
+type AxisValue = float | int | str | None
 
 WEATHER_HEATMAP_PRESETS: tuple[str | None, ...] = (
     None,
@@ -53,8 +56,8 @@ WEATHER_HEATMAP_PRESETS: tuple[str | None, ...] = (
 @dataclass(frozen=True)
 class HeatmapCase:
     name: str
-    mode: str
-    fixed: dict[str, object]
+    mode: HeatmapMode
+    fixed: dict[AxisName, AxisValue]
 
 
 MODE_AXES: dict[HeatmapMode, tuple[AxisName, AxisName]] = {
@@ -77,7 +80,7 @@ class HeatmapSampling:
 @dataclass(frozen=True)
 class HeatmapAxis:
     name: AxisName
-    values: tuple[float | int | str | None, ...]
+    values: tuple[AxisValue, ...]
 
     @property
     def label(self) -> str:
@@ -91,7 +94,6 @@ class HeatmapGrid:
     case: HeatmapCase
     x_axis: HeatmapAxis
     y_axis: HeatmapAxis
-    fixed: dict[str, object]
     # 行=y 轴序、列=x 轴序；各场景使用同一采样网格。
     probabilities: dict[str, np.ndarray]
 
@@ -99,7 +101,7 @@ class HeatmapGrid:
 @dataclass(frozen=True)
 class FixedPoint:
     name: str
-    value: float | int | str | None
+    value: AxisValue
 
 
 def fixed_axis_points(config: SchedulerConfig) -> dict[AxisName, tuple[FixedPoint, ...]]:
@@ -141,25 +143,46 @@ def evaluate_cases(
     modes: tuple[str, ...] | None = None,
     *,
     suite: SceneSuite = "product",
-) -> dict[str, list[tuple[HeatmapCase, HeatmapGrid]]]:
+) -> dict[str, list[HeatmapGrid]]:
     """Evaluate every cell with the shared salience and probability calculation."""
-    model = TuningModel(config, suite=suite)
-    scenes = list(model.associations)
+    associations = suite_associations(config, suite)
+    time_policy = TimePolicy(config.policies.time)
+    season_policy = SeasonPolicy(config.policies.season)
+    weather_policy = WeatherPolicy(config.policies.weather)
+    temporal_items = (*VARIABLE_ITEMS[ContextVariable.SEASON], *VARIABLE_ITEMS[ContextVariable.TIME])
+    weather_items = VARIABLE_ITEMS[ContextVariable.WEATHER]
+    non_activity_items = (*temporal_items, *weather_items)
+
+    @lru_cache(maxsize=8192)
+    def temporal_salience(hour: float, day_of_year: int) -> tuple[float, ...]:
+        context = build_context(hour, day_of_year, None)
+        # Synthetic grids have fixed solar anchors and no observation history.
+        values = {**time_policy.evaluate(context).salience, **season_policy.evaluate(context).salience}
+        return tuple(values[item] for item in temporal_items)
+
+    @lru_cache(maxsize=128)
+    def weather_salience(weather_name: str | None) -> tuple[float, ...]:
+        values = weather_policy.evaluate(build_context(12, 1, weather_name)).salience
+        return tuple(values[item] for item in weather_items)
+
+    @lru_cache(maxsize=4096)
+    def distribution(values: tuple[float, ...], activity_salience: float) -> dict[str, float]:
+        salience = dict(zip(non_activity_items, values))
+        salience.update({SemanticItem.FOCUS: activity_salience, SemanticItem.CHILL: -activity_salience})
+        return calculate_distribution(Salience(salience), associations, config.matching).probabilities
+
+    def evaluate(hour: float, day_of_year: int, weather_name: str | None, activity_salience: float) -> dict[str, float]:
+        return distribution(temporal_salience(hour, day_of_year) + weather_salience(weather_name), activity_salience)
+
+    scenes = list(associations)
     cases = heatmap_cases(config)
 
     selected = modes or ((suite.removeprefix("pair-"),) if suite in PAIR_SCENES else tuple(MODE_AXES))
-    result: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]] = {}
-    for mode in selected:
-        grids: list[tuple[HeatmapCase, HeatmapGrid]] = []
-        for case in (case for case in cases if case.mode == mode):
-            grid = _evaluate_case(model, case, sampling, scenes)
-            grids.append((case, grid))
-        result[mode] = grids
-    return result
+    return {mode: [_evaluate_case(evaluate, case, sampling, scenes) for case in cases if case.mode == mode] for mode in selected}
 
 
 def _evaluate_case(
-    model: TuningModel,
+    evaluate: Callable[[float, int, str | None, float], dict[str, float]],
     case: HeatmapCase,
     sampling: HeatmapSampling,
     scenes: list[str],
@@ -175,26 +198,25 @@ def _evaluate_case(
             values = dict(case.fixed)
             values[x_name] = x_value
             values[y_name] = y_value
-            activity_salience = coerce_activity(values.get("activity"))
-            weather_name = values.get("weather")
-            context = build_context(
-                hour=float(values["hour"]),
-                day_of_year=int(values["day_of_year"]),
-                weather_name=None if weather_name is None else str(weather_name),
+            weather_name = values["weather"]
+            distribution = evaluate(
+                float(values["hour"]),
+                int(values["day_of_year"]),
+                None if weather_name is None else str(weather_name),
+                float(values["activity"]),
             )
-            selection = model.evaluate(context, activity_salience)
-            for scene, probability in selection.probabilities.items():
+            for scene, probability in distribution.items():
                 probabilities[scene][y_row, x_col] = probability
-    return HeatmapGrid(case=case, x_axis=x_axis, y_axis=y_axis, fixed=dict(case.fixed), probabilities=probabilities)
+    return HeatmapGrid(case=case, x_axis=x_axis, y_axis=y_axis, probabilities=probabilities)
 
 
-def _axis_values(axis_name: AxisName, sampling: HeatmapSampling) -> tuple[float | int | str | None, ...]:
+def _axis_values(axis_name: AxisName, sampling: HeatmapSampling) -> tuple[AxisValue, ...]:
     if axis_name == "weather":
         return WEATHER_HEATMAP_PRESETS
     if axis_name == "hour":
-        return tuple(_float_axis(0.0, 24.0 - sampling.hour_step, sampling.hour_step))
+        return _float_axis(0.0, 24.0 - sampling.hour_step, sampling.hour_step)
     if axis_name == "activity":
-        return tuple(_float_axis(-1.0, 1.0, sampling.activity_step))
+        return _float_axis(-1.0, 1.0, sampling.activity_step)
     if axis_name == "day_of_year":
         values = list(range(1, 366, sampling.day_step))
         if values[-1] != 365:
@@ -203,9 +225,9 @@ def _axis_values(axis_name: AxisName, sampling: HeatmapSampling) -> tuple[float 
     raise ValueError(f"unknown heatmap axis: {axis_name}")
 
 
-def _float_axis(start: float, stop: float, step: float) -> list[float]:
+def _float_axis(start: float, stop: float, step: float) -> tuple[float, ...]:
     count = int(round((stop - start) / step))
-    return [round(start + index * step, 10) for index in range(count + 1)]
+    return tuple(round(start + index * step, 10) for index in range(count + 1))
 
 
 # ── 渲染 ────────────────────────────────────────────────────────────
@@ -250,7 +272,7 @@ SCENE_COLORS.update(
 
 
 def render_mode_figures(
-    grids_by_mode: dict[str, list[tuple[HeatmapCase, HeatmapGrid]]],
+    grids_by_mode: dict[str, list[HeatmapGrid]],
     figures_dir: Path,
 ) -> list[Path]:
     """Write each mode's Scene probability maps and one winner map together.
@@ -264,18 +286,15 @@ def render_mode_figures(
     for mode, grids in grids_by_mode.items():
         mode_dir = figures_dir / f"cur-{mode}"
         mode_dir.mkdir(parents=True, exist_ok=True)
-        for scene_id in grids[0][1].probabilities:
-            output_path = mode_dir / f"{scene_id}.png"
-            _render_mode_figure(grids, output_path, mode, scene_id)
-            written.append(output_path)
-        winner_path = mode_dir / "winner-map.png"
-        _render_mode_figure(grids, winner_path, mode, None)
-        written.append(winner_path)
+        scene_ids = tuple(grids[0].probabilities)
+        if scene_ids:
+            written.extend(_render_mode_figures(grids, mode_dir, mode, scene_ids))
+        written.extend(_render_mode_figures(grids, mode_dir, mode, (None,)))
     return written
 
 
-def _render_mode_figure(grids: list[tuple[HeatmapCase, HeatmapGrid]], output_path: Path, mode: str, scene_id: str | None) -> None:
-    """Render a Scene's probabilities, or the highest-probability Scene overview.
+def _render_mode_figures(grids: list[HeatmapGrid], figures_dir: Path, mode: str, scene_ids: tuple[str | None, ...]) -> list[Path]:
+    """Reuse a mode's axes for probability maps, or draw its winner overview.
 
     Raises:
         OSError: If the output PNG cannot be written.
@@ -285,11 +304,13 @@ def _render_mode_figure(grids: list[tuple[HeatmapCase, HeatmapGrid]], output_pat
     nrows = math.ceil(n_cases / ncols)
     fig_w, fig_h = (ncols * 6.0, nrows * (5.5 if mode == "hour-doy" else 5.0))
 
+    scene_id = scene_ids[0]
     fig, axes_array = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h))
-    fig.suptitle(scene_id if scene_id is not None else "Highest-probability Scene", fontsize=14)
-    axes_flat = [axes_array] if not hasattr(axes_array, "flat") else list(axes_array.flat)
+    title = fig.suptitle(scene_id if scene_id is not None else "Highest-probability Scene", fontsize=14)
+    axes_flat = list(axes_array.flat)
+    probability_maps: list[QuadMesh] = []
 
-    for index, (case, grid) in enumerate(grids):
+    for index, grid in enumerate(grids):
         axis = axes_flat[index]
         if scene_id is None:
             _draw_winner_map(axis, grid)
@@ -304,16 +325,29 @@ def _render_mode_figure(grids: list[tuple[HeatmapCase, HeatmapGrid]], output_pat
                 shading="flat",
                 rasterized=True,
             )
+            probability_maps.append(probability_map)
         _style_axes(axis, grid)
-        fixed = ", ".join(f"{key}={_value_label(value)}" for key, value in sorted(grid.fixed.items()))
-        axis.set_title(f"{case.name}\n{fixed}", fontsize=8, pad=4)
+        fixed = ", ".join(f"{key}={_value_label(value)}" for key, value in sorted(grid.case.fixed.items()))
+        axis.set_title(f"{grid.case.name}\n{fixed}", fontsize=8, pad=4)
     for axis in axes_flat[n_cases:]:
         axis.set_visible(False)
 
-    fig.tight_layout(rect=[0, 0.06, 1, 0.97])
+    spacing_keys = ("left", "bottom", "right", "top", "wspace", "hspace")
+    initial_spacing = {key: getattr(fig.subplotpars, key) for key in spacing_keys}
+    layouts: dict[float, dict[str, float]] = {}
+    title_heights: dict[str | None, float] = {}
+    # tight_layout uses the suptitle's height; underscores can change it.
+    for candidate in scene_ids:
+        title.set_text(candidate if candidate is not None else "Highest-probability Scene")
+        height = title.get_window_extent().height
+        title_heights[candidate] = height
+        if height not in layouts:
+            fig.subplots_adjust(**initial_spacing)
+            fig.tight_layout(rect=[0, 0.06, 1, 0.97])
+            layouts[height] = {key: getattr(fig.subplotpars, key) for key in spacing_keys}
     if scene_id is None:
         handles = [patches.Patch(facecolor="#111827", label="no winner")]
-        handles.extend(patches.Patch(facecolor=SCENE_COLORS[scene], label=scene) for scene in grids[0][1].probabilities)
+        handles.extend(patches.Patch(facecolor=SCENE_COLORS[scene], label=scene) for scene in grids[0].probabilities)
         fig.legend(handles=handles, loc="lower center", ncol=5, frameon=True, fontsize=8, title="Scene")
     else:
         colorbar_axis = fig.add_axes([0.25, 0.035, 0.5, 0.012])
@@ -326,17 +360,27 @@ def _render_mode_figure(grids: list[tuple[HeatmapCase, HeatmapGrid]], output_pat
         )
         colorbar.set_label("Scene selection probability", fontsize=9)
         colorbar.ax.tick_params(labelsize=8)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    written: list[Path] = []
+    try:
+        for scene_id in scene_ids:
+            fig.subplots_adjust(**layouts[title_heights[scene_id]])
+            if scene_id is not None:
+                title.set_text(scene_id)
+                for probability_map, grid in zip(probability_maps, grids):
+                    probability_map.set_array(grid.probabilities[scene_id])
+            output_path = figures_dir / (f"{scene_id}.png" if scene_id is not None else "winner-map.png")
+            fig.savefig(output_path, dpi=150, bbox_inches="tight")
+            written.append(output_path)
+    finally:
+        plt.close(fig)
+    return written
 
 
 def _draw_winner_map(ax: Axes, grid: HeatmapGrid) -> None:
-    scene_indices = {scene: index + 1 for index, scene in enumerate(grid.probabilities)}
     winners = np.zeros((len(grid.y_axis.values), len(grid.x_axis.values)), dtype=int)
     if grid.probabilities:
         probabilities = np.stack(list(grid.probabilities.values()))
-        indices = np.array([scene_indices[scene] for scene in grid.probabilities])
-        winners = np.where(probabilities.max(axis=0) > 0, indices[probabilities.argmax(axis=0)], 0)
+        winners = np.where(probabilities.max(axis=0) > 0, probabilities.argmax(axis=0) + 1, 0)
     colors = ["#111827", *(SCENE_COLORS[scene] for scene in grid.probabilities)]
     ax.pcolormesh(
         _axis_edges(grid.x_axis),
@@ -350,71 +394,44 @@ def _draw_winner_map(ax: Axes, grid: HeatmapGrid) -> None:
 
 
 def _style_axes(ax: Axes, grid: HeatmapGrid) -> None:
-    _style_single_axis(ax, "x", grid.x_axis)
-    _style_single_axis(ax, "y", grid.y_axis)
-    if grid.x_axis.name == "hour":
-        for hour in (6, 12, 18):
-            ax.axvline(hour, color="white", linewidth=0.6, linestyle="--", alpha=0.45)
-    if grid.y_axis.name == "hour":
-        for hour in (6, 12, 18):
-            ax.axhline(hour, color="white", linewidth=0.6, linestyle="--", alpha=0.45)
-    if grid.x_axis.name == "activity":
-        ax.axvline(0, color="white", linewidth=0.8, linestyle="--", alpha=0.65)
-    if grid.y_axis.name == "activity":
-        ax.axhline(0, color="white", linewidth=0.8, linestyle="--", alpha=0.65)
+    for orientation, axis in (("x", grid.x_axis), ("y", grid.y_axis)):
+        _style_single_axis(ax, orientation, axis)
+        line = ax.axvline if orientation == "x" else ax.axhline
+        if axis.name == "hour":
+            for hour in (6, 12, 18):
+                line(hour, color="white", linewidth=0.6, linestyle="--", alpha=0.45)
+        elif axis.name == "activity":
+            line(0, color="white", linewidth=0.8, linestyle="--", alpha=0.65)
 
 
 def _style_single_axis(ax: Axes, orientation: Literal["x", "y"], axis: HeatmapAxis) -> None:
-    values = axis.values
-    setter_label = ax.set_xlabel if orientation == "x" else ax.set_ylabel
-    setter_label(axis.label)
+    if orientation == "x":
+        set_label, set_limits, set_ticks, set_ticklabels = ax.set_xlabel, ax.set_xlim, ax.set_xticks, ax.set_xticklabels
+    else:
+        set_label, set_limits, set_ticks, set_ticklabels = ax.set_ylabel, ax.set_ylim, ax.set_yticks, ax.set_yticklabels
+    set_label(axis.label)
     if axis.name == "weather":
-        ticks = [index + 0.5 for index in range(len(values))]
-        labels = [_value_label(value) for value in values]
-        if orientation == "x":
-            ax.set_xticks(ticks)
-            ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
-        else:
-            ax.set_yticks(ticks)
-            ax.set_yticklabels(labels, fontsize=8)
-            ax.invert_yaxis()
-        return
-    if axis.name == "hour":
+        ticks = [index + 0.5 for index in range(len(axis.values))]
+        labels = [_value_label(value) for value in axis.values]
+    elif axis.name == "hour":
+        set_limits(0, 24)
         ticks = list(range(0, 25, 4))
         labels = [f"{hour:02d}:00" for hour in ticks]
-        if orientation == "x":
-            ax.set_xlim(0, 24)
-            ax.set_xticks(ticks)
-            ax.set_xticklabels(labels, fontsize=8)
-        else:
-            ax.set_ylim(0, 24)
-            ax.set_yticks(ticks)
-            ax.set_yticklabels(labels, fontsize=8)
-        return
-    if axis.name == "activity":
+    elif axis.name == "activity":
+        set_limits(-1, 1)
         ticks = [-1, -0.5, 0, 0.5, 1]
         labels = ["chill 1.0", "0.5", "neutral", "0.5", "focus 1.0"]
-        if orientation == "x":
-            ax.set_xlim(-1, 1)
-            ax.set_xticks(ticks)
-            ax.set_xticklabels(labels, fontsize=8)
-        else:
-            ax.set_ylim(-1, 1)
-            ax.set_yticks(ticks)
-            ax.set_yticklabels(labels, fontsize=8)
-        return
-    if axis.name == "day_of_year":
+    else:
+        set_limits(1, 365)
         ticks = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349]
         labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        if orientation == "x":
-            ax.set_xlim(1, 365)
-            ax.set_xticks(ticks)
-            ax.set_xticklabels(labels, fontsize=8)
-        else:
-            ax.set_ylim(1, 365)
-            ax.set_yticks(ticks)
-            ax.set_yticklabels(labels, fontsize=8)
-            ax.invert_yaxis()
+    set_ticks(ticks)
+    if axis.name == "weather" and orientation == "x":
+        set_ticklabels(labels, rotation=35, ha="right", fontsize=8)
+    else:
+        set_ticklabels(labels, fontsize=8)
+    if orientation == "y" and axis.name in ("weather", "day_of_year"):
+        ax.invert_yaxis()
 
 
 def _axis_edges(axis: HeatmapAxis) -> np.ndarray:

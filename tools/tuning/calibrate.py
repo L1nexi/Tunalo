@@ -16,10 +16,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from core.models.context import WindowData
-from core.policies.activity import ActivityPolicy
+from core.models.selection import SemanticItem
+from core.policies import POLICY_REGISTRY
 from core.policies.season import SeasonPolicy
 from core.policies.time import TimePolicy
-from tools.tuning.harness import build_context, build_selector, synthetic_config
+from core.runtime.selector import Selector
+from tools.tuning.harness import build_context, synthetic_config
 
 
 def main() -> int:
@@ -29,18 +31,20 @@ def main() -> int:
     args = parser.parse_args()
     config = synthetic_config(activation_alpha=args.alpha)
     args.out.mkdir(parents=True, exist_ok=True)
-    activity = ActivityPolicy(config.policies.activity)
     season = SeasonPolicy(config.policies.season)
     time_policy = TimePolicy(config.policies.time)
-    selector = build_selector(config)
+    selector = Selector(
+        {scene_id: scene.associations for scene_id, scene in config.scenes.items()},
+        [cls(getattr(config.policies, cls.config_key)) for cls in POLICY_REGISTRY],
+        config.matching,
+    )
     activity_rows: list[dict[str, float | int]] = [{"slot": 0, "focus": 0, "chill": 0}]
     replay: list[dict[str, object]] = []
+    context = build_context(12, 172, "violent_rain")
     for slot in range(1, 1801):
-        context = build_context(12, 172, "violent_rain")
         context.window = WindowData(process="code.exe" if slot <= 600 else "vlc.exe" if slot <= 1200 else "chrome.exe")
-        evaluation = activity.evaluate(context)
         selection = selector.select(context)
-        activity_rows.append({"slot": slot, **evaluation.salience})
+        activity_rows.append({"slot": slot, "focus": selection.salience[SemanticItem.FOCUS], "chill": selection.salience[SemanticItem.CHILL]})
         replay.append(
             {
                 "slot": slot,

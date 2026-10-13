@@ -91,19 +91,19 @@ def main() -> int:
             "activity_axis": "signed focus salience; chill is its opposite",
             "grids": [
                 {
-                    "case": case.name,
-                    "fixed": grid.fixed,
+                    "case": grid.case.name,
+                    "fixed": grid.case.fixed,
                     "x": {"name": grid.x_axis.name, "values": grid.x_axis.values},
                     "y": {"name": grid.y_axis.name, "values": grid.y_axis.values},
                     "probabilities": {scene: values.tolist() for scene, values in grid.probabilities.items()},
                 }
                 for grids in grids_by_mode.values()
-                for case, grid in grids
+                for grid in grids
             ],
         }
         (out_dir / "distributions.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         paths = render_mode_figures(grids_by_mode, out_dir)
-        cell_total = sum(len(grid.x_axis.values) * len(grid.y_axis.values) for grids in grids_by_mode.values() for _, grid in grids)
+        cell_total = sum(len(grid.x_axis.values) * len(grid.y_axis.values) for grids in grids_by_mode.values() for grid in grids)
         print(f"{suite}: rendered {len(paths)} images; evaluated {cell_total} cells; output: {out_dir}", flush=True)
     return 0
 
