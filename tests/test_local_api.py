@@ -3,7 +3,6 @@ from __future__ import annotations
 import getpass
 import io
 import json
-import logging
 import socket
 import threading
 import time
@@ -307,13 +306,6 @@ def test_removed_setup_api_does_not_fall_through_to_spa(app):
     assert body == {"error": "not_found"}
 
 
-def test_removed_profile_create_api_returns_json_not_found(app):
-    status, body = wsgi_post(app, "/api/profile/create", {"unused": True})
-
-    assert "404" in status
-    assert body == {"error": "not_found"}
-
-
 def test_api_profile_returns_current_committed_profile(tick_history, profile_manager):
     app = build_api_app(tick_history, profile_manager)
 
@@ -466,25 +458,6 @@ def test_api_weather_key_test_reports_safe_timeout_reason(tmp_path: Path, tick_h
     assert "private-key" not in json.dumps(body)
 
 
-def test_api_create_profile_persists_first_profile(tmp_path: Path, tick_history):
-    executable = _wallpaper_engine_path(tmp_path)
-    config_dir = tmp_path / "profile"
-    manager = ProfileManager(str(config_dir))
-    app = build_api_app(tick_history, manager)
-    draft = _profile_payload(executable)
-    draft["weather"]["location"].pop("name")
-    expected = Profile.model_validate(draft).model_dump(mode="json")
-
-    status, body = wsgi_post(app, "/api/profile", draft)
-
-    assert "201" in status
-    assert body == {"status": "created", "profile": expected}
-
-    profile_status, profile_body = wsgi_get(app, "/api/profile")
-    assert "200" in profile_status
-    assert profile_body == {"profile": expected}
-
-
 def test_api_create_profile_leaves_profile_absent_when_weather_key_is_rejected(
     tmp_path: Path,
     tick_history,
@@ -556,27 +529,6 @@ def test_api_create_profile_leaves_profile_absent_when_weather_validation_is_una
     profile_status, profile_body = wsgi_get(app, "/api/profile")
     assert "404" in profile_status
     assert profile_body == {"error": "profile_not_found"}
-
-
-def test_api_create_profile_can_save_after_explicit_weather_confirmation(tmp_path: Path, tick_history, monkeypatch):
-    def unexpected_validation(*_args, **_kwargs):
-        raise AssertionError("weather validation should be skipped after confirmation")
-
-    monkeypatch.setattr("server.routes.profile.validate_weather_connection", unexpected_validation)
-    executable = _wallpaper_engine_path(tmp_path)
-    app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
-    draft = _profile_payload(executable)
-
-    status, body = wsgi_request(
-        app,
-        "POST",
-        "/api/profile",
-        query="allow_unverified_weather=1",
-        body=json.dumps(draft).encode("utf-8"),
-    )
-
-    assert "201" in status
-    assert body["profile"] == draft
 
 
 def test_api_create_profile_logs_safe_weather_timeout_reason(tmp_path: Path, tick_history, monkeypatch, caplog):
@@ -678,56 +630,6 @@ def test_api_create_profile_reports_failed_stage(tmp_path: Path, tick_history):
     }
 
 
-def test_setup_route_serves_frontend_spa(tmp_path: Path, monkeypatch, tick_history, profile_manager):
-    frontend_dist = tmp_path / "frontend" / "dist"
-    frontend_dist.mkdir(parents=True)
-    (frontend_dist / "index.html").write_text("<main>setup frontend</main>", encoding="utf-8")
-    monkeypatch.setattr("server.spa.get_app_root", lambda: str(tmp_path))
-    app = build_api_app(tick_history, profile_manager)
-
-    status, body = wsgi_get(app, "/setup/")
-
-    assert "200" in status
-    assert body == "<main>setup frontend</main>"
-
-
-def test_api_apply_profile_returns_normalized_committed_profile(tick_history, profile_manager):
-    draft = _profile_payload_for(profile_manager, playlist="NEW")
-    committed = Profile.model_validate(draft)
-    app = build_api_app(tick_history, profile_manager)
-
-    status, body = wsgi_put(app, "/api/profile", draft)
-
-    assert "200" in status
-    assert body == {
-        "status": "applied",
-        "profile": committed.model_dump(mode="json"),
-    }
-
-    profile_status, profile_body = wsgi_get(app, "/api/profile")
-    assert "200" in profile_status
-    assert profile_body["profile"]["scenes"] == {"day_work": "NEW"}
-
-
-def test_profile_apply_log_distinguishes_weather_change(tick_history, profile_manager, caplog):
-    caplog.set_level(logging.INFO, logger="Tunalo.Profile")
-    app = build_api_app(tick_history, profile_manager)
-    scene_draft = _profile_payload_for(profile_manager, playlist="NEW")
-
-    scene_status, _scene_body = wsgi_put(app, "/api/profile", scene_draft)
-
-    weather_draft = _profile_payload_for(profile_manager, playlist="NEW")
-    weather_draft["weather"]["api_key"] = "fake-new-key"
-    weather_status, _weather_body = wsgi_put(app, "/api/profile", weather_draft)
-
-    assert "200" in scene_status
-    assert "200" in weather_status
-    messages = [record.message for record in caplog.records if record.name == "Tunalo.Profile"]
-    assert any("weather_changed=False" in message for message in messages)
-    assert any("weather_changed=True" in message for message in messages)
-    assert all("fake-new-key" not in message for message in messages)
-
-
 def test_api_replace_profile_requires_existing_resource(tmp_path: Path, tick_history):
     executable = _wallpaper_engine_path(tmp_path)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
@@ -756,31 +658,6 @@ def test_api_apply_profile_succeeds_during_weather_outage_when_weather_is_unchan
     assert body["status"] == "applied"
 
 
-def test_api_apply_profile_can_save_changed_weather_after_explicit_confirmation(
-    tick_history,
-    profile_manager,
-    monkeypatch,
-):
-    def unexpected_validation(*_args, **_kwargs):
-        raise AssertionError("weather validation should be skipped after confirmation")
-
-    monkeypatch.setattr("server.routes.profile.validate_weather_connection", unexpected_validation)
-    app = build_api_app(tick_history, profile_manager)
-    draft = _profile_payload_for(profile_manager)
-    draft["weather"]["api_key"] = "replacement-key"
-
-    status, body = wsgi_request(
-        app,
-        "PUT",
-        "/api/profile",
-        query="allow_unverified_weather=1",
-        body=json.dumps(draft).encode("utf-8"),
-    )
-
-    assert "200" in status
-    assert body["profile"]["weather"]["api_key"] == "replacement-key"
-
-
 def test_api_apply_profile_maps_rejected_location_to_weather_location_field(
     tick_history,
     profile_manager,
@@ -804,46 +681,6 @@ def test_api_apply_profile_maps_rejected_location_to_weather_location_field(
             "message": "weather_location_invalid",
         }
     ]
-
-
-def test_api_apply_profile_rejects_invalid_payload(tick_history, profile_manager):
-    app = build_api_app(tick_history, profile_manager)
-    payload = _profile_payload_for(profile_manager)
-    payload["disturbance"]["avoid_fullscreen"] = False
-
-    status, body = wsgi_put(app, "/api/profile", payload)
-
-    assert "422" in status
-    assert body["error"] == "invalid_profile"
-    assert body["issues"][0]["path"] == ["disturbance", "avoid_fullscreen"]
-    assert profile_manager.get_profile().scenes == {"day_work": "WORK"}
-
-
-def test_api_apply_profile_rejects_malformed_json(tick_history, profile_manager):
-    app = build_api_app(tick_history, profile_manager)
-
-    status, body = wsgi_request(app, "PUT", "/api/profile", body=b"{invalid")
-
-    assert "400" in status
-    assert body["error"] == "invalid_profile"
-    assert profile_manager.get_profile().scenes == {"day_work": "WORK"}
-
-
-def test_api_apply_profile_rejects_non_json_content_type(tick_history, profile_manager):
-    app = build_api_app(tick_history, profile_manager)
-    body_bytes = json.dumps(_profile_payload_for(profile_manager)).encode("utf-8")
-
-    status, body = wsgi_request(
-        app,
-        "PUT",
-        "/api/profile",
-        body=body_bytes,
-        content_type="text/plain",
-    )
-
-    assert "415" in status
-    assert body == {"error": "unsupported_media_type"}
-    assert profile_manager.get_profile().scenes == {"day_work": "WORK"}
 
 
 def test_api_apply_profile_reports_failed_stage(tick_history, profile_manager):

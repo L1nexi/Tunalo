@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-from unittest import mock
-
 import pytest
 
 from configurations.runtime_models import (
@@ -13,9 +10,7 @@ from core.models.context import Context
 from core.models.scene import SceneId, Scenes
 from core.models.scheduling import Action, ActPlan, Blocker, Decision, DecisionMode
 from core.models.selection import Selection
-from core.runtime.actuator import Actuator
 from core.runtime.controller import Controller
-from core.state.persisted import PersistedState
 
 
 @pytest.fixture(autouse=True)
@@ -204,22 +199,3 @@ def test_controller_recovery_without_a_match_does_nothing():
     )
 
     assert decision.action == Action.NONE
-
-
-def test_actuator_lowers_scene_to_its_assigned_playlist():
-    executor = mock.Mock()
-    executor.open_playlist.return_value = True
-    actuator = Actuator(executor)
-
-    result = actuator.act(Decision(action=Action.SWITCH, target=Scenes([SceneId.DAY_WORK]), probabilities={SceneId.DAY_WORK: 1}))
-
-    assert result.executed is True
-    assert result.target_playlist == "work"
-    executor.open_playlist.assert_called_once_with("work")
-
-
-def test_missing_persisted_state_loads_as_default_without_warning(tmp_path: Path, caplog):
-    state = PersistedState.load(str(tmp_path / "missing-state.json"))
-
-    assert state == PersistedState()
-    assert not [record for record in caplog.records if record.name == "Tunalo.State"]

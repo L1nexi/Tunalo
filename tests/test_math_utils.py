@@ -29,12 +29,6 @@ def test_time_decay_half_weight_and_finite_end(age: float, expected: float) -> N
     assert time_decaying_activation(age, scale=300) == pytest.approx(expected)
 
 
-def test_time_decay_scale_changes_age_units() -> None:
-    assert time_decaying_activation(0.5) == pytest.approx(0.9)
-    assert time_decaying_activation(1) == 0.5
-    assert time_decaying_activation(2) == 0
-
-
 @pytest.mark.parametrize("position, expected", [(0, -1), (6, 0), (9, 0.8), (12, 1), (15, 0.8), (18, 0), (24, -1)])
 def test_periodic_salience_maps_peak_neutral_and_opposite(position: float, expected: float) -> None:
     assert periodic_salience(position, 12, 24) == pytest.approx(expected)

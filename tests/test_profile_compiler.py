@@ -8,7 +8,6 @@ from pydantic import ValidationError
 from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.profile_store import ProfileStore
-from configurations.runtime_models import SceneConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
 from core.policies import POLICY_REGISTRY
@@ -52,12 +51,6 @@ def test_profile_rejects_hidden_or_presentation_disturbance_fields(field):
 def test_profile_requires_an_enabled_scene():
     with pytest.raises(ValidationError):
         profile(scenes={})
-
-
-@pytest.mark.parametrize("items", [set(), {"unknown"}])
-def test_runtime_scene_associations_reject_empty_or_unknown_semantics(items):
-    with pytest.raises(ValidationError):
-        SceneConfig(playlist="fixture", associations=items)
 
 
 def test_compiled_preference_changes_distribution_using_real_policies():

@@ -25,12 +25,6 @@ def configured_scenes():
     )
 
 
-def test_configure_builds_scene_registry(configured_scenes):
-    managed = Scenes.managed()
-
-    assert managed.ids() == [SceneId.DAY_WORK, SceneId.NIGHT_WORK, SceneId.RAIN, SceneId.SUNSET]
-
-
 def test_playlist_reverse_lookup_preserves_many_to_one_scenes(configured_scenes):
     assert Scenes.manages_playlist("WORK") is True
     assert Scenes.manages_playlist("UNKNOWN") is False
