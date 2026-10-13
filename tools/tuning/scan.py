@@ -2,14 +2,14 @@ r"""扫描场景概率，输出逐场景热图、胜者图与完整概率数据�
 
 在仓库根目录运行：
 
-单语义项 suite，扫描全部六种模式，使用对称幂函数 alpha=2、当前边界 +0.9 / -0.1：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve current --alpha 2 --out single-power-alpha2-p0.9-n0.1
+单语义项 suite，扫描全部六种模式，使用 alpha=2、默认相位映射、当前边界 +0.9 / -0.1：
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve current --alpha 2 --out single-power-alpha2-gamma2-p0.9-n0.1
 
 六套二项复合 suite，各自扫描对应的两条轴：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --curve current --alpha 2 --out pairs-power-alpha2-p0.9-n0.1
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pairs --curve current --alpha 2 --out pairs-power-alpha2-gamma2-p0.9-n0.1
 
 只扫描天气×活动的二项 suite：
-    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --alpha 2 --out pairs-power-alpha2-p0.9-n0.1
+    .\.venv\Scripts\python.exe tools/tuning/scan.py --suite pair-wx-act --alpha 2 --out pairs-power-alpha2-gamma2-p0.9-n0.1
 
 只扫描单语义项 suite 的活动×日期模式，并比较 alpha=1.5（--mode 可以重复指定）：
     .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --alpha 1.5 --mode act-doy --out single-act-doy-alpha1.5

@@ -170,7 +170,7 @@ def test_s08_season_transitions_monotonic_connected_and_periodic() -> None:
     assert policy.evaluate(leap).salience == policy.evaluate(observation(day=1)).salience
 
 
-@pytest.mark.parametrize("alpha, expected", [(2, 0.8), (3, 0.9285714285714286)])
+@pytest.mark.parametrize("alpha, expected", [(2, 0.96), (3, 0.9941860465116279)])
 def test_time_maps_equal_distance_from_peak_to_equal_salience(alpha: float, expected: float) -> None:
     policy = TimePolicy(TimePolicyConfig(activation_alpha=alpha))
     morning = policy.evaluate(observation(hour=9)).salience
@@ -194,6 +194,7 @@ def test_season_alpha_strengthens_partial_support_without_moving_peak() -> None:
         (6, 18, [(6, "dawn"), (12, "day"), (18, "sunset"), (0, "night")]),
         (5, 19, [(5, "dawn"), (12, "day"), (19, "sunset"), (0, "night")]),
         (7, 17, [(7, "dawn"), (12, "day"), (17, "sunset"), (0, "night")]),
+        (8, 16, [(8, "dawn"), (12, "day"), (16, "sunset"), (0, "night")]),
     ],
 )
 def test_s09_time_anchors_follow_api_and_day_night_midpoints(sunrise: float, sunset: float, peaks: list[tuple[float, str]]) -> None:
@@ -215,6 +216,42 @@ def test_time_missing_initial_weather_is_neutral_and_later_missing_weather_retai
     assert policy.evaluate(missing).salience == {"dawn": 0, "day": 0, "sunset": 0, "night": 0}
     established = policy.evaluate(context).salience
     assert policy.evaluate(missing).salience == established
+
+
+def test_time_broadens_day_and_narrows_sunset_with_mirror_phase_mapping() -> None:
+    policy = TimePolicy(TimePolicyConfig())
+    morning = policy.evaluate(observation(hour=9)).salience
+    evening = policy.evaluate(observation(hour=19.5)).salience
+    assert morning["day"] == pytest.approx(0.96)
+    assert morning["dawn"] == pytest.approx(0.4705882352941177)
+    assert evening["sunset"] == pytest.approx(0.8545994065281899)
+    assert evening["night"] == pytest.approx(0.7344262295081968)
+
+
+def test_time_mirror_mapping_keeps_opposing_pairs_symmetric_and_closes_across_midnight() -> None:
+    policy = TimePolicy(TimePolicyConfig())
+    for half_hour in range(48):
+        result = policy.evaluate(observation(hour=half_hour / 2)).salience
+        assert result["day"] == pytest.approx(-result["night"], abs=1e-12, rel=0)
+        assert result["dawn"] == pytest.approx(-result["sunset"], abs=1e-12, rel=0)
+    before = policy.evaluate(observation(hour=23 + 59 / 60)).salience
+    after = policy.evaluate(observation(hour=1 / 60)).salience
+    assert before["night"] == pytest.approx(after["night"], abs=1e-12, rel=0)
+    assert all(abs(before[item] - after[item]) < 0.0001 for item in before)
+    midnight = policy.evaluate(observation(hour=0)).salience
+    next_midnight = policy.evaluate(observation(hour=24)).salience
+    assert midnight == next_midnight
+
+
+def test_time_priority_cascades_after_early_sunset_instead_of_recalling_sunset_two_hours_later() -> None:
+    selector = Selector(
+        {SceneId.SUNSET: frozenset({"sunset"}), SceneId.NIGHT_WORK: frozenset({"night"}), SceneId.WINTER: frozenset({"winter"})},
+        [TimePolicy(TimePolicyConfig()), SeasonPolicy(SeasonPolicyConfig())],
+        MatchingConfig(preference_tiers=[["time"], ["season"]]),
+    )
+    result = selector.select(observation(day=355, hour=18, sunrise=8, sunset=16))
+    assert result.sources == ["season"]
+    assert result.probabilities == {SceneId.SUNSET: 0, SceneId.NIGHT_WORK: 0, SceneId.WINTER: 1}
 
 
 def test_drizzle_strengthening_increases_rain_support() -> None:

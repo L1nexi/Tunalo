@@ -156,8 +156,8 @@ def test_tuning_alpha_changes_both_periodic_policies() -> None:
     default = TuningModel(synthetic_config()).evaluate(context, 0)
     steeper = TuningModel(synthetic_config(activation_alpha=3)).evaluate(context, 0)
 
-    assert default.salience["day"] == pytest.approx(0.8)
-    assert steeper.salience["day"] == pytest.approx(0.9285714285714286)
+    assert default.salience["day"] == pytest.approx(0.96)
+    assert steeper.salience["day"] == pytest.approx(0.9941860465116279)
     assert steeper.salience["spring"] > default.salience["spring"]
 
 

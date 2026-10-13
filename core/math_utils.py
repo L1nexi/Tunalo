@@ -1,4 +1,4 @@
-"""概率归一化、显著度激活、时间衰减和周期语义的纯数学函数。"""
+"""概率归一化、显著度激活、时间衰减、相位映射和周期语义的纯数学函数。"""
 
 from __future__ import annotations
 
@@ -51,6 +51,18 @@ def time_decaying_activation(age: float, *, scale: float = 1.0, alpha: float = 2
     """
     value = max(1 - age / scale, -1.0)
     return (1 + salience_activation(value, alpha)) / 2
+
+
+def mirrored_phase(progress: float, *, phase_gamma: float = 2.0, reverse: bool = False) -> float:
+    """将 [0, 1] 的段内进度映射为保持端点的幂相位。
+
+    默认返回 progress ** phase_gamma；reverse 时返回其镜像
+    1 - (1 - progress) ** phase_gamma。phase_gamma 必须有限且不小于 1，
+    默认值为 2，取 1 时保留线性映射。
+    """
+    if reverse:
+        return 1 - (1 - progress) ** phase_gamma
+    return progress**phase_gamma
 
 
 def periodic_salience(position: float, peak: float, period: float, *, plateau_half_width: float = 0.0, alpha: float = 2.0) -> float:

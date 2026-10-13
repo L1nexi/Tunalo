@@ -4,7 +4,7 @@ import logging
 import time
 
 from configurations.runtime_models import TimePolicyConfig
-from core.math_utils import periodic_salience
+from core.math_utils import mirrored_phase, periodic_salience
 from core.models.context import Context
 from core.models.selection import VARIABLE_ITEMS, ContextVariable, TimeDetails, TimeEvaluation
 from core.policies.base import Policy
@@ -45,7 +45,10 @@ class TimePolicy(Policy):
             pos = (hour - r_a) % 24
             if pos < seg:
                 v_a = TimePolicy._VIRTUAL_PEAKS[i]
-                return (v_a + pos / seg * 6.0) % 24
+                progress = pos / seg
+                # 进入白天、夜晚时使用镜像幂映射，离开时使用正向幂映射。
+                phase = mirrored_phase(progress, reverse=i % 2 == 0)
+                return (v_a + phase * 6.0) % 24
         return 0.0
 
     def _recompute_peaks(self, ds: float, ns: float) -> None:

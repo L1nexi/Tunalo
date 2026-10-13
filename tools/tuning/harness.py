@@ -87,7 +87,11 @@ def suite_associations(config: SchedulerConfig, suite: SceneSuite) -> dict[str, 
 
 
 def synthetic_config(enabled: tuple[SceneId, ...] = tuple(SceneId), *, activation_alpha: float = 2.0) -> SchedulerConfig:
-    """Compile dedicated calibration data without reading the real Profile."""
+    """Compile dedicated calibration data without reading the real Profile.
+
+    Raises:
+        ValidationError: If alpha is nonfinite or <= 1.
+    """
     profile = Profile(
         wallpaper_engine_path="C:/wallpaper_engine",
         language="zh",
