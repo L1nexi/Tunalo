@@ -75,7 +75,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 | 参数 | 当前值 | 实现入口 |
 | --- | --- | --- |
-| 正向边界、负向边界幅度 | 暂定 0.75、0.5 | `MatchingConfig` |
+| 正向边界、负向边界幅度 | 暂定 0.9、0.1；`s >= 0.9` 召回，`s <= -0.1` 排除 | `MatchingConfig` |
 | 变量温度、场景温度 | 1.4、1.5，分别控制来源预算和候选内部的探索程度 | `MatchingConfig` |
 | 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
 | 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |

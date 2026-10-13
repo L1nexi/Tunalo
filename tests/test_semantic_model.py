@@ -217,12 +217,12 @@ def test_time_missing_initial_weather_is_neutral_and_later_missing_weather_retai
     assert policy.evaluate(missing).salience == established
 
 
-def test_drizzle_strengthening_can_cross_the_rain_recall_boundary() -> None:
+def test_drizzle_strengthening_increases_rain_support() -> None:
     policy = WeatherPolicy(WeatherPolicyConfig())
     light = policy.evaluate(Context(weather=WeatherData(id=300))).salience
     ordinary = policy.evaluate(Context(weather=WeatherData(id=301))).salience
     heavy = policy.evaluate(Context(weather=WeatherData(id=302))).salience
-    assert 0 < light["rain"] < ordinary["rain"] < MatchingConfig().positive_boundary < heavy["rain"]
+    assert 0 < light["rain"] < ordinary["rain"] < heavy["rain"] < 1
 
 
 @pytest.mark.parametrize("code, strength", [(500, 0.75), (501, 1.0), (502, 2.0), (504, 4.0)])
@@ -400,8 +400,9 @@ def test_weather_strong_opposition_excludes_scenes_even_when_activity_has_priori
     assert max(result.probabilities, key=result.probabilities.__getitem__) == preferred
 
 
-def test_overcast_weak_opposition_keeps_clear_work_and_rain_work_available() -> None:
+def test_overcast_opposition_excludes_clear_work_and_rain_work_even_when_activity_has_priority() -> None:
     result = established_work_selection(804)
-    assert result.probabilities[SceneId.RAIN] > 0
-    assert result.probabilities[SceneId.DAY_LEISURE] > 0
-    assert max(result.probabilities, key=result.probabilities.__getitem__) == SceneId.NIGHT_WORK
+    assert result.probabilities[SceneId.RAIN] == 0
+    assert result.probabilities[SceneId.DAY_LEISURE] == 0
+    assert result.excluded_scenes == {SceneId.RAIN: {"rain"}, SceneId.DAY_LEISURE: {"clear"}}
+    assert result.probabilities[SceneId.NIGHT_WORK] > result.probabilities[SceneId.DAY_WORK] > 0

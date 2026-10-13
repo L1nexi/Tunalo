@@ -29,7 +29,7 @@ def test_m01_four_equal_independent_sources_each_receive_a_quarter() -> None:
 
 
 def test_two_significant_time_items_share_one_source_budget() -> None:
-    values = {"day": 0.8, "sunset": 0.8, "rain": 1}
+    values = {"day": 0.95, "sunset": 0.95, "rain": 1}
     one = choose(values, {DAY: {"day"}, RAIN: {"rain"}}).probabilities
     two = choose(values, {DAY: {"day"}, WORK: {"sunset"}, RAIN: {"rain"}}).probabilities
     assert two[RAIN] == pytest.approx(one[RAIN])
@@ -116,7 +116,7 @@ def test_m14_scene_count_changes_internal_allocation_not_variable_budget() -> No
 def test_m15_mixed_rain_and_snow_use_max_weather_salience() -> None:
     scenes = {RAIN: {"rain"}, RAIN_WORK: {"snow"}, WORK: {"focus"}}
     p = choose({"rain": 1, "focus": 1}, scenes).probabilities
-    q = choose({"rain": 1, "snow": 0.75, "focus": 1}, scenes).probabilities
+    q = choose({"rain": 1, "snow": 0.95, "focus": 1}, scenes).probabilities
     assert p[RAIN] == pytest.approx(q[RAIN] + q[RAIN_WORK])
     assert q[WORK] == 0.5
 
@@ -135,7 +135,7 @@ def test_m17_zero_evidence_is_uniform_despite_different_association_counts() -> 
 
 
 def test_m18_best_effort_preserves_exclusions_and_weak_signed_evidence() -> None:
-    result = choose({"winter": -1, "focus": 0.3, "rain": -0.2}, {WINTER_WORK: {"winter", "focus"}, WORK: {"focus"}, RAIN: {"rain"}}, [["activity"]])
+    result = choose({"winter": -1, "focus": 0.3, "rain": -0.05}, {WINTER_WORK: {"winter", "focus"}, WORK: {"focus"}, RAIN: {"rain"}}, [["activity"]])
     assert result.reason == "best_effort"
     assert result.probabilities[WINTER_WORK] == 0
     assert result.probabilities[WORK] > result.probabilities[RAIN] > 0
@@ -147,20 +147,20 @@ def test_m19_no_available_or_safe_scenes_returns_empty_distribution(scenes: dict
     assert result.probabilities == {}
 
 
-@pytest.mark.parametrize("rain, expected", [(0.749999, "best_effort"), (0.75, "neutral"), (0.750001, "neutral")])
+@pytest.mark.parametrize("rain, expected", [(0.899999, "best_effort"), (0.9, "neutral"), (0.900001, "neutral")])
 def test_positive_boundary_includes_equality(rain: float, expected: str) -> None:
     result = choose({"rain": rain}, {RAIN: {"rain"}})
     assert result.reason == expected
 
 
-@pytest.mark.parametrize("rain, source", [(0.749999, "activity"), (0.75, "weather")])
+@pytest.mark.parametrize("rain, source", [(0.75, "activity"), (0.899999, "activity"), (0.9, "weather")])
 def test_positive_boundary_controls_when_preferred_weather_stops_cascading(rain: float, source: str) -> None:
     result = choose({"rain": rain, "focus": 1}, {RAIN: {"rain"}, WORK: {"focus"}}, [["weather"], ["activity"]])
     assert result.sources == [source]
     assert result.probabilities[RAIN if source == "weather" else WORK] == 1
 
 
-@pytest.mark.parametrize("winter, excluded", [(-0.499999, False), (-0.5, True), (-0.500001, True)])
+@pytest.mark.parametrize("winter, excluded", [(-0.099999, False), (-0.1, True), (-0.100001, True)])
 def test_negative_boundary_includes_equality(winter: float, excluded: bool) -> None:
     result = choose({"winter": winter}, {WINTER_WORK: {"winter"}, RAIN: {"rain"}})
     assert (result.probabilities[WINTER_WORK] == 0) is excluded
