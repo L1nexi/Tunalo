@@ -11,7 +11,6 @@ from core.models.trace import TickTrace
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
 from core.state.action_events import ActionEventWriter
-from core.state.persisted import PersistedState
 from core.state.scheduler import SchedulerState
 
 logger = logging.getLogger("Tunalo.Core")
@@ -50,7 +49,7 @@ class Scheduler:
     def initialize(self) -> None:
         config = self._profile_manager.compile_initial_config()
         self.engine = Engine.from_config(config)
-        self.state.restore_persisted(PersistedState.load())
+        self.state.restore_persisted_state()
 
         logger.info("Scheduler initialized successfully.")
         self.initialized = True

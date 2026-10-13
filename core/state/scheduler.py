@@ -86,7 +86,7 @@ class SchedulerState:
             self.cached_scenes = next_cached
             self.save()
 
-    def to_persisted(self) -> PersistedState:
+    def to_persisted_state(self) -> PersistedState:
         return PersistedState(
             paused=self.paused,
             pause_until=self.pause_until,
@@ -94,9 +94,10 @@ class SchedulerState:
         )
 
     def save(self) -> None:
-        self.to_persisted().save()
+        self.to_persisted_state().save()
 
-    def restore_persisted(self, state: PersistedState) -> None:
+    def restore_persisted_state(self) -> None:
+        state = PersistedState.load()
         self.cached_scenes = Scenes(list(state.cached_scenes))
         self.paused = False
         self.pause_until = 0.0
