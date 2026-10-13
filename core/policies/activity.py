@@ -32,11 +32,10 @@ class ActivityKind(StrEnum):
     OTHER = "other"
 
 
-_ACTIVITY_BY_TAG = {"focus": ActivityKind.WORK, "chill": ActivityKind.LEISURE}
 # 每个类别明确指定支持项和反向项；OTHER 没有方向证据，但仍占据窗口槽位。
 _ACTIVITY_RELATIONS: dict[ActivityKind, tuple[SemanticItem, SemanticItem]] = {
-    ActivityKind.WORK: (SemanticItem.FOCUS, SemanticItem.CHILL),
-    ActivityKind.LEISURE: (SemanticItem.CHILL, SemanticItem.FOCUS),
+    ActivityKind.WORK: (SemanticItem.WORK, SemanticItem.LEISURE),
+    ActivityKind.LEISURE: (SemanticItem.LEISURE, SemanticItem.WORK),
 }
 
 
@@ -90,7 +89,7 @@ class ActivityPolicy(Policy):
                     match=matcher.match,
                     pattern=matcher.pattern,
                     tag=matcher.tag,
-                    activity=_ACTIVITY_BY_TAG[matcher.tag],
+                    activity=ActivityKind(matcher.tag),
                     case_sensitive=matcher.case_sensitive,
                     declaration_order=declaration_order,
                     regex=compiled_regex,

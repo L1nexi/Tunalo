@@ -18,10 +18,10 @@ from core.models.scene import SceneId
 from core.models.selection import SemanticItem
 
 _SCENE_PRESETS: dict[SceneId, frozenset[SemanticItem]] = {
-    SceneId.DAY_WORK: frozenset({SemanticItem.DAY, SemanticItem.FOCUS}),
-    SceneId.DAY_LEISURE: frozenset({SemanticItem.DAY, SemanticItem.CHILL}),
-    SceneId.NIGHT_WORK: frozenset({SemanticItem.NIGHT, SemanticItem.FOCUS}),
-    SceneId.NIGHT_LEISURE: frozenset({SemanticItem.NIGHT, SemanticItem.CHILL}),
+    SceneId.DAY_WORK: frozenset({SemanticItem.DAY, SemanticItem.WORK}),
+    SceneId.DAY_LEISURE: frozenset({SemanticItem.DAY, SemanticItem.LEISURE}),
+    SceneId.NIGHT_WORK: frozenset({SemanticItem.NIGHT, SemanticItem.WORK}),
+    SceneId.NIGHT_LEISURE: frozenset({SemanticItem.NIGHT, SemanticItem.LEISURE}),
     SceneId.SPRING: frozenset({SemanticItem.SPRING}),
     SceneId.SUMMER: frozenset({SemanticItem.SUMMER}),
     SceneId.AUTUMN: frozenset({SemanticItem.AUTUMN}),
@@ -73,10 +73,10 @@ class ProfileCompiler:
             RULE_GROUPS
             if activity is None
             else (
-                ("process", "focus", activity.work_processes),
-                ("process", "chill", activity.leisure_processes),
-                ("title", "focus", activity.work_title_keywords),
-                ("title", "chill", activity.leisure_title_keywords),
+                ("process", "work", activity.work_processes),
+                ("process", "leisure", activity.leisure_processes),
+                ("title", "work", activity.work_title_keywords),
+                ("title", "leisure", activity.leisure_title_keywords),
             )
         )
         return [

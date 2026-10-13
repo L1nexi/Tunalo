@@ -61,11 +61,11 @@ def test_runtime_scene_associations_reject_empty_or_unknown_semantics(items):
 
 
 def test_compiled_preference_changes_distribution_using_real_policies():
-    neutral = selector_for(profile(), {})
+    unpreferred = selector_for(profile(), {})
     preferred = selector_for(profile(matching={"preference_tiers": [["weather"], ["activity", "season"]]}), {})
     context = Context(window=WindowData(process="code.exe"), weather=WeatherData(id=502, main="Rain"))
     for _ in range(600):
-        ordinary = neutral.select(context)
+        ordinary = unpreferred.select(context)
         weather_first = preferred.select(context)
     assert weather_first.probabilities[SceneId.RAIN] == 1
     assert ordinary.probabilities[SceneId.DAY_WORK] > 0
@@ -87,9 +87,9 @@ def test_product_defaults_satisfy_strength_two_rain_budget_constraint():
     from core.models.selection import Salience
     from core.runtime.selector import calculate_distribution
 
-    config = ProfileCompiler.compile(profile())
+    config = ProfileCompiler.compile(profile(matching={"preference_tiers": [["weather", "activity", "time"]]}))
     result = calculate_distribution(
-        Salience({"rain": 2, "focus": 1, "day": 1}), {scene_id: scene.associations for scene_id, scene in config.scenes.items()}, config.matching
+        Salience({"rain": 2, "work": 1, "day": 1}), {scene_id: scene.associations for scene_id, scene in config.scenes.items()}, config.matching
     )
     assert result.probabilities[SceneId.RAIN] > result.probabilities[SceneId.DAY_WORK]
 
@@ -97,10 +97,10 @@ def test_product_defaults_satisfy_strength_two_rain_budget_constraint():
 @pytest.mark.parametrize(
     "activity, process, title, expected",
     [
-        ({"work_processes": ["custom.EXE"]}, "CUSTOM.exe", "", "focus"),
-        ({"leisure_processes": ["code"]}, "code.exe", "", "chill"),
-        ({"work_title_keywords": ["YouTube"]}, "chrome.exe", "YouTube - watch", "focus"),
-        ({"leisure_title_keywords": ["GitHub"]}, "chrome.exe", "GitHub - review", "chill"),
+        ({"work_processes": ["custom.EXE"]}, "CUSTOM.exe", "", "work"),
+        ({"leisure_processes": ["code"]}, "code.exe", "", "leisure"),
+        ({"work_title_keywords": ["YouTube"]}, "chrome.exe", "YouTube - watch", "work"),
+        ({"leisure_title_keywords": ["GitHub"]}, "chrome.exe", "GitHub - review", "leisure"),
     ],
 )
 def test_user_activity_rules_replace_defaults_and_classify_all_four_groups(
@@ -111,7 +111,7 @@ def test_user_activity_rules_replace_defaults_and_classify_all_four_groups(
     assert result.salience[expected] > 0
     # Product-only rules must not sneak into a custom classifier.
     unrelated = selector_for(profile(activity=activity), {}).select(Context(window=WindowData(process="vlc.exe")))
-    assert unrelated.salience["focus"] == unrelated.salience["chill"] == 0
+    assert unrelated.salience["work"] == unrelated.salience["leisure"] == 0
 
 
 @pytest.mark.parametrize(
@@ -127,7 +127,7 @@ def test_user_activity_rules_reject_normalized_conflicts_and_empty_targets(activ
         profile(activity=activity)
 
 
-@pytest.mark.parametrize("activity, supported_item", [(None, "focus"), ({"leisure_processes": ["code.exe"]}, "chill")])
+@pytest.mark.parametrize("activity, supported_item", [(None, "work"), ({"leisure_processes": ["code.exe"]}, "leisure")])
 def test_activity_default_and_custom_rules_survive_profile_store_round_trip(
     tmp_path: Path, activity: dict[str, list[str]] | None, supported_item: str
 ) -> None:
@@ -149,4 +149,4 @@ def test_empty_activity_rules_do_not_reenable_defaults_after_profile_reload(tmp_
     restored = store.load()
     assert restored is not None
     result = selector_for(restored, {}).select(Context(window=WindowData(process="code.exe")))
-    assert result.salience["focus"] == result.salience["chill"] == 0
+    assert result.salience["work"] == result.salience["leisure"] == 0

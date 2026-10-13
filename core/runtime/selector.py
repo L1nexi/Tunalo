@@ -8,7 +8,7 @@ from configurations.runtime_models import MatchingConfig
 from core.math_utils import softmax
 from core.models.context import Context
 from core.models.scene import SceneId
-from core.models.selection import SEMANTIC_ITEMS, VARIABLE_ITEMS, ContextVariable, Salience, Selection, SemanticItem
+from core.models.selection import SEMANTIC_ITEMS, VARIABLE_ITEMS, Salience, Selection, SemanticItem
 from core.policies.base import Policy
 
 
@@ -41,8 +41,7 @@ def calculate_distribution[SceneKey: str](
     }
     scores = salience_to_scene_scores(s, safe)
 
-    tiers = [*config.preference_tiers, list(ContextVariable)]
-    for index, tier in enumerate(tiers):
+    for index, tier in enumerate(config.preference_tiers):
         significant = [variable for variable in tier if positive.intersection(VARIABLE_ITEMS[variable])]
         effective = [variable for variable in significant if candidates[variable]]
         if not effective:
@@ -59,8 +58,8 @@ def calculate_distribution[SceneKey: str](
         return Selection(
             probabilities=probabilities,
             salience=s,
-            reason="preference" if index < len(config.preference_tiers) else "neutral",
-            selected_tier=index if index < len(config.preference_tiers) else None,
+            reason="preference",
+            selected_tier=index,
             sources=effective,
             excluded_scenes=excluded,
         )

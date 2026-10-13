@@ -13,10 +13,10 @@ from core.runtime.we_config import FactualPlaylistState, FactualPlaylistStatus
 def _managed_scenes():
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="A", associations={"focus"}, item_count=5),
-            SceneId.DAY_LEISURE: SceneConfig(playlist="A", associations={"focus"}, item_count=5),
-            SceneId.NIGHT_WORK: SceneConfig(playlist="B", associations={"focus"}, item_count=3),
-            SceneId.RAIN: SceneConfig(playlist="C", associations={"focus"}, item_count=8),
+            SceneId.DAY_WORK: SceneConfig(playlist="A", associations={"work"}, item_count=5),
+            SceneId.DAY_LEISURE: SceneConfig(playlist="A", associations={"work"}, item_count=5),
+            SceneId.NIGHT_WORK: SceneConfig(playlist="B", associations={"work"}, item_count=3),
+            SceneId.RAIN: SceneConfig(playlist="C", associations={"work"}, item_count=8),
         }
     )
     yield

@@ -22,11 +22,11 @@ from core.state.persisted import PersistedState
 def _configure_scenes():
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="focus", associations={"focus"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rain", associations={"focus"}, item_count=5),
-            SceneId.SPRING: SceneConfig(playlist="A", associations={"focus"}, item_count=10),
-            SceneId.SUMMER: SceneConfig(playlist="B", associations={"focus"}, item_count=40),
-            SceneId.AUTUMN: SceneConfig(playlist="C", associations={"focus"}, item_count=0),
+            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="rain", associations={"work"}, item_count=5),
+            SceneId.SPRING: SceneConfig(playlist="A", associations={"work"}, item_count=10),
+            SceneId.SUMMER: SceneConfig(playlist="B", associations={"work"}, item_count=40),
+            SceneId.AUTUMN: SceneConfig(playlist="C", associations={"work"}, item_count=0),
         }
     )
     yield
@@ -64,7 +64,7 @@ def _decide_normal(
     return controller.decide_action(
         ActPlan(mode=DecisionMode.NORMAL, active_scenes=Scenes(active)),
         context,
-        Selection(probabilities={scene_id: 1 / len(matched) for scene_id in matched}, salience={}, reason="neutral"),
+        Selection(probabilities={scene_id: 1 / len(matched) for scene_id in matched}, salience={}, reason="best_effort"),
     )
 
 
@@ -187,7 +187,7 @@ def test_controller_recovery_switches_to_a_match_without_context_gates():
     decision = controller.decide_action(
         ActPlan(mode=DecisionMode.RECOVERY, active_scenes=Scenes()),
         Context(idle=0.0, cpu=100.0, fullscreen=True),
-        Selection(probabilities={SceneId.RAIN: 1}, salience={}, reason="neutral"),
+        Selection(probabilities={SceneId.RAIN: 1}, salience={}, reason="best_effort"),
     )
 
     assert decision.action == Action.SWITCH
@@ -214,8 +214,8 @@ def test_actuator_lowers_scene_to_its_assigned_playlist():
     result = actuator.act(Decision(action=Action.SWITCH, target=Scenes([SceneId.DAY_WORK]), probabilities={SceneId.DAY_WORK: 1}))
 
     assert result.executed is True
-    assert result.target_playlist == "focus"
-    executor.open_playlist.assert_called_once_with("focus")
+    assert result.target_playlist == "work"
+    executor.open_playlist.assert_called_once_with("work")
 
 
 def test_missing_persisted_state_loads_as_default_without_warning(tmp_path: Path, caplog):

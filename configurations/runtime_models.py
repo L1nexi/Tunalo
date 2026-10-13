@@ -23,7 +23,7 @@ class ActivityMatcherConfig(BaseModel):
     source: Literal["process", "title"]
     match: Literal["exact", "regex", "contains"]
     pattern: str = Field(min_length=1)
-    tag: Literal["focus", "chill"]
+    tag: Literal["work", "leisure"]
     case_sensitive: bool = False
 
 

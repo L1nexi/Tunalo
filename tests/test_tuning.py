@@ -43,15 +43,19 @@ def _exported_probabilities(payload: dict[str, Any], fixed: dict[str, float | in
     return {scene: probabilities[row][col] for scene, probabilities in grid["probabilities"].items()}
 
 
-@pytest.mark.parametrize("activity, scene", [(1, "focus"), (-1, "chill")])
-def test_single_scan_splits_four_equal_sources_into_quarters(single_scan: tuple[Path, dict[str, Any]], activity: int, scene: str) -> None:
+@pytest.mark.parametrize("activity, scene", [(1, "work"), (-1, "leisure")])
+def test_single_scan_without_preferences_keeps_zero_evidence_scenes_eligible(
+    single_scan: tuple[Path, dict[str, Any]], activity: int, scene: str
+) -> None:
     _, payload = single_scan
     probabilities = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, activity, "mod_rain")
 
-    # ADR-0003：四个同等显著来源各占四分之一。
-    assert {scene_id: chance for scene_id, chance in probabilities.items() if chance > 0} == pytest.approx(
-        {"summer": 0.25, "rain": 0.25, "day": 0.25, scene: 0.25}
-    )
+    # 无偏好时直接尽力选择：同分场景机会相同，零证据场景仍可参与。
+    assert [probabilities[scene_id] for scene_id in ("summer", "rain", "day", scene)] == pytest.approx([probabilities[scene]] * 4)
+    assert 0 < probabilities["dawn"] < probabilities[scene] < 0.25
+    assert probabilities["dawn"] == pytest.approx(probabilities["sunset"])
+    assert probabilities["winter"] == probabilities["night"] == 0
+    assert sum(probabilities.values()) == pytest.approx(1)
 
 
 def test_weather_scan_includes_every_decided_rain_severity(single_scan: tuple[Path, dict[str, Any]]) -> None:
@@ -68,22 +72,22 @@ def test_weather_activity_pair_defaults_to_weather_and_activity_axes(pair_scan: 
     assert {(grid["x"]["name"], grid["y"]["name"]) for grid in payload["grids"]} == {("activity", "weather")}
 
 
-def test_rain_only_favors_rain_and_joint_evidence_favors_rain_focus(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+def test_rain_only_favors_rain_and_joint_evidence_favors_rain_work(pair_scan: tuple[Path, dict[str, Any]]) -> None:
     _, payload = pair_scan
     rain_only = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 0, "mod_rain")
     both = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 1, "mod_rain")
 
     # ADR-0003：复合场景的优势随两种情境是否同等显著而反转。
-    assert rain_only["rain"] > rain_only["rain_focus"] > 0
-    assert both["rain_focus"] > both["rain"] > 0
+    assert rain_only["rain"] > rain_only["rain_work"] > 0
+    assert both["rain_work"] > both["rain"] > 0
 
 
-def test_clear_weather_excludes_rain_focus_even_with_full_focus(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+def test_clear_weather_excludes_rain_work_even_with_full_work(pair_scan: tuple[Path, dict[str, Any]]) -> None:
     _, payload = pair_scan
     probabilities = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 1, "clear")
 
-    assert probabilities["rain_focus"] == 0
-    assert probabilities["clear_focus"] > 0
+    assert probabilities["rain_work"] == 0
+    assert probabilities["clear_work"] > 0
 
 
 @pytest.mark.parametrize("hour", [8.5, 15.5])

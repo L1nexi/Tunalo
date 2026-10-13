@@ -29,15 +29,15 @@ class SemanticItem(StrEnum):
     CLOUDY = "cloudy"
     RAIN = "rain"
     SNOW = "snow"
-    FOCUS = "focus"
-    CHILL = "chill"
+    WORK = "work"
+    LEISURE = "leisure"
 
 
 VARIABLE_ITEMS: dict[ContextVariable, tuple[SemanticItem, ...]] = {
     ContextVariable.SEASON: (SemanticItem.SPRING, SemanticItem.SUMMER, SemanticItem.AUTUMN, SemanticItem.WINTER),
     ContextVariable.TIME: (SemanticItem.DAWN, SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.NIGHT),
     ContextVariable.WEATHER: (SemanticItem.CLEAR, SemanticItem.CLOUDY, SemanticItem.RAIN, SemanticItem.SNOW),
-    ContextVariable.ACTIVITY: (SemanticItem.FOCUS, SemanticItem.CHILL),
+    ContextVariable.ACTIVITY: (SemanticItem.WORK, SemanticItem.LEISURE),
 }
 SEMANTIC_ITEMS: tuple[SemanticItem, ...] = tuple(item for items in VARIABLE_ITEMS.values() for item in items)
 
@@ -116,7 +116,7 @@ type PolicyEvaluation = ActivityEvaluation | TimeEvaluation | SeasonEvaluation |
 class Selection[SceneKey: str = SceneId]:
     probabilities: dict[SceneKey, float]
     salience: dict[SemanticItem, float]
-    reason: Literal["preference", "neutral", "best_effort", "no_safe_scenes"]
+    reason: Literal["preference", "best_effort", "no_safe_scenes"]
     selected_tier: int | None = None
     sources: list[ContextVariable] = field(default_factory=list)
     excluded_scenes: dict[SceneKey, frozenset[SemanticItem]] = field(default_factory=dict)

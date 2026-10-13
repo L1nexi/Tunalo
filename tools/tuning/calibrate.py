@@ -38,13 +38,13 @@ def main() -> int:
         [cls(getattr(config.policies, cls.config_key)) for cls in POLICY_REGISTRY],
         config.matching,
     )
-    activity_rows: list[dict[str, float | int]] = [{"slot": 0, "focus": 0, "chill": 0}]
+    activity_rows: list[dict[str, float | int]] = [{"slot": 0, "work": 0, "leisure": 0}]
     replay: list[dict[str, object]] = []
     context = build_context(12, 172, "violent_rain")
     for slot in range(1, 1801):
         context.window = WindowData(process="code.exe" if slot <= 600 else "vlc.exe" if slot <= 1200 else "chrome.exe")
         selection = selector.select(context)
-        activity_rows.append({"slot": slot, "focus": selection.salience[SemanticItem.FOCUS], "chill": selection.salience[SemanticItem.CHILL]})
+        activity_rows.append({"slot": slot, "work": selection.salience[SemanticItem.WORK], "leisure": selection.salience[SemanticItem.LEISURE]})
         replay.append(
             {
                 "slot": slot,

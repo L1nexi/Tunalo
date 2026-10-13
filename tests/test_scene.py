@@ -17,10 +17,10 @@ def _reset_registry():
 def configured_scenes():
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"focus"}, item_count=10),
-            SceneId.NIGHT_WORK: SceneConfig(playlist="WORK", associations={"focus"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="RAIN", associations={"focus"}, item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="SUNSET", associations={"focus"}, item_count=0),
+            SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"work"}, item_count=10),
+            SceneId.NIGHT_WORK: SceneConfig(playlist="WORK", associations={"work"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="RAIN", associations={"work"}, item_count=5),
+            SceneId.SUNSET: SceneConfig(playlist="SUNSET", associations={"work"}, item_count=0),
         }
     )
 

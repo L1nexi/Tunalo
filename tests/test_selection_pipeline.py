@@ -70,14 +70,14 @@ def engine_at(tmp_path: Path, scenes: dict[SceneId, SceneConfig] | None = None, 
         wallpaper_engine_path=str(executable),
         scenes=scenes
         or {
-            SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"focus"}),
-            SceneId.NIGHT_WORK: SceneConfig(playlist="OTHER", associations={"focus", "cloudy"}),
+            SceneId.DAY_WORK: SceneConfig(playlist="WORK", associations={"work"}),
+            SceneId.NIGHT_WORK: SceneConfig(playlist="OTHER", associations={"work", "cloudy"}),
         },
         policies=PoliciesConfig(
             activity=ActivityPolicyConfig(
                 matchers=[
-                    {"source": "process", "match": "exact", "pattern": "code", "tag": "focus"},
-                    {"source": "process", "match": "exact", "pattern": "vlc", "tag": "chill"},
+                    {"source": "process", "match": "exact", "pattern": "code", "tag": "work"},
+                    {"source": "process", "match": "exact", "pattern": "vlc", "tag": "leisure"},
                 ]
             )
         ),
@@ -98,7 +98,7 @@ def test_paused_ticks_keep_observing_without_applying_a_playlist(desktop: Simple
     monkeypatch.setattr(random, "choices", reject_sampling)
     for _ in range(180):
         schedule = engine.schedule(Scenes(), paused=True, manual_requested=False)
-    assert schedule.selection.salience["focus"] == pytest.approx(0.571668849, abs=1e-9)
+    assert schedule.selection.salience["work"] == pytest.approx(0.571668849, abs=1e-9)
     assert desktop.playlists == []
 
 
@@ -149,13 +149,13 @@ def test_prepared_replacement_preserves_observations_at_preparation_time(desktop
     expected = control.schedule(Scenes(), paused=True, manual_requested=False)
     fresh = Engine.from_config(engine.config).schedule(Scenes(), paused=True, manual_requested=False)
     assert resumed.selection.salience == expected.selection.salience
-    assert resumed.selection.salience["focus"] > 0
-    assert fresh.selection.salience["focus"] == 0
+    assert resumed.selection.salience["work"] > 0
+    assert fresh.selection.salience["work"] == 0
 
 
 def test_execution_uses_scene_probability_even_with_unequal_sizes_and_shared_playlist(desktop: SimpleNamespace, tmp_path: Path) -> None:
     scenes = {
-        SceneId.DAY_WORK: SceneConfig(playlist="SHARED", associations={"focus"}, item_count=10000),
+        SceneId.DAY_WORK: SceneConfig(playlist="SHARED", associations={"work"}, item_count=10000),
         SceneId.RAIN: SceneConfig(playlist="SHARED", associations={"rain"}, item_count=1),
     }
     engine = engine_at(tmp_path, scenes=scenes)
@@ -166,7 +166,7 @@ def test_execution_uses_scene_probability_even_with_unequal_sizes_and_shared_pla
 
 
 def test_tick_dto_and_sparse_event_preserve_full_probability_meaning(desktop: SimpleNamespace, tmp_path: Path) -> None:
-    scenes = {scene_id: SceneConfig(playlist=scene_id.value, associations={"focus"}) for scene_id in SceneId}
+    scenes = {scene_id: SceneConfig(playlist=scene_id.value, associations={"work"}) for scene_id in SceneId}
     engine = engine_at(tmp_path, scenes=scenes)
     schedule = engine.schedule(Scenes(), paused=False, manual_requested=True)
     trace = TickTrace(tick_id=1, ts=0, paused=False, pause_until=0, schedule=schedule)
@@ -193,8 +193,8 @@ def test_hot_replacement_reinterprets_retained_observations_with_new_product_par
     engine.install_replacement(replacement)
     desktop.process = "chrome.exe"
     after = engine.schedule(Scenes(), paused=True, manual_requested=False)
-    assert 0 < after.selection.salience["focus"] < before.selection.salience["focus"]
-    assert after.selection.salience["chill"] == -after.selection.salience["focus"]
+    assert 0 < after.selection.salience["work"] < before.selection.salience["work"]
+    assert after.selection.salience["leisure"] == -after.selection.salience["work"]
 
 
 def test_config_replacement_rebuilds_weather_cache(desktop: SimpleNamespace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

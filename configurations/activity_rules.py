@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-RULE_GROUPS: tuple[tuple[Literal["process", "title"], Literal["focus", "chill"], tuple[str, ...]], ...] = (
+RULE_GROUPS: tuple[tuple[Literal["process", "title"], Literal["work", "leisure"], tuple[str, ...]], ...] = (
     (
         "process",
-        "focus",
+        "work",
         (
             "code",
             "cursor",
@@ -38,7 +38,7 @@ RULE_GROUPS: tuple[tuple[Literal["process", "title"], Literal["focus", "chill"],
     ),
     (
         "process",
-        "chill",
+        "leisure",
         (
             "vlc",
             "mpv",
@@ -61,7 +61,7 @@ RULE_GROUPS: tuple[tuple[Literal["process", "title"], Literal["focus", "chill"],
     ),
     (
         "title",
-        "focus",
+        "work",
         (
             "Visual Studio Code",
             "GitHub",
@@ -77,7 +77,7 @@ RULE_GROUPS: tuple[tuple[Literal["process", "title"], Literal["focus", "chill"],
     ),
     (
         "title",
-        "chill",
+        "leisure",
         (
             "YouTube",
             "哔哩哔哩",

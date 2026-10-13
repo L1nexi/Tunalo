@@ -33,9 +33,9 @@ def _configure_scenes():
     """Configure Scenes with test data for all tests."""
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="focus", associations={"focus"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"focus"}, item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="idle", associations={"focus"}, item_count=3),
+            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"work"}, item_count=5),
+            SceneId.SUNSET: SceneConfig(playlist="idle", associations={"work"}, item_count=3),
         }
     )
     yield
@@ -214,8 +214,8 @@ def _make_trace(
             ),
             selection=Selection(
                 probabilities={matched_scene: 1} if matched_scene else {},
-                salience={"focus": 0.8, "rain": 0.4},
-                reason="neutral",
+                salience={"work": 0.8, "rain": 0.4},
+                reason="best_effort",
                 policy_evaluations=policy_evaluations or [],
             ),
             plan=ActPlan(mode=DecisionMode.NORMAL, active_scenes=plan_active),
@@ -261,9 +261,9 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
 ):
     Scenes.configure(
         {
-            SceneId.DAY_WORK: SceneConfig(playlist="focus", associations={"focus"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"focus"}, item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="test_pl", associations={"focus"}, item_count=1),
+            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
+            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"work"}, item_count=5),
+            SceneId.SUNSET: SceneConfig(playlist="test_pl", associations={"work"}, item_count=1),
         }
     )
     app = build_api_app(tick_history, profile_manager)

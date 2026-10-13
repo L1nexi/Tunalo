@@ -38,8 +38,8 @@ def replay(policy: ActivityPolicy, processes: list[str]) -> dict[str, float]:
 def activity_config(**parameters: float) -> ActivityPolicyConfig:
     return ActivityPolicyConfig(
         matchers=[
-            {"source": "process", "match": "exact", "pattern": "code", "tag": "focus"},
-            {"source": "process", "match": "exact", "pattern": "vlc", "tag": "chill"},
+            {"source": "process", "match": "exact", "pattern": "code", "tag": "work"},
+            {"source": "process", "match": "exact", "pattern": "vlc", "tag": "leisure"},
         ],
         **parameters,
     )
@@ -49,14 +49,14 @@ def activity_config(**parameters: float) -> ActivityPolicyConfig:
 def test_s05_startup_uses_weighted_evidence_with_full_window_denominator(slots: int, expected: float) -> None:
     policy = ActivityPolicy(activity_config(age_scale=300))
     result = replay(policy, ["code.exe"] * slots)
-    assert result["focus"] == pytest.approx(expected, abs=1e-9)
-    assert result["chill"] == pytest.approx(-expected, abs=1e-9)
+    assert result["work"] == pytest.approx(expected, abs=1e-9)
+    assert result["leisure"] == pytest.approx(-expected, abs=1e-9)
 
 
 def test_s02_new_observation_has_more_effect_than_same_direction_at_oldest_slot() -> None:
     old = replay(ActivityPolicy(activity_config()), ["code.exe"] + ["chrome.exe"] * 599)
     new = replay(ActivityPolicy(activity_config()), ["chrome.exe"] * 599 + ["code.exe"])
-    assert new["focus"] > old["focus"] > 0
+    assert new["work"] > old["work"] > 0
 
 
 def test_s02_sampling_intervals_do_not_change_slot_weights() -> None:
@@ -71,14 +71,14 @@ def test_s03_last_600_observations_completely_replace_previous_activity() -> Non
     policy = ActivityPolicy(activity_config())
     replay(policy, ["code.exe"] * 900)
     result = replay(policy, ["vlc.exe"] * 600)
-    assert result == {"focus": -1, "chill": 1}
+    assert result == {"work": -1, "leisure": 1}
 
 
 def test_s04_swap_work_and_leisure_reverses_weighted_evidence() -> None:
     first = replay(ActivityPolicy(activity_config()), ["code.exe"] * 120 + ["chrome.exe"] * 20 + ["vlc.exe"] * 80)
     second = replay(ActivityPolicy(activity_config()), ["vlc.exe"] * 120 + ["chrome.exe"] * 20 + ["code.exe"] * 80)
-    assert first["focus"] == pytest.approx(second["chill"])
-    assert first["chill"] == pytest.approx(second["focus"])
+    assert first["work"] == pytest.approx(second["leisure"])
+    assert first["leisure"] == pytest.approx(second["work"])
 
 
 def test_other_adds_zero_direction_without_immediately_clearing_existing_history() -> None:
@@ -86,20 +86,20 @@ def test_other_adds_zero_direction_without_immediately_clearing_existing_history
     established = replay(policy, ["code.exe"] * 180)
     one_unknown = replay(policy, ["chrome.exe"])
     no_history = replay(policy, ["chrome.exe"] * 600)
-    assert established["focus"] > one_unknown["focus"] > 0
-    assert no_history == {"focus": 0, "chill": 0}
+    assert established["work"] > one_unknown["work"] > 0
+    assert no_history == {"work": 0, "leisure": 0}
 
 
 @pytest.mark.parametrize(
     "process,title,expected",
     [
-        ("CODE.EXE", "", "focus"),
-        ("winword", "", "focus"),
-        ("dota2.exe", "", "chill"),
-        ("chrome.exe", "GitHub - pull request", "focus"),
-        ("msedge.exe", "bilibili", "chill"),
-        ("code.exe", "YouTube", "chill"),
-        ("Unknown", "腾讯文档", "focus"),
+        ("CODE.EXE", "", "work"),
+        ("winword", "", "work"),
+        ("dota2.exe", "", "leisure"),
+        ("chrome.exe", "GitHub - pull request", "work"),
+        ("msedge.exe", "bilibili", "leisure"),
+        ("code.exe", "YouTube", "leisure"),
+        ("Unknown", "腾讯文档", "work"),
         ("steam.exe", "", None),
         ("chrome.exe", "unknown website", None),
         ("", "", None),
@@ -114,21 +114,21 @@ def test_built_in_window_rules_and_title_priority(process: str, title: str, expe
     config = ProfileCompiler.compile(profile)
     result = ActivityPolicy(config.policies.activity).evaluate(observation(process, title))
     if expected is None:
-        assert result.salience == {"focus": 0, "chill": 0}
+        assert result.salience == {"work": 0, "leisure": 0}
     else:
         assert result.salience[expected] > 0
 
 
 def test_literal_activity_matching_keeps_unicode_casefolding() -> None:
-    config = ActivityPolicyConfig(matchers=[{"source": "title", "match": "contains", "pattern": "STRASSE", "tag": "focus"}])
-    assert ActivityPolicy(config).evaluate(observation(title="Straße")).salience["focus"] > 0
+    config = ActivityPolicyConfig(matchers=[{"source": "title", "match": "contains", "pattern": "STRASSE", "tag": "work"}])
+    assert ActivityPolicy(config).evaluate(observation(title="Straße")).salience["work"] > 0
 
 
 def test_s01_semantics_independent_of_preference_scene_catalog_and_playlists() -> None:
     selectors = [
         Selector({SceneId.RAIN: frozenset({"rain"})}, [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())], MatchingConfig()),
         Selector(
-            {SceneId.DAY_WORK: frozenset({"focus", "day"})},
+            {SceneId.DAY_WORK: frozenset({"work", "day"})},
             [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
             MatchingConfig(preference_tiers=[["activity"], ["weather"]]),
         ),
@@ -408,10 +408,10 @@ def test_missing_or_unrecognized_weather_has_no_evidence(weather: WeatherData | 
 def established_work_selection(weather_code: int) -> Selection:
     selector = Selector(
         {
-            SceneId.DAY_WORK: frozenset({"focus"}),
-            SceneId.DAY_LEISURE: frozenset({"focus", "clear"}),
-            SceneId.NIGHT_WORK: frozenset({"focus", "cloudy"}),
-            SceneId.RAIN: frozenset({"focus", "rain"}),
+            SceneId.DAY_WORK: frozenset({"work"}),
+            SceneId.DAY_LEISURE: frozenset({"work", "clear"}),
+            SceneId.NIGHT_WORK: frozenset({"work", "cloudy"}),
+            SceneId.RAIN: frozenset({"work", "rain"}),
         },
         [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
         MatchingConfig(preference_tiers=[["activity"]]),

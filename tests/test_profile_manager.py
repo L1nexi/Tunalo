@@ -202,7 +202,7 @@ def test_successful_profile_application_preserves_real_activity_trajectory(tmp_p
         pending = executor.submit(manager.apply_profile, draft, timeout=1)
         _process_until_done(manager, engine, pending)
     result = engine.selector.select(context)
-    assert result.salience["focus"] == pytest.approx(0.571668849, abs=1e-9)
+    assert result.salience["work"] == pytest.approx(0.571668849, abs=1e-9)
     assert result.probabilities[SceneId.DAY_WORK] == 1
 
 
@@ -224,5 +224,5 @@ def test_failed_persistence_keeps_live_activity_and_committed_profile(tmp_path: 
     assert manager.get_profile() == current
     assert ProfileStore(str(tmp_path)).load() == current
     result = engine.selector.select(context)
-    assert result.salience["focus"] == pytest.approx(0.571668849, abs=1e-9)
+    assert result.salience["work"] == pytest.approx(0.571668849, abs=1e-9)
     assert engine.config.scenes[SceneId.DAY_WORK].playlist == "WORK"

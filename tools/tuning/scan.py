@@ -88,7 +88,7 @@ def main() -> int:
             "sampling": asdict(sampling),
             "fixed_points": {axis: [asdict(point) for point in points] for axis, points in fixed_axis_points(config).items()},
             "matching": config.matching.model_dump(mode="json"),
-            "activity_axis": "signed focus salience; chill is its opposite",
+            "activity_axis": "signed work salience; leisure is its opposite",
             "grids": [
                 {
                     "case": grid.case.name,

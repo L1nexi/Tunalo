@@ -116,7 +116,7 @@ def fixed_axis_points(config: SchedulerConfig) -> dict[AxisName, tuple[FixedPoin
             FixedPoint("natsu_peak", season.summer_peak),
         ),
         "hour": (FixedPoint("day_peak", 12.0), FixedPoint("day_bias", 13.5), FixedPoint("day_sunset", 15.0), FixedPoint("sunset_peak", 18.0)),
-        "activity": (FixedPoint("focus_peak", 1.0), FixedPoint("focus_bias", 0.75), FixedPoint("focus_mid", 0.5), FixedPoint("neutral", 0.0)),
+        "activity": (FixedPoint("work_peak", 1.0), FixedPoint("work_bias", 0.75), FixedPoint("work_mid", 0.5), FixedPoint("neutral", 0.0)),
         "weather": (
             FixedPoint("none", None),
             FixedPoint("light_rain", "light_rain"),
@@ -168,7 +168,7 @@ def evaluate_cases(
     @lru_cache(maxsize=4096)
     def distribution(values: tuple[float, ...], activity_salience: float) -> dict[str, float]:
         salience = dict(zip(non_activity_items, values))
-        salience.update({SemanticItem.FOCUS: activity_salience, SemanticItem.CHILL: -activity_salience})
+        salience.update({SemanticItem.WORK: activity_salience, SemanticItem.LEISURE: -activity_salience})
         return calculate_distribution(Salience(salience), associations, config.matching).probabilities
 
     def evaluate(hour: float, day_of_year: int, weather_name: str | None, activity_salience: float) -> dict[str, float]:
@@ -250,26 +250,18 @@ SCENE_COLORS: dict[str, str] = {
     "day": "#F3D56B",
     "sunset": "#E58B62",
     "night": "#37416A",
-    "focus": "#477FAA",
-    "chill": "#AC76A0",
+    "work": "#477FAA",
+    "leisure": "#AC76A0",
 }
 
 
 # 二项场景混合两个语义色，再略微压暗，与单项基线区分。
 for _compounds in PAIR_SCENES.values():
     for _scene, _items in _compounds.items():
+        if _scene in SCENE_COLORS:
+            continue
         _rgb = np.mean([mpl_colors.to_rgb(SCENE_COLORS[item.value]) for item in sorted(_items)], axis=0) * 0.9
         SCENE_COLORS[_scene] = mpl_colors.to_hex(_rgb)
-
-SCENE_COLORS.update(
-    {
-        "day_focus": SCENE_COLORS["day_work"],
-        "day_chill": SCENE_COLORS["day_leisure"],
-        "night_focus": SCENE_COLORS["night_work"],
-        "night_chill": SCENE_COLORS["night_leisure"],
-    }
-)
-
 
 def render_mode_figures(
     grids_by_mode: dict[str, list[HeatmapGrid]],
@@ -420,7 +412,7 @@ def _style_single_axis(ax: Axes, orientation: Literal["x", "y"], axis: HeatmapAx
     elif axis.name == "activity":
         set_limits(-1, 1)
         ticks = [-1, -0.5, 0, 0.5, 1]
-        labels = ["chill 1.0", "0.5", "neutral", "0.5", "focus 1.0"]
+        labels = ["leisure 1.0", "0.5", "neutral", "0.5", "work 1.0"]
     else:
         set_limits(1, 365)
         ticks = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349]

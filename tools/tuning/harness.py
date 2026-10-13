@@ -46,8 +46,8 @@ SINGLE_SUITE_ITEMS = (
     SemanticItem.DAY,
     SemanticItem.SUNSET,
     SemanticItem.NIGHT,
-    SemanticItem.FOCUS,
-    SemanticItem.CHILL,
+    SemanticItem.WORK,
+    SemanticItem.LEISURE,
 )
 
 

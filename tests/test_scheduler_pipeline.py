@@ -29,7 +29,7 @@ def state_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def switch_result() -> ScheduleResult:
     return ScheduleResult(
         context=Context(),
-        selection=Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="neutral"),
+        selection=Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort"),
         plan=ActPlan(mode=DecisionMode.NORMAL, active_scenes=Scenes([SceneId.DAY_WORK])),
         decision=Decision(action=Action.SWITCH, target=Scenes([SceneId.RAIN]), probabilities={SceneId.RAIN: 1.0}),
         action=ActionResult(target_playlist="RAIN", selected_scene=SceneId.RAIN, executed=True),
@@ -77,7 +77,7 @@ def test_unsuccessful_switch_and_other_actions_preserve_cached_state(
     state.save()
     persisted_before = state_file.read_bytes()
     probabilities = {target_scene: 1.0} if target_scene else {}
-    switch_result.selection = Selection(probabilities=probabilities, salience={}, reason="neutral" if target_scene else "no_safe_scenes")
+    switch_result.selection = Selection(probabilities=probabilities, salience={}, reason="best_effort" if target_scene else "no_safe_scenes")
     switch_result.decision.action = action
     switch_result.decision.target = Scenes([target_scene] if target_scene else [])
     switch_result.decision.probabilities = probabilities
