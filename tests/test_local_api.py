@@ -14,7 +14,6 @@ import requests
 
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
-from configurations.runtime_models import SceneConfig
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId, Scenes
 from core.models.scheduling import Action, ActionResult, ActPlan, BlockerEvaluation, Decision, DecisionMode, ScheduleResult
@@ -25,20 +24,6 @@ from core.runtime.profile_manager import ProfileManager
 from core.state.tick_history import TickHistoryStore
 from server.app import build_api_app
 from server.host import APIServer
-
-
-@pytest.fixture(autouse=True)
-def _configure_scenes():
-    """Configure Scenes with test data for all tests."""
-    Scenes.configure(
-        {
-            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"work"}, item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="idle", associations={"work"}, item_count=3),
-        }
-    )
-    yield
-    Scenes.configure({})
 
 
 @pytest.fixture
@@ -258,13 +243,6 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
     tick_history,
     profile_manager,
 ):
-    Scenes.configure(
-        {
-            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rainy", associations={"work"}, item_count=5),
-            SceneId.SUNSET: SceneConfig(playlist="test_pl", associations={"work"}, item_count=1),
-        }
-    )
     app = build_api_app(tick_history, profile_manager)
     tick_history.update(
         _make_trace(

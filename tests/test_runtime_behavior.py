@@ -1,31 +1,11 @@
 from __future__ import annotations
 
-import pytest
-
-from configurations.runtime_models import (
-    SceneConfig,
-    SchedulingConfig,
-)
+from configurations.runtime_models import SchedulingConfig
 from core.models.context import Context
 from core.models.scene import SceneId, Scenes
 from core.models.scheduling import Action, ActPlan, Blocker, Decision, DecisionMode
 from core.models.selection import Selection
 from core.runtime.controller import Controller
-
-
-@pytest.fixture(autouse=True)
-def _configure_scenes():
-    Scenes.configure(
-        {
-            SceneId.DAY_WORK: SceneConfig(playlist="work", associations={"work"}, item_count=10),
-            SceneId.RAIN: SceneConfig(playlist="rain", associations={"work"}, item_count=5),
-            SceneId.SPRING: SceneConfig(playlist="A", associations={"work"}, item_count=10),
-            SceneId.SUMMER: SceneConfig(playlist="B", associations={"work"}, item_count=40),
-            SceneId.AUTUMN: SceneConfig(playlist="C", associations={"work"}, item_count=0),
-        }
-    )
-    yield
-    Scenes.configure({})
 
 
 class MutableClock:

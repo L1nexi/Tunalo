@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import random
+from collections.abc import Mapping
 
-from core.models.scene import Scenes
+from core.models.scene import SceneBinding, SceneId, Scenes
 from core.models.scheduling import Action, ActionResult, Decision
 from core.runtime.executor import WEExecutor
 
@@ -11,8 +12,9 @@ logger = logging.getLogger("Tunalo.Actuator")
 
 
 class Actuator:
-    def __init__(self, executor: WEExecutor) -> None:
+    def __init__(self, executor: WEExecutor, scene_bindings: Mapping[SceneId, SceneBinding]) -> None:
         self.executor = executor
+        self.scene_bindings = scene_bindings
 
     def act(self, decision: Decision) -> ActionResult:
         if decision.action in {Action.SWITCH, Action.CYCLE}:
@@ -25,7 +27,7 @@ class Actuator:
 
         scene_ids = target_scenes.ids()
         selected_scene = random.choices(scene_ids, weights=[decision.probabilities[scene_id] for scene_id in scene_ids], k=1)[0]
-        target_playlist = Scenes.playlist_for(selected_scene)
+        target_playlist = self.scene_bindings[selected_scene].playlist
         logger.info("Applying scene '%s' via playlist '%s'", selected_scene, target_playlist)
         executed = bool(self.executor.open_playlist(target_playlist))
 

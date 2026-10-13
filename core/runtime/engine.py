@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from configurations.runtime_models import SchedulerConfig
 from core.models.context import ContextManager
-from core.models.scene import Scenes
+from core.models.scene import SceneBinding, SceneId, Scenes
 from core.models.scheduling import ScheduleResult
 from core.policies import POLICY_REGISTRY, Policy
 from core.runtime.act_plan import plan_actuation
@@ -27,6 +27,7 @@ class EngineReplacement:
     selector: Selector
     actuator: Actuator
     controller: Controller
+    scene_bindings: dict[SceneId, SceneBinding]
     config: SchedulerConfig
     we_config_prober: WEConfigProber
 
@@ -74,7 +75,7 @@ class Engine:
         self.actuator = replacement.actuator
         self.controller = replacement.controller
         self.we_config_prober = replacement.we_config_prober
-        Scenes.configure(replacement.config.scenes)
+        self.scene_bindings = replacement.scene_bindings
         set_language(replacement.config.language)
         self.config = replacement.config
 
@@ -91,6 +92,7 @@ class Engine:
             cached_scenes=cached_scenes,
             paused=paused,
             manual_requested=manual_requested,
+            scene_bindings=self.scene_bindings,
         )
         decision = self.controller.decide_action(plan, context, selection)
         action = self.actuator.act(decision)
@@ -121,7 +123,8 @@ class Engine:
 
         selector = Selector({scene_id: scene.associations for scene_id, scene in config.scenes.items()}, policies, config.matching)
         controller = Controller(config.scheduling)
-        actuator = Actuator(executor)
+        scene_bindings = {scene_id: SceneBinding(playlist=scene.playlist) for scene_id, scene in config.scenes.items()}
+        actuator = Actuator(executor, scene_bindings)
 
         return EngineReplacement(
             executor=executor,
@@ -129,6 +132,7 @@ class Engine:
             selector=selector,
             actuator=actuator,
             controller=controller,
+            scene_bindings=scene_bindings,
             config=config,
             we_config_prober=WEConfigProber(config.wallpaper_engine_path),
         )

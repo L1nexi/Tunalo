@@ -68,7 +68,7 @@ _避免使用_: Playlist
 **Scene Semantic Association**:
 Scene 与一个或多个语义项的关联，表达该场景适合响应的情境。它由产品定义，不描述绑定播单中的画面气质。
 _可接受别名_: 场景语义关联、语义关联
-_避免使用_: Scene Assignment、播单标签
+_避免使用_: SceneBinding、播单标签
 
 **Scenes**:
 由零个、一个或多个 Scene 身份组成的候选集合，也是调度控制与跨 Tick 记忆中使用的场景领域值。
@@ -80,8 +80,8 @@ _避免使用_: Playlists
 _可接受别名_: 场景选择结果
 _避免使用_: Similarity、相似度、采样结果
 
-**Scene Assignment**:
-一个已启用 Scene 到一个具名 Wallpaper Engine Playlist 的关联，表达用户希望该场景呈现的画面。多个 Scene 可以关联同一个 Playlist；未建立关联的 Scene 不参与调度。
+**SceneBinding**:
+一个已启用 Scene 与一个具名 Wallpaper Engine Playlist 的绑定，表达用户希望该场景呈现的画面。多个 Scene 可以绑定同一个 Playlist；未绑定的 Scene 不参与调度。
 _可接受别名_: 场景播单绑定
 _避免使用_: Scene、Playlist
 

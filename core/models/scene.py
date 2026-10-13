@@ -2,12 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
-    from configurations.runtime_models import SceneConfig
 
 
 class SceneId(StrEnum):
@@ -24,49 +18,16 @@ class SceneId(StrEnum):
 
 
 @dataclass(frozen=True)
-class SceneInfo:
+class SceneBinding:
     playlist: str
 
 
 class Scenes:
-    _configs: ClassVar[dict[SceneId, SceneInfo]] = {}
-
     def __init__(self, ids: list[SceneId] | None = None) -> None:
         self._ids = list(dict.fromkeys(ids or []))
 
-    @classmethod
-    def configure(cls, configs: Mapping[SceneId, SceneConfig]) -> None:
-        cls._configs = {
-            scene_id: SceneInfo(
-                playlist=config.playlist,
-            )
-            for scene_id, config in configs.items()
-        }
-
-    @classmethod
-    def managed(cls) -> Scenes:
-        return Scenes(list(cls._configs))
-
-    @classmethod
-    def manages_playlist(cls, playlist: str) -> bool:
-        return any(config.playlist == playlist for config in cls._configs.values())
-
-    @classmethod
-    def for_playlist(cls, playlist: str) -> Scenes:
-        return Scenes([scene_id for scene_id, config in cls._configs.items() if config.playlist == playlist])
-
-    def targets_playlist(self, playlist: str) -> bool:
-        return any((config := self._configs.get(scene_id)) is not None and config.playlist == playlist for scene_id in self._ids)
-
-    def managed_subset(self) -> Scenes:
-        return Scenes([scene_id for scene_id in self._ids if scene_id in self._configs])
-
     def ids(self) -> list[SceneId]:
         return list(self._ids)
-
-    @classmethod
-    def playlist_for(cls, scene_id: SceneId) -> str:
-        return cls._configs[scene_id].playlist
 
     def __len__(self) -> int:
         return len(self._ids)
