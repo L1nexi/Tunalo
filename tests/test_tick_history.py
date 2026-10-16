@@ -50,7 +50,7 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
             schedule=ScheduleResult(
                 context=Context(),
                 selection=Selection(probabilities={}, salience={}, reason="no_safe_scenes"),
-                plan=ActPlan(mode=DecisionMode.NORMAL, active_scenes=Scenes()),
+                plan=ActPlan(mode=DecisionMode.NORMAL, cached_scenes_probabilities={}),
                 decision=Decision(action=Action.HOLD, target=Scenes()),
                 action=ActionResult(),
             ),

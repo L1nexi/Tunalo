@@ -74,12 +74,15 @@ class PoliciesConfig(BaseModel):
     weather: WeatherPolicyConfig = Field(default_factory=WeatherPolicyConfig)
 
 
-class SchedulingConfig(BaseModel):
+class TimingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     startup_delay: float = Field(30.0, ge=0)
+    cycle_interval: float = Field(600.0, ge=0)
+
+
+class DisturbanceConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     idle_threshold: float = Field(60.0, ge=0)
-    force_after: float = Field(14400.0, ge=0)
-    cycle_cooldown: float = Field(600.0, ge=0)
     cpu_threshold: float = Field(85.0, ge=0, le=100)
     cpu_sample_window: int = Field(10, ge=1)
     pause_on_fullscreen: bool = True
@@ -101,4 +104,5 @@ class SchedulerConfig(BaseModel):
     scenes: dict[SceneId, SceneConfig] = Field(default_factory=dict)
     matching: MatchingConfig = Field(default_factory=MatchingConfig)
     policies: PoliciesConfig = Field(default_factory=PoliciesConfig)
-    scheduling: SchedulingConfig = Field(default_factory=SchedulingConfig)
+    timing: TimingConfig = Field(default_factory=TimingConfig)
+    disturbance: DisturbanceConfig = Field(default_factory=DisturbanceConfig)

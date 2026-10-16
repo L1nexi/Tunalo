@@ -9,8 +9,7 @@ class EventType(StrEnum):
     STOP = "stop"
     PAUSE = "pause"
     RESUME = "resume"
-    SCENES_SWITCH = "scenes_switch"
-    SCENES_CYCLE = "scenes_cycle"
+    SCENES_APPLIED = "scenes_applied"
     ACTUATION_FAILED = "actuation_failed"
 
 

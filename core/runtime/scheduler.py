@@ -107,7 +107,7 @@ class Scheduler:
                     self._maybe_auto_resume()
                     self.engine.ensure_we_alive(paused=self.state.paused)
                     schedule = self.engine.schedule(
-                        cached_scenes=self.state.cached_scenes,
+                        cached_scenes_probabilities=self.state.cached_scenes_probabilities,
                         paused=self.state.paused,
                         manual_requested=self.state.consume_manual_apply_request(),
                     )

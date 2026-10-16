@@ -41,7 +41,6 @@ export interface Profile {
   disturbance: {
     startup_grace_seconds: number
     idle_before_switch_seconds: number
-    maximum_deferral_minutes: number
     cycle_interval_minutes: number
   }
   activity: {

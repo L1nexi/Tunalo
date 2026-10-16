@@ -48,7 +48,7 @@ def test_probe_playlist_reads_current_playlist(tmp_path):
     assert state.source == os.path.join(str(tmp_path), "config.json")
 
 
-def test_probe_playlist_reports_no_playlist_for_single_wallpaper(tmp_path):
+def test_probe_playlist_reports_no_playlist_without_a_playlist_name(tmp_path):
     exe = _write_we_config(
         tmp_path,
         _user_config(

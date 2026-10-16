@@ -17,7 +17,7 @@ class Actuator:
         self.scene_bindings = scene_bindings
 
     def act(self, decision: Decision) -> ActionResult:
-        if decision.action in {Action.SWITCH, Action.CYCLE}:
+        if decision.action == Action.APPLY:
             target_scenes = decision.target
         else:
             target_scenes = Scenes()

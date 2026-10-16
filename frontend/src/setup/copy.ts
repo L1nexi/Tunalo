@@ -186,13 +186,12 @@ const zh = {
     },
     disturbanceTitle: "防打扰程度",
     disturbanceDescription: "调节调度器执行壁纸切换时的防打扰程度。",
-    timingSummary: (startup: number | null, idle: number | null, deferral: number | null, cycle: number | null) =>
-      `启动等待 ${startup ?? "—"} 秒；空闲等待 ${idle ?? "—"} 秒；场景切换最长延后 ${deferral ?? "—"} 分钟；同场景轮换最短间隔 ${cycle ?? "—"} 分钟。`,
+    timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
+      `启动等待 ${startup ?? "—"} 秒；空闲等待 ${idle ?? "—"} 秒；基础轮换间隔 ${cycle ?? "—"} 分钟，推荐变化较大时会提前切换。`,
     fineTune: "自定义防打扰设置",
     startupGrace: "启动等待",
     idleBeforeSwitch: "空闲等待",
-    maximumDeferral: "最长延后",
-    cycleInterval: "轮换间隔",
+    cycleInterval: "基础轮换间隔",
     seconds: "秒",
     minutes: "分钟",
     nonNegative: "请输入不小于 0 的整数。",
@@ -503,13 +502,12 @@ const en: typeof zh = {
     disturbanceTitle: "Interruption level",
     disturbanceDescription:
       "Choose a preset, or expand the exact timing values.",
-    timingSummary: (startup: number | null, idle: number | null, deferral: number | null, cycle: number | null) =>
-      `Startup wait ${startup ?? "—"} s; idle wait ${idle ?? "—"} s; maximum Scene deferral ${deferral ?? "—"} min; minimum same-Scene rotation ${cycle ?? "—"} min.`,
+    timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
+      `Startup wait ${startup ?? "—"} s; idle wait ${idle ?? "—"} s; baseline rotation interval ${cycle ?? "—"} min, shortened when recommendations change substantially.`,
     fineTune: "Fine-tune timing",
     startupGrace: "Startup wait",
     idleBeforeSwitch: "Idle wait",
-    maximumDeferral: "Maximum deferral",
-    cycleInterval: "Rotation interval",
+    cycleInterval: "Baseline rotation interval",
     seconds: "seconds",
     minutes: "minutes",
     nonNegative: "Enter a non-negative whole number.",
@@ -641,9 +639,8 @@ export const ZH_TIMING_HINTS = {
     "调度器启动至能够尝试切换的最短等待时间，更高的启动等待时间通常可以增加壁纸选择的稳定性。",
   idleBeforeSwitch:
     "停止操作多久后，允许壁纸切换。更短的空闲等待时间通常可以带来更及时的壁纸响应，但也会增加切换次数。",
-  maximumDeferral: "距上次壁纸切换达到此时长后，场景切换可不再等待空闲时机。",
   cycleInterval:
-    "保持在同一场景时，在当前场景对应的播放列表内进行壁纸轮播时允许的最短间隔。",
+    "从上次成功切换起计算。推荐变化很小时按此间隔轮换，变化较大时提前切换；切换仍需通过空闲、全屏和负载检查。",
 } as const;
 
 export const ZH_ACTIVITY_NOTE =

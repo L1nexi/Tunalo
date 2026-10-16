@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from configurations.runtime_models import SchedulerConfig
 from core.models.context import ContextManager
-from core.models.scene import SceneBinding, SceneId, Scenes
+from core.models.scene import SceneBinding, SceneId
 from core.models.scheduling import ScheduleResult
 from core.policies import POLICY_REGISTRY, Policy
 from core.runtime.act_plan import plan_actuation
@@ -27,7 +28,6 @@ class EngineReplacement:
     selector: Selector
     actuator: Actuator
     controller: Controller
-    scene_bindings: dict[SceneId, SceneBinding]
     config: SchedulerConfig
     we_config_prober: WEConfigProber
 
@@ -75,13 +75,12 @@ class Engine:
         self.actuator = replacement.actuator
         self.controller = replacement.controller
         self.we_config_prober = replacement.we_config_prober
-        self.scene_bindings = replacement.scene_bindings
         set_language(replacement.config.language)
         self.config = replacement.config
 
     def schedule(
         self,
-        cached_scenes: Scenes,
+        cached_scenes_probabilities: Mapping[SceneId, float],
         paused: bool,
         manual_requested: bool,
     ) -> ScheduleResult:
@@ -89,15 +88,14 @@ class Engine:
         selection = self.selector.select(context)
         plan = plan_actuation(
             factual=self.we_config_prober.probe_playlist(),
-            cached_scenes=cached_scenes,
+            cached_scenes_probabilities=cached_scenes_probabilities,
             paused=paused,
             manual_requested=manual_requested,
-            scene_bindings=self.scene_bindings,
         )
         decision = self.controller.decide_action(plan, context, selection)
         action = self.actuator.act(decision)
         if action.executed:
-            self.controller.notify_executed(decision)
+            self.controller.notify_executed()
         return ScheduleResult(
             context=context,
             selection=selection,
@@ -121,8 +119,9 @@ class Engine:
 
         policies: list[Policy] = [cls(getattr(config.policies, cls.config_key)) for cls in POLICY_REGISTRY]
 
-        selector = Selector({scene_id: scene.associations for scene_id, scene in config.scenes.items()}, policies, config.matching)
-        controller = Controller(config.scheduling)
+        scene_associations = {scene_id: scene.associations for scene_id, scene in config.scenes.items()}
+        selector = Selector(scene_associations, policies, config.matching)
+        controller = Controller(config.timing, config.disturbance, scene_associations)
         scene_bindings = {scene_id: SceneBinding(playlist=scene.playlist) for scene_id, scene in config.scenes.items()}
         actuator = Actuator(executor, scene_bindings)
 
@@ -132,7 +131,6 @@ class Engine:
             selector=selector,
             actuator=actuator,
             controller=controller,
-            scene_bindings=scene_bindings,
             config=config,
             we_config_prober=WEConfigProber(config.wallpaper_engine_path),
         )

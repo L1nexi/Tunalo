@@ -19,7 +19,6 @@ export interface ProfileDraft {
   disturbance: {
     startup_grace_seconds: number | null
     idle_before_switch_seconds: number | null
-    maximum_deferral_minutes: number | null
     cycle_interval_minutes: number | null
   }
   activity: {
@@ -46,31 +45,26 @@ export const DISTURBANCE_PRESETS = {
   eager: {
     startup_grace_seconds: 5,
     idle_before_switch_seconds: 10,
-    maximum_deferral_minutes: 30,
     cycle_interval_minutes: 5,
   },
   responsive: {
     startup_grace_seconds: 15,
     idle_before_switch_seconds: 15,
-    maximum_deferral_minutes: 45,
     cycle_interval_minutes: 10,
   },
   balanced: {
     startup_grace_seconds: 15,
     idle_before_switch_seconds: 20,
-    maximum_deferral_minutes: 60,
     cycle_interval_minutes: 15,
   },
   quiet: {
     startup_grace_seconds: 30,
     idle_before_switch_seconds: 60,
-    maximum_deferral_minutes: 180,
     cycle_interval_minutes: 30,
   },
   minimal: {
     startup_grace_seconds: 60,
     idle_before_switch_seconds: 120,
-    maximum_deferral_minutes: 300,
     cycle_interval_minutes: 60,
   },
 } as const
@@ -191,7 +185,6 @@ export function buildProfile(draft: ProfileDraft): Profile {
     disturbance: {
       startup_grace_seconds: requireNonNegativeInteger(draft.disturbance.startup_grace_seconds),
       idle_before_switch_seconds: requireNonNegativeInteger(draft.disturbance.idle_before_switch_seconds),
-      maximum_deferral_minutes: requireNonNegativeInteger(draft.disturbance.maximum_deferral_minutes),
       cycle_interval_minutes: requireNonNegativeInteger(draft.disturbance.cycle_interval_minutes),
     },
     activity: {

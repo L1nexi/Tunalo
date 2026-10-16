@@ -25,7 +25,7 @@
 ```
 Sense:    ContextManager.sense()       # 获取原始上下文信息，并写入统一 Context 对象
 Select:   Selector.select()            # 各 Policy 根据 Context 计算显著度，Selector 基于显著度、场景关联、匹配配置给出概率分布
-Plan:     plan_actuation()             # 根据现在的活跃场景、手动应用、暂停等约束，决定此次 ActPlan
+Plan:     plan_actuation()             # 结合 WE 状态、成功分布缓存、手动应用与暂停，构造 ActPlan
 Decide:   Controller.decide_action()   # 根据 ActPlan、场景概率、防打扰条件决定该 tick 行动
 Execute:  Actuator.act()               # 根据 Decision 执行 Controller 决策，从场景概率得到目标 Playlist，并调用 WE CLI 进行实际切换
 Commit:   SchedulerState.commit()      # 完成当前 tick，提交结果、更新状态。
@@ -68,8 +68,10 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 
 - `profile_manager.py`：提供 `ProfileManager`，统一管理 Profile 初次读取、编译、持久化、应用队列。
 - `selector.py`：提供 `Selector`，负责推动 Policy 计算显著度并计算场景概率分布。
-- `act_plan.py`：根据当前 WE 状态、是否暂停、有无手动应用，综合确定本 tick 的 ActPlan
+- `act_plan.py`：根据当前 WE 状态、手动请求和暂停确定执行模式，将模式与完整成功分布缓存组成 ActPlan。
 - `controller.py`：提供 `Controller`，根据 ActPlan、场景概率、防打扰约束确定本 tick 的 Decision
+- `timing.py`：由 Controller 持有，根据当前分布与上次成功执行分布的距离计算等待阈值，并管理启动等待和成功执行时间。
+- `disturbance.py`：由 Controller 持有，根据空闲、CPU 和全屏状态评估防打扰条件。
 - `actuator.py`：将高层决策 Decision 转换为实际 WE CLI 调用
 - `executor.py`： WE CLI 封装，内置 keep_alive 保活
 - `engine.py`：持有上述子模块，编排为完整的单次调度流水线。提供原子化配置变更接口，提供 WE 保活的便利方法。

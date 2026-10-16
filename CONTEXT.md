@@ -71,7 +71,7 @@ _可接受别名_: 场景语义关联、语义关联
 _避免使用_: SceneBinding、播单标签
 
 **Scenes**:
-由零个、一个或多个 Scene 身份组成的候选集合，也是调度控制与跨 Tick 记忆中使用的场景领域值。
+由零个、一个或多个 Scene 身份组成的候选集合，也是表达 Cached Scenes 与 Active Scenes 的场景领域值。
 _可接受别名_: 场景集合、场景池
 _避免使用_: Playlists
 
@@ -86,16 +86,21 @@ _可接受别名_: 场景播单绑定
 _避免使用_: Scene、Playlist
 
 **FactualPlaylistStatus**:
-从 Wallpaper Engine 得到的外部播单事实类别：`PLAYLIST`、`NO_PLAYLIST`、`UNKNOWN` 或 `AMBIGUOUS`。它是推导 Active Scenes 的依据之一，不等于 Scheduler 对当前语义状态的认知。
+从 Wallpaper Engine 得到的外部播单事实类别：`PLAYLIST`、`NO_PLAYLIST`、`UNKNOWN` 或 `AMBIGUOUS`，用于判断是否需要恢复调度管理。
 _避免使用_: Active Scenes
 
+**Cached Distribution**:
+上次成功执行所采用的完整场景选择分布，是衡量当前推荐变化的跨 Tick 参照。
+_可接受别名_: 成功分布缓存、Scheduler Memory
+_避免使用_: 上个 Tick 的分布、已抽中的场景
+
 **Cached Scenes**:
-lowering 前 Scenes 的跨 Tick Scheduler Memory，使 Scheduler 能从 Wallpaper Engine 暴露的单个 Playlist 恢复原来的场景集合身份。
-_可接受别名_: cached\*scenes、Scheduler Memory
+Cached Distribution 中具有正选择概率的场景集合，使 Scheduler 能从 Wallpaper Engine 暴露的单个 Playlist 恢复原来的场景集合身份。
+_可接受别名_: cached\*scenes
 _避免使用_: Active Scenes、Current Playlist
 
 **Active Scenes**:
-当前 Tick 中 Scheduler 认为处于活跃状态的 Scenes，由外部播单事实与 Cached Scenes 共同推导。
+当前 Tick 作为执行前参照的场景集合，由成功分布缓存中的正概率场景派生。
 _可接受别名_: active\*scenes
 _避免使用_: Cached Scenes、FactualPlaylistStatus
 

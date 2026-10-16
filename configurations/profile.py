@@ -30,7 +30,6 @@ class WeatherProfile(ProfileModel):
 class DisturbanceProfile(ProfileModel):
     startup_grace_seconds: int = Field(default=15, ge=0)
     idle_before_switch_seconds: int = Field(default=20, ge=0)
-    maximum_deferral_minutes: int = Field(default=60, ge=0)
     cycle_interval_minutes: int = Field(default=15, ge=0)
 
 

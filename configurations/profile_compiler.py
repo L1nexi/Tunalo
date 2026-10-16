@@ -7,11 +7,12 @@ from configurations.profile import ActivityProfile, Profile
 from configurations.runtime_models import (
     ActivityMatcherConfig,
     ActivityPolicyConfig,
+    DisturbanceConfig,
     MatchingConfig,
     PoliciesConfig,
     SceneConfig,
     SchedulerConfig,
-    SchedulingConfig,
+    TimingConfig,
     WeatherPolicyConfig,
 )
 from core.models.scene import SceneId
@@ -56,11 +57,12 @@ class ProfileCompiler:
                     request_timeout=10,
                 ),
             ),
-            scheduling=SchedulingConfig(
+            timing=TimingConfig(
                 startup_delay=disturbance.startup_grace_seconds,
+                cycle_interval=disturbance.cycle_interval_minutes * 60,
+            ),
+            disturbance=DisturbanceConfig(
                 idle_threshold=disturbance.idle_before_switch_seconds,
-                force_after=disturbance.maximum_deferral_minutes * 60,
-                cycle_cooldown=disturbance.cycle_interval_minutes * 60,
                 cpu_threshold=85,
                 cpu_sample_window=10,
             ),

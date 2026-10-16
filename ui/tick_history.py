@@ -8,7 +8,7 @@ from pydantic.alias_generators import to_camel
 
 from core.models.context import WeatherData
 from core.models.scene import SceneId, Scenes
-from core.models.scheduling import Action, Blocker, BlockerEvaluation
+from core.models.scheduling import Action, Blocker, DisturbanceEvaluation, TimingEvaluation
 from core.models.selection import ActivityEvaluation, PolicyEvaluation, SeasonEvaluation, TimeEvaluation, WeatherEvaluation
 from core.models.trace import TickTrace
 from core.state.tick_history import TickHistoryWindow
@@ -123,20 +123,29 @@ class WeatherEvaluationDto(BaseEvaluationDto):
 EvaluationDto = ActivityEvaluationDto | TimeEvaluationDto | SeasonEvaluationDto | WeatherEvaluationDto
 
 
-class BlockerEvaluationDto(ApiDto):
+class DisturbanceEvaluationDto(ApiDto):
     allowed: bool
     blocked_by: list[Blocker]
-    cooldown_remaining: float
     idle_seconds: float
     idle_threshold: float
     cpu_percent: float
     cpu_threshold: float | None
     fullscreen: bool
-    force_after_remaining: float | None
+
+
+class TimingEvaluationDto(ApiDto):
+    ready: bool
+    distance: float
+    reference_distance: float
+    interval: float
+    elapsed: float
+    startup_remaining: float
+    remaining: float
 
 
 class ControllerDto(ApiDto):
-    evaluation: BlockerEvaluationDto | None
+    timing: TimingEvaluationDto | None
+    disturbance: DisturbanceEvaluationDto | None
 
 
 class PlaylistRefDto(ApiDto):
@@ -312,21 +321,33 @@ def _policy_snapshot(policy: PolicyEvaluation) -> EvaluationDto:
     raise TypeError(f"Unsupported policy evaluation type: {type(policy)!r}")
 
 
-def _controller_evaluation(
-    evaluation: BlockerEvaluation | None,
-) -> BlockerEvaluationDto | None:
+def _disturbance_evaluation(
+    evaluation: DisturbanceEvaluation | None,
+) -> DisturbanceEvaluationDto | None:
     if evaluation is None:
         return None
-    return BlockerEvaluationDto(
+    return DisturbanceEvaluationDto(
         allowed=evaluation.allowed,
         blocked_by=list(evaluation.blocked_by),
-        cooldown_remaining=_round_float(evaluation.cooldown_remaining),
         idle_seconds=_round_float(evaluation.idle_seconds),
         idle_threshold=_round_float(evaluation.idle_threshold),
         cpu_percent=_round_float(evaluation.cpu_percent),
         cpu_threshold=_round_float(evaluation.cpu_threshold),
         fullscreen=evaluation.fullscreen,
-        force_after_remaining=_round_float(evaluation.force_after_remaining),
+    )
+
+
+def _timing_evaluation(evaluation: TimingEvaluation | None) -> TimingEvaluationDto | None:
+    if evaluation is None:
+        return None
+    return TimingEvaluationDto(
+        ready=evaluation.ready,
+        distance=_round_float(evaluation.distance),
+        reference_distance=_round_float(evaluation.reference_distance),
+        interval=_round_float(evaluation.interval),
+        elapsed=_round_float(evaluation.elapsed),
+        startup_remaining=_round_float(evaluation.startup_remaining),
+        remaining=_round_float(evaluation.remaining),
     )
 
 
@@ -336,7 +357,7 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
     target_refs = _scene_refs(trace.target)
     active_scene_refs = _scene_refs(trace.active_scenes)
     target_playlist_ref = _playlist_ref(trace.action.target_playlist)
-    has_event = trace.decision.action in {Action.SWITCH, Action.CYCLE}
+    has_event = trace.decision.action == Action.APPLY
 
     return TickSnapshotDto(
         summary=TickSummaryDto(
@@ -370,7 +391,10 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
                 excluded_scenes={scene_id: sorted(items) for scene_id, items in trace.selection.excluded_scenes.items()},
             ),
             policies=[_policy_snapshot(policy) for policy in trace.selection.policy_evaluations],
-            controller=ControllerDto(evaluation=_controller_evaluation(trace.decision.evaluation)),
+            controller=ControllerDto(
+                timing=_timing_evaluation(trace.decision.timing),
+                disturbance=_disturbance_evaluation(trace.decision.disturbance),
+            ),
             decision=ActionDecisionDto(
                 action=trace.decision.action,
                 executed=trace.action.executed,

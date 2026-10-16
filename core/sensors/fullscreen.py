@@ -32,6 +32,6 @@ class FullscreenSensor(Sensor):
     @classmethod
     def create(cls, config: SchedulerConfig) -> FullscreenSensor | None:
         """Return a new instance only when fullscreen-defer is enabled."""
-        if not config.scheduling.pause_on_fullscreen:
+        if not config.disturbance.pause_on_fullscreen:
             return None
         return cls()

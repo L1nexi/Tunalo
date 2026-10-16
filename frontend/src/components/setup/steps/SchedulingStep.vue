@@ -38,7 +38,6 @@ const preset = computed(() => detectDisturbancePreset({ disturbance: props.distu
 const timingFields = computed(() => [
   ["startup_grace_seconds", copy.value.preferences.startupGrace, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.startupGrace : ""],
   ["idle_before_switch_seconds", copy.value.preferences.idleBeforeSwitch, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.idleBeforeSwitch : ""],
-  ["maximum_deferral_minutes", copy.value.preferences.maximumDeferral, copy.value.preferences.minutes, props.locale === "zh" ? ZH_TIMING_HINTS.maximumDeferral : ""],
   ["cycle_interval_minutes", copy.value.preferences.cycleInterval, copy.value.preferences.minutes, props.locale === "zh" ? ZH_TIMING_HINTS.cycleInterval : ""],
 ] as const)
 
@@ -138,7 +137,7 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
           {{ DISTURBANCE_LABELS[locale][choice] }}
         </ToggleGroupItem>
       </ToggleGroup>
-      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.timingSummary(disturbance.startup_grace_seconds, disturbance.idle_before_switch_seconds, disturbance.maximum_deferral_minutes, disturbance.cycle_interval_minutes) }}</p>
+      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.timingSummary(disturbance.startup_grace_seconds, disturbance.idle_before_switch_seconds, disturbance.cycle_interval_minutes) }}</p>
       <Badge v-if="preset === 'custom'" variant="outline">{{ copy.common.custom }}</Badge>
     </FieldSet>
 

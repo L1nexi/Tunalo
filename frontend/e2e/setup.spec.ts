@@ -16,7 +16,6 @@ const profile: Profile = {
   disturbance: {
     startup_grace_seconds: 15,
     idle_before_switch_seconds: 20,
-    maximum_deferral_minutes: 60,
     cycle_interval_minutes: 15,
   },
   activity: {
@@ -314,7 +313,7 @@ test("长播单名称不会让场景绑定横向溢出", async ({ page }) => {
   expect(hasHorizontalOverflow).toBe(false)
 })
 
-test("四个防打扰时间项通过问号说明，活动规则保留中立活动", async ({ page }) => {
+test("三个调度时间项通过问号说明，活动规则保留中立活动", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh")
   const navigation = page.getByRole("navigation", { name: "设置项" })
@@ -324,8 +323,7 @@ test("四个防打扰时间项通过问号说明，活动规则保留中立活�
   for (const [label, hint] of [
     ["启动等待", "调度器启动至能够尝试切换的最短等待时间"],
     ["空闲等待", "停止操作多久后，允许壁纸切换"],
-    ["最长延后", "距上次壁纸切换达到此时长后"],
-    ["轮换间隔", "保持在同一场景时"],
+    ["基础轮换间隔", "从上次成功切换起计算"],
   ]) {
     await page.mouse.move(0, 0)
     await page.getByRole("button", { name: `${label}说明` }).hover()

@@ -16,7 +16,7 @@ from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId, Scenes
-from core.models.scheduling import Action, ActionResult, ActPlan, BlockerEvaluation, Decision, DecisionMode, ScheduleResult
+from core.models.scheduling import Action, ActionResult, ActPlan, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult
 from core.models.selection import Selection
 from core.models.trace import TickTrace
 from core.runtime.engine import Engine
@@ -175,13 +175,12 @@ def _make_trace(
     target_playlist: str | None = None,
     executed: bool = False,
     action_kind: Action = Action.HOLD,
-    evaluation: BlockerEvaluation | None = None,
+    disturbance: DisturbanceEvaluation | None = None,
     weather: WeatherData | None = None,
     policy_evaluations: list | None = None,
 ) -> TickTrace:
     current_time = time.localtime(1714800000)
     best_scenes = Scenes([matched_scene]) if matched_scene else Scenes()
-    plan_active = Scenes([active_scene_before]) if active_scene_before else Scenes()
     return TickTrace(
         tick_id=tick_id,
         ts=1714800000.0 + tick_id,
@@ -202,11 +201,14 @@ def _make_trace(
                 reason="best_effort",
                 policy_evaluations=policy_evaluations or [],
             ),
-            plan=ActPlan(mode=DecisionMode.NORMAL, active_scenes=plan_active),
+            plan=ActPlan(
+                mode=DecisionMode.NORMAL,
+                cached_scenes_probabilities={active_scene_before: 1.0} if active_scene_before else {},
+            ),
             decision=Decision(
                 action=action_kind,
                 target=best_scenes,
-                evaluation=evaluation,
+                disturbance=disturbance,
             ),
             action=ActionResult(
                 target_playlist=target_playlist,
@@ -251,7 +253,7 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
             matched_scene=SceneId.SUNSET,
             target_playlist="test_pl",
             executed=True,
-            action_kind=Action.SWITCH,
+            action_kind=Action.APPLY,
         )
     )
 

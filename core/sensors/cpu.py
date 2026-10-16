@@ -19,7 +19,7 @@ class CpuSensor(Sensor):
 
     @classmethod
     def create(cls, config: SchedulerConfig) -> CpuSensor | None:
-        return cls(window=config.scheduling.cpu_sample_window)
+        return cls(window=config.disturbance.cpu_sample_window)
 
     def collect(self) -> float:
         sample = psutil.cpu_percent()

@@ -19,7 +19,7 @@ class PersistedState(BaseModel):
 
     paused: bool = False
     pause_until: float = 0.0
-    cached_scenes: list[SceneId] = Field(default_factory=list)
+    cached_scenes_probabilities: dict[SceneId, float] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, path: str = _STATE_FILE) -> PersistedState:

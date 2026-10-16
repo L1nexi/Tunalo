@@ -88,7 +88,6 @@ const changes = computed(() => {
   const timingRows = [
     { field: "startup_grace_seconds", label: copy.value.preferences.startupGrace, unit: copy.value.preferences.seconds },
     { field: "idle_before_switch_seconds", label: copy.value.preferences.idleBeforeSwitch, unit: copy.value.preferences.seconds },
-    { field: "maximum_deferral_minutes", label: copy.value.preferences.maximumDeferral, unit: copy.value.preferences.minutes },
     { field: "cycle_interval_minutes", label: copy.value.preferences.cycleInterval, unit: copy.value.preferences.minutes },
   ] as const
   for (const { field, label, unit } of timingRows) {

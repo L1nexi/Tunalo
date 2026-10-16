@@ -13,14 +13,12 @@ if TYPE_CHECKING:
 
 class Action(StrEnum):
     NONE = "none"
-    SWITCH = "switch"
-    CYCLE = "cycle"
+    APPLY = "apply"
     HOLD = "hold"
     PAUSE = "pause"
 
 
 class Blocker(StrEnum):
-    COOLDOWN = "cooldown"
     FULLSCREEN = "fullscreen"
     CPU = "cpu"
     IDLE = "idle"
@@ -36,23 +34,42 @@ class DecisionMode(StrEnum):
 @dataclass(frozen=True)
 class ActPlan:
     mode: DecisionMode
-    active_scenes: Scenes
+    cached_scenes_probabilities: dict[SceneId, float]
+
+    @property
+    def active_scenes(self) -> Scenes:
+        return Scenes([scene_id for scene_id, probability in self.cached_scenes_probabilities.items() if probability > 0])
 
 
 @dataclass
-class BlockerEvaluation:
+class DisturbanceEvaluation:
     blocked_by: list[Blocker] = field(default_factory=list)
-    cooldown_remaining: float = 0.0
     idle_seconds: float = 0.0
     idle_threshold: float = 0.0
     cpu_percent: float = 0.0
     cpu_threshold: float | None = None
     fullscreen: bool = False
-    force_after_remaining: float | None = None
 
     @property
     def allowed(self) -> bool:
         return len(self.blocked_by) == 0
+
+
+@dataclass(frozen=True)
+class TimingEvaluation:
+    distance: float
+    reference_distance: float
+    interval: float
+    elapsed: float
+    startup_remaining: float
+
+    @property
+    def remaining(self) -> float:
+        return max(self.startup_remaining, self.interval - self.elapsed, 0.0)
+
+    @property
+    def ready(self) -> bool:
+        return self.remaining == 0
 
 
 @dataclass
@@ -61,7 +78,8 @@ class Decision:
 
     action: Action
     target: Scenes
-    evaluation: BlockerEvaluation | None = None
+    timing: TimingEvaluation | None = None
+    disturbance: DisturbanceEvaluation | None = None
     probabilities: dict[SceneId, float] = field(default_factory=dict)
 
 
@@ -83,6 +101,6 @@ class ScheduleResult:
     @property
     def target(self) -> Scenes:
         """返回本次执行后的有效场景；切换未成功时沿用执行前场景。"""
-        if self.action.executed and self.decision.action == Action.SWITCH:
+        if self.action.executed and self.decision.action == Action.APPLY:
             return self.decision.target
         return self.plan.active_scenes
