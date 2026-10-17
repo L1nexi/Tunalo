@@ -38,6 +38,7 @@
 | [ADR-0002](adr/0002-scene-model-rethink-and-neutral-baseline.md)         | 旧匹配心智的溯源、整体模型重审与中立随机基准。                       | Accepted |
 | [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md) | 偏好级联、正向召回与负向排除、变量预算、条件场景概率及尽力选择。     | Accepted |
 | [ADR-0004](adr/0004-context-salience-and-observation-boundaries.md)      | 有符号显著度、有限活动轨迹、季节与时段锚点、天气共同推导及观测边界。 | Accepted |
+| [ADR-0005](adr/0005-distribution-driven-execution-and-control-boundaries.md) | 分布距离驱动的执行时机、时序与防打扰职责、成功历史和记录边界。 | Accepted |
 
 ## Archived: Reference
 

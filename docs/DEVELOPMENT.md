@@ -109,6 +109,8 @@ Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导�
 
 ### 执行时序与防打扰
 
+决策与取舍见 [ADR-0005：执行模型与控制职责](adr/0005-distribution-driven-execution-and-control-boundaries.md)。
+
 Controller 持有并编排 TimingControl 与 DisturbanceControl。TimingControl 管理成功历史、启动等待和切换阈值，DisturbanceControl 检查空闲、CPU 和全屏。`decide_action` 开头统一调用两个只读的评估函数，再按四种执行模式确定行动。普通模式遵守时序和防打扰门槛，手动、恢复和暂停保留各自的执行规则。
 
 运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。旧 Profile 若仍含删除的字段，会验证失败；本机配置不自动迁移。
