@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from typing import Any
 
 import psutil
 
@@ -25,3 +26,9 @@ class CpuSensor(Sensor):
         sample = psutil.cpu_percent()
         self._samples.append(sample)
         return sum(self._samples) / len(self._samples)
+
+    def export_state(self) -> dict[str, Any]:
+        return {"samples": list(self._samples)}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        self._samples = deque(state["samples"], maxlen=self._samples.maxlen)

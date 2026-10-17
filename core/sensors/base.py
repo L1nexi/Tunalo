@@ -17,6 +17,12 @@ class Sensor(ABC):
         """Collects data from the sensor."""
         pass
 
+    def export_state(self) -> dict[str, Any]:
+        return {}
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        pass
+
     @classmethod
     @abstractmethod
     def create(cls, config: SchedulerConfig) -> Sensor | None:

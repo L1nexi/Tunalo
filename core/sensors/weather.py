@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from typing import Any
 
 from configurations.runtime_models import SchedulerConfig, WeatherPolicyConfig
 from core.models.context import WeatherData
@@ -38,6 +39,20 @@ class WeatherSensor(Sensor):
             threading.Thread(target=self._fetch_async, daemon=True).start()
 
         return self._cached
+
+    def export_state(self) -> dict[str, Any]:
+        return {
+            "source": (self.api_key, self.lat, self.lon),
+            # In-flight requests belong to this instance; a replacement must retry.
+            "last_fetch": 0.0 if self._fetching else self._last_fetch,
+            "cached": self._cached,
+        }
+
+    def import_state(self, state: dict[str, Any]) -> None:
+        if state["source"] != (self.api_key, self.lat, self.lon):
+            return
+        self._last_fetch = state["last_fetch"]
+        self._cached = state["cached"]
 
     def _fetch_async(self) -> None:
         """Background fetch — updates ``_cached`` on success, never blocks tick loop."""

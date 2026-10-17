@@ -5,7 +5,7 @@ import dataclasses
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from core.sensors import Sensor
@@ -67,6 +67,14 @@ class ContextManager:
         if key not in _CONTEXT_FIELD_NAMES:
             raise ValueError(f"Sensor key {key!r} has no corresponding field on Context. Add the field to core/context.py before registering.")
         self._sensors.append((key, sensor))
+
+    def export_state(self) -> dict[str, dict[str, Any]]:
+        return {key: sensor.export_state() for key, sensor in self._sensors}
+
+    def import_state(self, state: dict[str, dict[str, Any]]) -> None:
+        for key, sensor in self._sensors:
+            if key in state:
+                sensor.import_state(state[key])
 
     def refresh(self) -> Context:
         """Poll all registered sensors and update the context snapshot."""

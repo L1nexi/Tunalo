@@ -58,9 +58,11 @@ class Engine:
             RuntimeError: If a runtime component rejects the imported state.
         """
 
+        context_state = self.context_manager.export_state()
         selector_state = self.selector.export_state()
         controller_state = self.controller.export_state()
         prepared = self._build_components(config)
+        prepared.context_manager.import_state(context_state)
         prepared.selector.import_state(selector_state)
         prepared.controller.import_state(controller_state)
         return prepared
