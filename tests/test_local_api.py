@@ -16,7 +16,7 @@ from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId, Scenes
-from core.models.scheduling import Action, ActionResult, ActPlan, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult
+from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
 from core.models.trace import TickTrace
 from core.runtime.engine import Engine
@@ -174,7 +174,7 @@ def _make_trace(
     matched_scene: SceneId | None = None,
     target_playlist: str | None = None,
     executed: bool = False,
-    action_kind: Action = Action.HOLD,
+    action_kind: Action = Action.NOOP,
     disturbance: DisturbanceEvaluation | None = None,
     weather: WeatherData | None = None,
     policy_evaluations: list | None = None,
@@ -201,14 +201,19 @@ def _make_trace(
                 reason="best_effort",
                 policy_evaluations=policy_evaluations or [],
             ),
-            plan=ActPlan(
-                mode=DecisionMode.NORMAL,
-                cached_scenes_probabilities={active_scene_before: 1.0} if active_scene_before else {},
-            ),
+            mode=DecisionMode.NORMAL,
             decision=Decision(
                 action=action_kind,
                 target=best_scenes,
-                disturbance=disturbance,
+                timing=TimingEvaluation(
+                    active_scenes=Scenes([active_scene_before]) if active_scene_before else Scenes(),
+                    distance=0.0,
+                    reference_distance=0.25,
+                    interval=900.0,
+                    elapsed=0.0,
+                    startup_remaining=0.0,
+                ),
+                disturbance=disturbance if disturbance is not None else DisturbanceEvaluation(),
             ),
             action=ActionResult(
                 target_playlist=target_playlist,

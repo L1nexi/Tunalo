@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from dataclasses import dataclass
 
 from configurations.runtime_models import SchedulerConfig
 from core.models.context import ContextManager
-from core.models.scene import SceneBinding, SceneId
+from core.models.scene import SceneBinding
 from core.models.scheduling import ScheduleResult
 from core.policies import POLICY_REGISTRY, Policy
-from core.runtime.act_plan import plan_actuation
 from core.runtime.actuator import Actuator
 from core.runtime.controller import Controller
+from core.runtime.deduce_mode import deduce_mode
 from core.runtime.executor import WEExecutor
 from core.runtime.selector import Selector
 from core.runtime.we_config import WEConfigProber
@@ -80,26 +79,24 @@ class Engine:
 
     def schedule(
         self,
-        cached_scenes_probabilities: Mapping[SceneId, float],
         paused: bool,
         manual_requested: bool,
     ) -> ScheduleResult:
         context = self.context_manager.sense()
         selection = self.selector.select(context)
-        plan = plan_actuation(
+        mode = deduce_mode(
             factual=self.we_config_prober.probe_playlist(),
-            cached_scenes_probabilities=cached_scenes_probabilities,
             paused=paused,
             manual_requested=manual_requested,
         )
-        decision = self.controller.decide_action(plan, context, selection)
+        decision = self.controller.decide_action(mode, context, selection)
         action = self.actuator.act(decision)
         if action.executed:
-            self.controller.notify_executed()
+            self.controller.notify_executed(decision)
         return ScheduleResult(
             context=context,
             selection=selection,
-            plan=plan,
+            mode=mode,
             decision=decision,
             action=action,
         )

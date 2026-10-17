@@ -262,11 +262,8 @@ class TrayIcon:
         return t("status_paused_remaining", remaining=" ".join(parts))
 
     def _get_active_text(self) -> str:
-        scenes = self.scheduler.cached_scenes
-        if not self.scheduler.paused and self.scheduler.last_tick_trace is not None:
-            active = self.scheduler.last_tick_trace.target
-            if active:
-                scenes = active
+        trace = self.scheduler.last_tick_trace
+        scenes = trace.target if trace is not None else None
 
         if scenes:
             primary = scene_name(scenes[0])

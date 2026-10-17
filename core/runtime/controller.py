@@ -5,8 +5,8 @@ from collections.abc import Callable, Mapping
 
 from configurations.runtime_models import DisturbanceConfig, TimingConfig
 from core.models.context import Context
-from core.models.scene import SceneId, Scenes
-from core.models.scheduling import Action, ActPlan, Decision, DecisionMode
+from core.models.scene import SceneId
+from core.models.scheduling import Action, Decision, DecisionMode, TimingState
 from core.models.selection import Selection, SemanticItem
 from core.runtime.disturbance import DisturbanceControl
 from core.runtime.timing import TimingControl
@@ -25,36 +25,30 @@ class Controller:
 
     def decide_action(
         self,
-        plan: ActPlan,
+        mode: DecisionMode,
         context: Context,
         selection: Selection,
     ) -> Decision:
         selected = selection.scenes
         probabilities = dict(selection.probabilities)
-        match plan.mode:
+        timing = self._timing.evaluate(probabilities)
+        disturbance = self._disturbance.evaluate(context)
+        match mode:
             case DecisionMode.NORMAL:
-                if not selected:
-                    return Decision(Action.HOLD if plan.active_scenes else Action.NONE, Scenes())
-                timing = self._timing.evaluate(probabilities, plan.cached_scenes_probabilities)
-                disturbance = self._disturbance.evaluate(context)
-                action = Action.APPLY if timing.ready and disturbance.allowed else Action.HOLD
-                return Decision(action, selected, timing=timing, disturbance=disturbance, probabilities=probabilities)
+                action = Action.APPLY if selected and timing.ready and disturbance.allowed else Action.NOOP
             case DecisionMode.MANUAL:
-                if not selected:
-                    return Decision(Action.HOLD if plan.active_scenes else Action.NONE, Scenes())
-                return Decision(Action.APPLY, selected, probabilities=probabilities)
+                action = Action.APPLY if selected else Action.NOOP
             case DecisionMode.RECOVERY:
-                if not selected:
-                    return Decision(Action.NONE, Scenes())
-                return Decision(Action.APPLY, selected, probabilities=probabilities)
+                action = Action.APPLY if selected else Action.NOOP
             case DecisionMode.PAUSE:
-                return Decision(Action.PAUSE, selected, probabilities=probabilities)
+                action = Action.PAUSE
+        return Decision(action, selected, timing=timing, disturbance=disturbance, probabilities=probabilities)
 
-    def notify_executed(self) -> None:
-        self._timing.notify_executed()
+    def notify_executed(self, decision: Decision) -> None:
+        self._timing.notify_executed(decision.probabilities)
 
-    def export_state(self) -> dict[str, float]:
+    def export_state(self) -> TimingState:
         return self._timing.export_state()
 
-    def import_state(self, state: dict[str, float]) -> None:
+    def import_state(self, state: TimingState) -> None:
         self._timing.import_state(state)

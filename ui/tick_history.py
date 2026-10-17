@@ -135,17 +135,17 @@ class DisturbanceEvaluationDto(ApiDto):
 
 class TimingEvaluationDto(ApiDto):
     ready: bool
-    distance: float
+    distance: float | None
     reference_distance: float
-    interval: float
+    interval: float | None
     elapsed: float
     startup_remaining: float
-    remaining: float
+    remaining: float | None
 
 
 class ControllerDto(ApiDto):
-    timing: TimingEvaluationDto | None
-    disturbance: DisturbanceEvaluationDto | None
+    timing: TimingEvaluationDto
+    disturbance: DisturbanceEvaluationDto
 
 
 class PlaylistRefDto(ApiDto):
@@ -322,10 +322,8 @@ def _policy_snapshot(policy: PolicyEvaluation) -> EvaluationDto:
 
 
 def _disturbance_evaluation(
-    evaluation: DisturbanceEvaluation | None,
-) -> DisturbanceEvaluationDto | None:
-    if evaluation is None:
-        return None
+    evaluation: DisturbanceEvaluation,
+) -> DisturbanceEvaluationDto:
     return DisturbanceEvaluationDto(
         allowed=evaluation.allowed,
         blocked_by=list(evaluation.blocked_by),
@@ -337,9 +335,7 @@ def _disturbance_evaluation(
     )
 
 
-def _timing_evaluation(evaluation: TimingEvaluation | None) -> TimingEvaluationDto | None:
-    if evaluation is None:
-        return None
+def _timing_evaluation(evaluation: TimingEvaluation) -> TimingEvaluationDto:
     return TimingEvaluationDto(
         ready=evaluation.ready,
         distance=_round_float(evaluation.distance),
@@ -355,7 +351,7 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
     candidate_scene_refs = _scene_refs(trace.selection.scenes)
     action_candidate_scene_refs = _scene_refs(trace.decision.target)
     target_refs = _scene_refs(trace.target)
-    active_scene_refs = _scene_refs(trace.active_scenes)
+    active_scene_refs = _scene_refs(trace.decision.timing.active_scenes)
     target_playlist_ref = _playlist_ref(trace.action.target_playlist)
     has_event = trace.decision.action == Action.APPLY
 

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.models.context import Context
     from core.models.scene import Scenes
-    from core.models.scheduling import ActionResult, ActPlan, Decision, ScheduleResult
+    from core.models.scheduling import ActionResult, Decision, ScheduleResult
     from core.models.selection import Selection
 
 
@@ -27,20 +27,12 @@ class TickTrace:
         return self.schedule.selection
 
     @property
-    def plan(self) -> ActPlan:
-        return self.schedule.plan
-
-    @property
     def decision(self) -> Decision:
         return self.schedule.decision
 
     @property
     def action(self) -> ActionResult:
         return self.schedule.action
-
-    @property
-    def active_scenes(self) -> Scenes:
-        return self.schedule.plan.active_scenes
 
     @property
     def target(self) -> Scenes:

@@ -4,10 +4,9 @@ import json
 import logging
 import os
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.context import get_data_dir
-from core.models.scene import SceneId
 
 logger = logging.getLogger("Tunalo.State")
 
@@ -19,7 +18,6 @@ class PersistedState(BaseModel):
 
     paused: bool = False
     pause_until: float = 0.0
-    cached_scenes_probabilities: dict[SceneId, float] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, path: str = _STATE_FILE) -> PersistedState:

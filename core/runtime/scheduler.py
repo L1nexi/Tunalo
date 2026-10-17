@@ -6,7 +6,6 @@ import time
 from collections.abc import Callable
 
 from core.models.event import EventLogger, EventType
-from core.models.scene import Scenes
 from core.models.trace import TickTrace
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
@@ -37,10 +36,6 @@ class Scheduler:
     @property
     def paused(self) -> bool:
         return self.state.paused
-
-    @property
-    def cached_scenes(self) -> Scenes:
-        return self.state.cached_scenes
 
     @property
     def last_tick_trace(self) -> TickTrace | None:
@@ -107,7 +102,6 @@ class Scheduler:
                     self._maybe_auto_resume()
                     self.engine.ensure_we_alive(paused=self.state.paused)
                     schedule = self.engine.schedule(
-                        cached_scenes_probabilities=self.state.cached_scenes_probabilities,
                         paused=self.state.paused,
                         manual_requested=self.state.consume_manual_apply_request(),
                     )

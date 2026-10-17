@@ -99,17 +99,21 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 `core/models/selection.py` 集中语义词表、Salience、各 Policy 的求值与解释信息，以及 Selection。ContextVariable 和 SemanticItem 均为 StrEnum，序列化使用小写字符串值，活动语义项为 `work/leisure`。Policy、Selector 和配置编译直接使用这些选择契约。
 
-`core/models/scheduling.py` 定义规划、控制和执行契约。`Engine.schedule()` 返回 ScheduleResult，保留本次 Context、Selection、ActPlan、Decision 和 ActionResult。其 target 表示执行后的有效场景：成功切换时为决策目标，其余情况沿用执行前场景。
+`core/models/scheduling.py` 定义控制和执行契约。`Engine.schedule()` 返回 ScheduleResult，保留本次 Context、Selection、执行模式、Decision 和 ActionResult。其 target 在成功执行时取决策目标，其余情况取执行前场景快照。
 
-`core/models/trace.py` 只定义 TickTrace，为 ScheduleResult 添加 tick 编号、时间和暂停信息。模型依赖方向为 trace → scheduling → selection。SchedulerState.commit 在成功执行后接收完整分布，分布变化时持久化；Cached Scenes 由其中的正概率场景推导。候选集合相同而概率不同，也会更新缓存。旧状态只有场景身份，不能还原原分布，因此按无成功分布缓存处理。
+`core/models/trace.py` 定义 TickTrace，为 ScheduleResult 添加 tick 编号、时间和暂停信息，其属性只转发 ScheduleResult 中的数据。执行前场景快照由 TimingControl 从成功分布生成，保存在 `TimingEvaluation.active_scenes` 中，随 Decision 返回。记录侧只消费调度结果，不读取 Controller 的缓存，也不从旧记录反推业务状态。模型依赖方向为 trace → scheduling → selection。
+
+成功执行后，Engine 通知 Controller，由 TimingControl 同时更新成功分布 Q 和成功时间。Q 只保留在进程内；冷启动没有 Q，按 d=1 处理。配置热替换沿用 `export_state/import_state`，通过 TimingState 一并转移 Q、成功时间和启动截止时间。PersistedState 只保存暂停状态，由 SchedulerState 加载、保存；执行成功不再触发落盘。旧 state.json 中的分布字段在加载时忽略，下次保存时移除。
 
 Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导出、DTO 和脱敏规则。Policy 和控制器的解释字段完整保留，不改为调试日志。
 
 ### 执行时序与防打扰
 
-Controller 持有并编排 TimingControl 与 DisturbanceControl，Engine 继续通过 Controller 决策。前者管理启动等待和切换阈值，后者只检查空闲、CPU 和全屏。运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。旧 Profile 若仍含删除的字段，会验证失败；本机配置不自动迁移。
+Controller 持有并编排 TimingControl 与 DisturbanceControl。TimingControl 管理成功历史、启动等待和切换阈值，DisturbanceControl 检查空闲、CPU 和全屏。`decide_action` 开头统一调用两个只读的评估函数，再按四种执行模式确定行动。普通模式遵守时序和防打扰门槛，手动、恢复和暂停保留各自的执行规则。
 
-成功分布缓存统一命名为 `cached_scenes_probabilities`。ActPlan 只保存执行模式与完整缓存分布，`active_scenes` 是从正概率场景派生的 property。`plan_actuation` 根据 WE 状态、手动请求和暂停确定模式，调用方通过 `Controller.decide_action(plan, context, selection)` 决策。外部播单状态只影响模式，成功分布仍是时序比较的参照。
+运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。旧 Profile 若仍含删除的字段，会验证失败；本机配置不自动迁移。
+
+成功分布缓存统一命名为 `cached_scenes_probabilities`，只由 TimingControl 持有。Engine 用  `deduce_mode` 根据 WE 状态、手动请求和暂停推导 DecisionMode，再调用 `Controller.decide_action(mode, context, selection)` 决策。PLAYLIST 的 managed 与 unmanaged 情况均不调整成功历史，也不触发恢复；NO_PLAYLIST 保留 RECOVERY。
 
 设本 tick 推荐分布为 P，上次成功执行所采用的分布为 Q，启用场景数为 N，场景 c 的去重语义关联集合为 A_c：
 
@@ -117,7 +121,7 @@ $$
 d=\frac12\sum_c|P(c)-Q(c)|,\qquad d_{\mathrm{ref}}=\frac{\sum_c|A_c|}{4N}
 $$
 
-Profile 至少启用一个场景，每个场景的语义关联集合非空，因此参考尺度为正。首次没有 Q 时直接取 d=1。没有安全场景时不执行，也不以空分布覆盖 Q。
+Profile 至少启用一个场景，每个场景的语义关联集合非空，因此参考尺度为正。首次没有 Q 时直接取 d=1。没有安全场景时不执行，也不以空分布覆盖 Q；评估仍返回执行前快照和计时，距离、等待阈值及剩余等待为 None，ready 为 false。
 
 令 C 为基础轮换间隔，x=d/d_ref。每 tick 重算等待阈值：
 
@@ -130,7 +134,7 @@ $$
 
 变化达到 d_ref 时阈值为 min(C,31 秒)，达到 2d_ref 时为零。启动等待结束、通过防打扰检查，且距上次成功执行已满 T(d) 时执行。变化出现时不会另开计时；例如上次成功执行已过两分钟，此时阈值变为 31 秒，本 tick 就满足时序条件。采集和选择在启动等待及阻挡期间持续进行，每次使用最新分布，不积压待执行意图。
 
-普通轮换与场景响应统一为 `APPLY`，不再根据候选集合是否相等区分动作，也不再超时绕过空闲。执行时仍由 Actuator 按最新推荐分布抽取场景并应用播单。只有成功执行才推进成功时间和 Q；失败、阻挡和无候选均保留原参照。手动、恢复和暂停沿用原有特殊路径。配置替换保留成功时间、启动等待截止时间和缓存，参考尺度按新配置重算。
+普通轮换与场景响应统一为 `APPLY`，不再根据候选集合是否相等区分动作，也不再超时绕过空闲。无候选、时序未到或防打扰阻挡统一返回 `NOOP`；具体原因由 Selection 和两份评估表达。执行时仍由 Actuator 按最新推荐分布抽取场景并应用播单。只有成功执行才推进成功时间和 Q；失败、阻挡和无候选均保留原参照。手动、恢复和暂停沿用原有特殊路径。配置替换保留成功时间、启动等待截止时间和缓存，参考尺度按新配置重算。
 
 Tick History 的 `controller.timing` 记录距离、参考尺度、阈值、已过时间和剩余等待，`controller.disturbance` 记录防打扰条件。成功事件统一为 `scenes_applied`。[时序行为测试](../tests/test_runtime_behavior.py) 从 Controller.decide_action 观察结果。
 
@@ -162,7 +166,7 @@ Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_dis
 | 完整支持轴、有限衰减终点、周期最短距离和峰值平台 | [test_math_utils.py](../tests/test_math_utils.py) |
 | 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系 | [test_semantic_model.py](../tests/test_semantic_model.py) |
 | 偏好编译、播单名称与大小无关、自定义活动规则及保存回填 | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
-| 分布变化时序、启动等待、防打扰和配置替换后的时间保留 | [test_runtime_behavior.py](../tests/test_runtime_behavior.py) |
+| 分布变化时序、启动等待、防打扰和配置替换后的分布与计时保留 | [test_runtime_behavior.py](../tests/test_runtime_behavior.py) |
 | Profile 初始化、首次创建及应用时机 | [test_profile_manager.py](../tests/test_profile_manager.py) |
 | 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py) |
 

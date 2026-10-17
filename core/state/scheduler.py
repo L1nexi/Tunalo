@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from core.models.scene import SceneId, Scenes
-from core.models.scheduling import Action, ScheduleResult
+from core.models.scheduling import ScheduleResult
 from core.models.trace import TickTrace
 from core.state.persisted import PersistedState
 
@@ -16,14 +15,9 @@ logger = logging.getLogger("Tunalo.State")
 class SchedulerState:
     paused: bool = False
     pause_until: float = 0.0
-    cached_scenes_probabilities: dict[SceneId, float] = field(default_factory=dict)
     last_tick_trace: TickTrace | None = None
     tick_id: int = 0
     _manual_apply_pending: bool = False
-
-    @property
-    def cached_scenes(self) -> Scenes:
-        return Scenes([scene_id for scene_id, probability in self.cached_scenes_probabilities.items() if probability > 0])
 
     def pause(self, seconds: int | None = None) -> None:
         self.paused = True
@@ -82,27 +76,11 @@ class SchedulerState:
     def commit(self, trace: TickTrace) -> None:
         self.last_tick_trace = trace
 
-        if not trace.action.executed or trace.decision.action != Action.APPLY:
-            return
-
-        next_cached = trace.decision.probabilities
-        if next_cached != self.cached_scenes_probabilities:
-            self.cached_scenes_probabilities = dict(next_cached)
-            self.save()
-
-    def to_persisted_state(self) -> PersistedState:
-        return PersistedState(
-            paused=self.paused,
-            pause_until=self.pause_until,
-            cached_scenes_probabilities=dict(self.cached_scenes_probabilities),
-        )
-
     def save(self) -> None:
-        self.to_persisted_state().save()
+        PersistedState(paused=self.paused, pause_until=self.pause_until).save()
 
     def restore_persisted_state(self) -> None:
         state = PersistedState.load()
-        self.cached_scenes_probabilities = dict(state.cached_scenes_probabilities)
         self.paused = False
         self.pause_until = 0.0
 

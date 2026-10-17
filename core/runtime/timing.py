@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 from configurations.runtime_models import TimingConfig
-from core.models.scene import SceneId
-from core.models.scheduling import TimingEvaluation
+from core.models.scene import SceneId, Scenes
+from core.models.scheduling import TimingEvaluation, TimingState
 from core.models.selection import SemanticItem
 
 
@@ -21,20 +21,26 @@ class TimingControl:
         now = clock()
         self._startup_end = now + config.startup_delay
         self._last_success_time = now
+        self._cached_scenes_probabilities: dict[SceneId, float] = {}
 
-    def evaluate(self, current: Mapping[SceneId, float], previous: Mapping[SceneId, float]) -> TimingEvaluation:
-        distance = (
-            sum(abs(current.get(scene_id, 0.0) - previous.get(scene_id, 0.0)) for scene_id in current.keys() | previous.keys()) / 2
-            if previous
-            else 1.0
-        )
-        if distance == 0:
-            interval = self._cycle_interval
-        else:
-            relative_change = distance / self._reference_distance
-            interval = min(self._cycle_interval, max(0.0, (2 / relative_change) ** 5 - 1))
+    def evaluate(self, current: Mapping[SceneId, float]) -> TimingEvaluation:
+        previous = self._cached_scenes_probabilities
+        distance = None
+        interval = None
+        if current:
+            distance = (
+                sum(abs(current.get(scene_id, 0.0) - previous.get(scene_id, 0.0)) for scene_id in current.keys() | previous.keys()) / 2
+                if previous
+                else 1.0
+            )
+            if distance == 0:
+                interval = self._cycle_interval
+            else:
+                relative_change = distance / self._reference_distance
+                interval = min(self._cycle_interval, max(0.0, (2 / relative_change) ** 5 - 1))
         now = self._clock()
         return TimingEvaluation(
+            active_scenes=Scenes([scene_id for scene_id, probability in previous.items() if probability > 0]),
             distance=distance,
             reference_distance=self._reference_distance,
             interval=interval,
@@ -42,12 +48,18 @@ class TimingControl:
             startup_remaining=max(0.0, self._startup_end - now),
         )
 
-    def notify_executed(self) -> None:
+    def notify_executed(self, probabilities: Mapping[SceneId, float]) -> None:
+        self._cached_scenes_probabilities = dict(probabilities)
         self._last_success_time = self._clock()
 
-    def export_state(self) -> dict[str, float]:
-        return {"last_success_time": self._last_success_time, "startup_end": self._startup_end}
+    def export_state(self) -> TimingState:
+        return TimingState(
+            cached_scenes_probabilities=dict(self._cached_scenes_probabilities),
+            last_success_time=self._last_success_time,
+            startup_end=self._startup_end,
+        )
 
-    def import_state(self, state: dict[str, float]) -> None:
-        self._last_success_time = state["last_success_time"]
-        self._startup_end = state["startup_end"]
+    def import_state(self, state: TimingState) -> None:
+        self._cached_scenes_probabilities = dict(state.cached_scenes_probabilities)
+        self._last_success_time = state.last_success_time
+        self._startup_end = state.startup_end

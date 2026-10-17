@@ -1,22 +1,21 @@
 # Repository Guidelines
 
-## 工作立场
+## 工作意见
 
-本项目仍处于 `0.x`，允许 breaking change；当旧接口、旧 schema 或旧心智影响新功能实现时，以经过确认的目标和设计为主。旧产物是经过认真设计后的成果，在与新功能不冲突时可以作为参考。
+本项目大版本号为 0，即允许破坏性变更。若旧接口或旧心智影响新功能实现，以经过确认的目标和设计为主。旧产物是经过认真设计后的成果，在与新功能不冲突时应作为参考。
 
 ## 项目结构与模块组织
 
-本仓库是 Windows-only Python 桌面应用：托盘宿主进程、本地 HTTP API，以及 Vue 3 前端。
+本项目是面向 Wallpaper Engine 的调度增强用 Windows-only 桌面应用，含核心调度模块、系统托盘入口、本地 API 服务和前端界面。
 
-- `main.py` 是启动 shim，负责 DPI 初始化并委托 `app/main.py`。
-- `app/` 放应用入口、应用路径和持久事件日志。
-- `configurations/` 放用户 Profile、Profile Compiler、原子持久化以及内部运行时配置模型。
-- `core/` 放调度器核心模块，包含调度器运行时模型、Policy、Sensor、Selector、Controller、Actuator、Engine 和 Scheduler。
-- `server/` 放 Bottle 本地服务宿主、Profile 资源路由、辅助资源路由和前端静态文件服务。
-- `integrations/` 放 OpenWeatherMap 与公网 IP 地点服务的请求和响应解析。
-- `ui/` 放托盘 UI、pywebview 窗口、Tick History 的 DTO 转换与导出、i18n 和图标生成。
-- `frontend/` 是 Vue 3 + shadcn-vue 产品界面工作区，现提供初始配置和运行时设置。
-- `config/` 是本机真实运行配置目录，正式用户契约是其中的 `profile.json`，可用于真实运行。
+- `app/`：提供应用入口、初始化、日志和版本记录。
+- `configurations/` 提供用户配置、配置编译、配置持久化和 运行时配置
+- `core/` 提供调度器核心模块。
+- `server/` 提供本地 API 服务。
+- `integrations/` 含 OpenWeatherMap、IP 查询的外部集成
+- `ui/` 提供系统托盘包装、前端 WebView 窗口，附带国际化、图标资源和历史导出。
+- `frontend/` 前端页面，现提供初始配置和运行时设置。
+- `config/` 是本机真实运行配置目录，其中的 `profile.json`，可用于真实运行。
 - `tests/` 放 pytest 测试。
 - `docs/` 按规格生命周期管理，索引见 `docs/index.md`。
 
@@ -25,13 +24,12 @@
 ```
 Sense:    ContextManager.sense()       # 获取原始上下文信息，并写入统一 Context 对象
 Select:   Selector.select()            # 各 Policy 根据 Context 计算显著度，Selector 基于显著度、场景关联、匹配配置给出概率分布
-Plan:     plan_actuation()             # 结合 WE 状态、成功分布缓存、手动应用与暂停，构造 ActPlan
-Decide:   Controller.decide_action()   # 根据 ActPlan、场景概率、防打扰条件决定该 tick 行动
+Decide:   Controller.decide_action()   # 根据执行模式、场景概率、防打扰条件决定该 tick 行动
 Execute:  Actuator.act()               # 根据 Decision 执行 Controller 决策，从场景概率得到目标 Playlist，并调用 WE CLI 进行实际切换
-Commit:   SchedulerState.commit()      # 完成当前 tick，提交结果、更新状态。
+Commit:   SchedulerState.commit()      # 提交当前 tick。
 ```
 
-`Engine.schedule()` 提供完整的调度流程：sense、select、plan、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
+`Engine.schedule()` 提供完整的调度流程：sense、select、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
 
 ## 关键模块
 
@@ -55,8 +53,8 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 - `scene.py`：定义调度对象 Scenes、预设场景 SceneId 枚举。
 - `context.py`：定义调度器采集的上下文 Context 和对应的 ContextManager。
 - `selection.py`：定义选择模型，即 Policy 和 Select 阶段的数据模型，定义上下文变量、语义项和显著度。
-- `scheduling.py`：定义 Controller、ActPlan 和 Actuator 的数据模型，定义调度器动作、执行模式，以及完整的 `ScheduleResult`。
-- `trace.py`： 定义 TickTrace，为 ScheduleResult 扩展时间、编号和暂停信息。
+- `scheduling.py`：定义 Controller 和 Actuator 的数据模型，包括调度器动作、执行模式、时序状态和完整的 `ScheduleResult`。
+- `trace.py`：定义 TickTrace，为 ScheduleResult 扩展时间、编号和暂停信息。
 
 2. `policies/` 以及 `sensors`
 
@@ -68,9 +66,8 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 
 - `profile_manager.py`：提供 `ProfileManager`，统一管理 Profile 初次读取、编译、持久化、应用队列。
 - `selector.py`：提供 `Selector`，负责推动 Policy 计算显著度并计算场景概率分布。
-- `act_plan.py`：根据当前 WE 状态、手动请求和暂停确定执行模式，将模式与完整成功分布缓存组成 ActPlan。
-- `controller.py`：提供 `Controller`，根据 ActPlan、场景概率、防打扰约束确定本 tick 的 Decision
-- `timing.py`：由 Controller 持有，根据当前分布与上次成功执行分布的距离计算等待阈值，并管理启动等待和成功执行时间。
+- `controller.py`：提供 `Controller`，根据执行模式、场景概率、防打扰约束确定本 tick 的 Decision。
+- `timing.py`：由 Controller 持有，根据前后两次场景分布的差异度、轮换冷却间隔进行择时评估。
 - `disturbance.py`：由 Controller 持有，根据空闲、CPU 和全屏状态评估防打扰条件。
 - `actuator.py`：将高层决策 Decision 转换为实际 WE CLI 调用
 - `executor.py`： WE CLI 封装，内置 keep_alive 保活
@@ -81,8 +78,8 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 
 负责调度器运行时状态和持久化输出的管理
 
-- `scheduler.py`：定义调度器的运行时状态并提供状态流转方法。
-- `persisted.py`：定义需要持久化的调度器运行状态。
+- `scheduler.py`：定义调度器的运行时状态，提供状态流转方法。
+- `persisted.py`：定义需跨进程持久化的调度器状态。
 - `tick_history.py`：定义最近窗口的 tick 历史，用于导出分析。
 - `action_events.py`：按事件类型记录并导出调度器动作。
 

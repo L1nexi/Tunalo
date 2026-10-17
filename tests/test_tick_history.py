@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from core.models.context import Context
 from core.models.scene import Scenes
-from core.models.scheduling import Action, ActionResult, ActPlan, Decision, DecisionMode, ScheduleResult
+from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
 from core.models.trace import TickTrace
 from core.state.tick_history import TickHistoryStore, TickHistoryWindow
@@ -50,8 +50,20 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
             schedule=ScheduleResult(
                 context=Context(),
                 selection=Selection(probabilities={}, salience={}, reason="no_safe_scenes"),
-                plan=ActPlan(mode=DecisionMode.NORMAL, cached_scenes_probabilities={}),
-                decision=Decision(action=Action.HOLD, target=Scenes()),
+                mode=DecisionMode.NORMAL,
+                decision=Decision(
+                    action=Action.NOOP,
+                    target=Scenes(),
+                    timing=TimingEvaluation(
+                        active_scenes=Scenes(),
+                        distance=None,
+                        reference_distance=0.25,
+                        interval=None,
+                        elapsed=0.0,
+                        startup_remaining=0.0,
+                    ),
+                    disturbance=DisturbanceEvaluation(),
+                ),
                 action=ActionResult(),
             ),
         )

@@ -5,7 +5,7 @@
 ## 调度
 
 **Scheduler**:
-持续推进 Tick、持有 Scheduler Memory，并协调完整调度生命周期的主体。Scheduler 是 Orchestrator 主体，不了解下层实现。
+持续推进 Tick 并协调完整调度生命周期的主体。Scheduler 是 Orchestrator ，屏蔽具体实现。
 _可接受别名_: 调度器
 _避免使用_: Engine
 
@@ -95,12 +95,12 @@ _可接受别名_: 成功分布缓存、Scheduler Memory
 _避免使用_: 上个 Tick 的分布、已抽中的场景
 
 **Cached Scenes**:
-Cached Distribution 中具有正选择概率的场景集合，使 Scheduler 能从 Wallpaper Engine 暴露的单个 Playlist 恢复原来的场景集合身份。
+Cached Distribution 中具有正选择概率的场景集合，表示最近成功执行所采用的场景池。
 _可接受别名_: cached\*scenes
 _避免使用_: Active Scenes、Current Playlist
 
 **Active Scenes**:
-当前 Tick 作为执行前参照的场景集合，由成功分布缓存中的正概率场景派生。
+当前 Tick 执行前，最近一次成功执行所采用的场景池快照。
 _可接受别名_: active\*scenes
 _避免使用_: Cached Scenes、FactualPlaylistStatus
 

@@ -12,9 +12,8 @@ if TYPE_CHECKING:
 
 
 class Action(StrEnum):
-    NONE = "none"
+    NOOP = "noop"
     APPLY = "apply"
-    HOLD = "hold"
     PAUSE = "pause"
 
 
@@ -32,13 +31,10 @@ class DecisionMode(StrEnum):
 
 
 @dataclass(frozen=True)
-class ActPlan:
-    mode: DecisionMode
+class TimingState:
     cached_scenes_probabilities: dict[SceneId, float]
-
-    @property
-    def active_scenes(self) -> Scenes:
-        return Scenes([scene_id for scene_id, probability in self.cached_scenes_probabilities.items() if probability > 0])
+    last_success_time: float
+    startup_end: float
 
 
 @dataclass
@@ -57,14 +53,17 @@ class DisturbanceEvaluation:
 
 @dataclass(frozen=True)
 class TimingEvaluation:
-    distance: float
+    active_scenes: Scenes
+    distance: float | None
     reference_distance: float
-    interval: float
+    interval: float | None
     elapsed: float
     startup_remaining: float
 
     @property
-    def remaining(self) -> float:
+    def remaining(self) -> float | None:
+        if self.interval is None:
+            return None
         return max(self.startup_remaining, self.interval - self.elapsed, 0.0)
 
     @property
@@ -78,8 +77,8 @@ class Decision:
 
     action: Action
     target: Scenes
-    timing: TimingEvaluation | None = None
-    disturbance: DisturbanceEvaluation | None = None
+    timing: TimingEvaluation
+    disturbance: DisturbanceEvaluation
     probabilities: dict[SceneId, float] = field(default_factory=dict)
 
 
@@ -94,13 +93,12 @@ class ActionResult:
 class ScheduleResult:
     context: Context
     selection: Selection
-    plan: ActPlan
+    mode: DecisionMode
     decision: Decision
     action: ActionResult
 
     @property
     def target(self) -> Scenes:
-        """返回本次执行后的有效场景；切换未成功时沿用执行前场景。"""
         if self.action.executed and self.decision.action == Action.APPLY:
             return self.decision.target
-        return self.plan.active_scenes
+        return self.decision.timing.active_scenes

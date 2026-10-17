@@ -18,7 +18,7 @@ class ActionEventWriter:
             self._events.write(
                 EventType.SCENES_APPLIED,
                 {
-                    "scenes_from": [scene_id.value for scene_id in trace.active_scenes.ids()],
+                    "scenes_from": [scene_id.value for scene_id in decision.timing.active_scenes.ids()],
                     "scenes_to": [scene_id.value for scene_id in trace.target.ids()],
                     "target_playlist": result.target_playlist,
                     "salience": {item: round(value, 4) for item, value in selection.salience.items()},
@@ -32,6 +32,6 @@ class ActionEventWriter:
                 {
                     "action": decision.action.value,
                     "matched_scenes": [scene_id.value for scene_id in decision.target.ids()],
-                    "active_scenes": [scene_id.value for scene_id in trace.active_scenes.ids()],
+                    "active_scenes": [scene_id.value for scene_id in decision.timing.active_scenes.ids()],
                 },
             )
