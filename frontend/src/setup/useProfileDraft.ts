@@ -3,8 +3,8 @@ import { computed, reactive, ref, watch } from "vue"
 import type { Locale, Profile } from "@/api/profile"
 import { STEP_ORDER, stepFingerprint } from "./flow"
 import type { EditableStepId } from "./flow"
-import { createProfileDraft, emptyPendingActivity, profileFingerprint } from "./model"
-import type { ActivityField, ProfileDraft } from "./model"
+import { createProfileDraft, emptyPendingActivity, normalizePreferenceTiers, profileFingerprint } from "./model"
+import type { ActivityField, PreferenceLayer, ProfileDraft } from "./model"
 
 export type SetupMode = "setup" | "settings"
 
@@ -17,7 +17,25 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
   const baseline = ref(profileFingerprint(savedDraft.value))
   const pendingActivity = reactive(emptyPendingActivity())
   const rememberedScenes = reactive<ProfileDraft["scenes"]>({})
+  const preferenceLayers = ref<PreferenceLayer[]>([])
+  let nextLayerId = 0
   let pathTouched = false
+
+  function resetPreferenceLayers(): void {
+    preferenceLayers.value = draft.matching.preference_tiers.map((variables) => ({
+      id: nextLayerId++, variables: [...variables],
+    }))
+  }
+  resetPreferenceLayers()
+
+  function updatePreferenceLayers(layers: PreferenceLayer[]): void {
+    preferenceLayers.value = layers
+    draft.matching = { preference_tiers: normalizePreferenceTiers(layers.map((layer) => layer.variables)) }
+  }
+
+  function addPreferenceLayer(): void {
+    updatePreferenceLayers([...preferenceLayers.value, { id: nextLayerId++, variables: [] }])
+  }
 
   const pendingActivityFields = computed(() => (Object.keys(pendingActivity) as ActivityField[])
     .filter((field) => pendingActivity[field].trim().length > 0))
@@ -58,12 +76,14 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
     Object.assign(draft, createProfileDraft(profile, locale.value))
     savedDraft.value = createProfileDraft(profile, locale.value)
     baseline.value = profileFingerprint(draft)
+    resetPreferenceLayers()
     for (const id of Object.keys(rememberedScenes) as Array<keyof ProfileDraft["scenes"]>) delete rememberedScenes[id]
   }
 
   return {
     mode, locale, draft, savedDraft, pendingActivity, pendingActivityFields,
-    rememberedScenes, changedSteps, isDirty,
+    rememberedScenes, preferenceLayers, changedSteps, isDirty,
+    updatePreferenceLayers, addPreferenceLayer,
     setLocale, updatePath, acceptDetectedPath, rememberScene, commit,
   }
 }

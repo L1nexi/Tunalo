@@ -63,11 +63,11 @@ npm run build-only
 
 Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
 
-`activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity` 或设为 `null` 时使用内置默认规则；显式提供对象时完全使用其中的规则，空对象表示不识别活动。这三种状态在保存和重新加载后保持不变。
+`activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity`、设为 `null` 或提供空对象时，均不配置活动识别规则。前端回填为空列表，保存时提交完整规则对象。
 
-`ProfileCompiler` 处理用户 Profile 和内置规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
+`ProfileCompiler` 只编译用户 Profile 中的规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
 
-前端恢复到场景选择模型实施前的版本，保留活动规则编辑页面。目前前端仍使用原有 Profile 契约，尚未接入新版后端；待界面设计确认后再调整。
+前端按第 2 版 Profile 创建、保存和回填配置。用户可添加偏好层级，将四个情境变量拖入各层；同层并列，上层优先。空层保留在编辑会话中，提交时过滤。活动页保留自定义规则编辑，并提供开发人员工具、办公工具、社交、多媒体应用组，导入时由用户选择工作或休闲分类。
 
 ### 内部参数与规则入口
 
@@ -93,7 +93,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 配置定义见 [runtime_models.py](../configurations/runtime_models.py)。十个 Scene 的直接语义关联集中在 [ProfileCompiler](../configurations/profile_compiler.py)：四个日间／夜间工作和娱乐场景分别关联时段与活动，四季、黄昏和雨天分别关联对应单项语义。雪、黎明等没有独立预设，不补回旧标签回退，也不由讨论中的复合例子自动扩充产品目录。
 
-内置活动规则集中在 [activity_rules.py](../configurations/activity_rules.py)，天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)。这些表由实现维护，不在文档中复制另一份逐应用或逐代码配置；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
+应用组规则集中在 [activityRulePacks.ts](../frontend/src/setup/activityRulePacks.ts)，导入后成为普通用户规则。导入按匹配语义去重，冲突时保留用户原分类并跳过该项。天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
 
 ### 运行时契约与历史记录
 
@@ -172,7 +172,7 @@ Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_dis
 | Profile 初始化、首次创建及应用时机 | [test_profile_manager.py](../tests/test_profile_manager.py) |
 | 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py) |
 
-确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。模型与后端消费的验收不覆盖当前尚未接入的新版设置界面；后续事项见 [TODO](TODO.md)。
+确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。设置界面的创建、保存、回填和交互由浏览器测试覆盖；后续事项见 [TODO](TODO.md)。
 
 ```powershell
 .\.venv\Scripts\python.exe tools/tuning/calibrate.py --alpha 2 --out tools/tuning/runs/model-calibration-power-alpha2

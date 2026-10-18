@@ -1,46 +1,7 @@
 import { expect, test } from "@playwright/test"
-import type { Page } from "@playwright/test"
 import type { Profile } from "../src/api/profile"
 
-const profile: Profile = {
-  version: 1,
-  setup_complete: true,
-  wallpaper_engine_path: "C:\\Wallpaper Engine\\wallpaper64.exe",
-  language: "zh",
-  weather: {
-    api_key: "saved-key",
-    location: { name: "上海", latitude: 31.2304, longitude: 121.4737 },
-  },
-  scenes: { day_work: "CASUAL_ANIME" },
-  matching: { response_style: "balanced" },
-  disturbance: {
-    startup_grace_seconds: 15,
-    idle_before_switch_seconds: 20,
-    cycle_interval_minutes: 15,
-  },
-  activity: {
-    work_processes: [],
-    leisure_processes: [],
-    work_title_keywords: [],
-    leisure_title_keywords: [],
-  },
-}
-
-async function mockSetupApi(page: Page, hasProfile: boolean, settingsProfile: Profile = profile): Promise<void> {
-  await page.route("**/api/profile", async (route) => {
-    if (route.request().method() === "GET") {
-      await route.fulfill(hasProfile ? { json: { profile: settingsProfile } } : { status: 404, json: { error: "profile_not_found" } })
-      return
-    }
-    await route.fulfill({ json: { status: "applied", profile: settingsProfile } })
-  })
-  await page.route("**/api/scenes", async (route) => {
-    await route.fulfill({ json: { scenes: ["day_work", "day_leisure", "night_work", "night_leisure", "rain", "sunset"].map((id) => ({ id })) } })
-  })
-  await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
-    await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [{ name: "CASUAL_ANIME", item_count: 60 }] } })
-  })
-}
+import { mockSetupApi, profile } from "./support/profileApi"
 
 test("首次设置允许自由选择分类，并在检查页指出未完成设置", async ({ page }) => {
   await mockSetupApi(page, false)
@@ -109,14 +70,14 @@ test("点击卡片主体可切换场景，卡内选择器不承担启停", async
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
 
-  await page.getByText("下雨时参与匹配，雷雨时加分。").click()
+  await page.getByText("呼应下雨与雷雨天气。").click()
   await expect(page.getByRole("checkbox", { name: "雨天" })).toBeChecked()
 
   await page.getByRole("button", { name: "雨天: 播放列表" }).click()
   await expect(page.getByRole("checkbox", { name: "雨天" })).toBeChecked()
   await page.keyboard.press("Escape")
 
-  await page.getByText("下雨时参与匹配，雷雨时加分。").click()
+  await page.getByText("呼应下雨与雷雨天气。").click()
   await expect(page.getByRole("checkbox", { name: "雨天" })).not.toBeChecked()
 })
 
@@ -532,9 +493,9 @@ test("取消再恢复原绑定的场景不构成未保存修改", async ({ page 
   await nav.getByRole("button", { name: /场景绑定/ }).click()
 
   // 取消后重新启用，记忆绑定原样恢复：值未变，仅 scenes 映射键序不同。
-  await page.getByText("白天、当前活动为工作时参与匹配。").click()
+  await page.getByText("呼应白天与工作情境。").click()
   await expect(page.getByRole("checkbox", { name: "日间工作" })).not.toBeChecked()
-  await page.getByText("白天、当前活动为工作时参与匹配。").click()
+  await page.getByText("呼应白天与工作情境。").click()
   await expect(page.getByRole("checkbox", { name: "日间工作" })).toBeChecked()
 
   await expect(page.getByRole("status")).toHaveText(/所有修改已保存/)
@@ -549,24 +510,25 @@ test("日常设置直接保存并列出具体修改，未修改时禁用保存",
   await page.goto("/?locale=zh")
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
-  await page.getByRole("button", { name: "当前优先" }).click()
+  await page.getByRole("button", { name: "添加层级" }).click()
+  await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
   await expect(page.getByText("有未保存的修改")).toBeVisible()
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
   await expect(page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" })).toHaveAttribute("aria-current", "page")
-  await expect(page.getByText("平衡 → 当前优先")).toBeVisible()
+  await expect(page.getByText("未指定优先级 → 天气")).toBeVisible()
   await page.getByRole("button", { name: "保存并应用" }).click()
   await expect(page.getByText("所有修改已保存。", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "保存并应用" })).toBeDisabled()
 })
 
-test("关闭确认说明修改后果，窄窗口档位仍可选择", async ({ page }) => {
+test("关闭确认说明修改后果，窄窗口可调整偏好", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.setViewportSize({ width: 900, height: 600 })
   await page.goto("/?locale=zh")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
-  await expect(page.getByRole("combobox", { name: "响应风格" })).toBeVisible()
-  await page.getByRole("combobox", { name: "响应风格" }).click()
-  await page.getByRole("option", { name: "当前优先" }).click()
+  await page.getByRole("button", { name: "添加层级" }).click()
+  await page.getByRole("combobox", { name: "移动天气到", exact: true }).click()
+  await page.getByRole("option", { name: "第 1 优先级", exact: true }).click()
   await page.getByRole("button", { name: "关闭" }).click()
   const dialog = page.getByRole("alertdialog", { name: "放弃未保存的修改？" })
   await expect(dialog).toContainText("当前运行设置不会改变，本次修改将丢失。")

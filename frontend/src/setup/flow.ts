@@ -1,5 +1,5 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, hasValidTiming, sceneFingerprint } from "./model.ts"
+import { activityConflicts, hasValidPreferences, hasValidTiming, preferenceFingerprint, sceneFingerprint } from "./model.ts"
 import type { ProfileDraft } from "./model.ts"
 
 export const STEP_ORDER = [
@@ -27,7 +27,7 @@ export function stepFingerprint(draft: ProfileDraft, id: EditableStepId): string
     case "wallpaper": return JSON.stringify(draft.wallpaper_engine_path)
     case "weather": return JSON.stringify(draft.weather)
     case "scenes": return sceneFingerprint(draft.scenes)
-    case "scheduling": return JSON.stringify([draft.matching, draft.disturbance])
+    case "scheduling": return JSON.stringify([preferenceFingerprint(draft.matching), draft.disturbance])
     case "activity": return JSON.stringify(draft.activity)
   }
 }
@@ -68,7 +68,7 @@ export function evaluateSteps(
       wallpaper: wallpaperReady,
       weather: draft.weather.api_key.trim().length > 0 && locationValid,
       scenes: scenesValid,
-      scheduling: hasValidTiming(draft.disturbance),
+      scheduling: hasValidTiming(draft.disturbance) && hasValidPreferences(draft.matching),
       activity: conflicts.length === 0,
     },
     conflicts,

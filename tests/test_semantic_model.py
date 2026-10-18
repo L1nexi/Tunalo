@@ -105,11 +105,17 @@ def test_other_adds_zero_direction_without_immediately_clearing_existing_history
         ("", "", None),
     ],
 )
-def test_built_in_window_rules_and_title_priority(process: str, title: str, expected: str | None) -> None:
+def test_user_window_rules_and_title_priority(process: str, title: str, expected: str | None) -> None:
     profile = Profile(
         wallpaper_engine_path="C:/fixture/wallpaper64.exe",
         weather={"api_key": "fixture", "location": {"latitude": 0, "longitude": 0}},
         scenes={SceneId.DAY_WORK: "WORK"},
+        activity={
+            "work_processes": ["code", "winword"],
+            "leisure_processes": ["dota2"],
+            "work_title_keywords": ["GitHub", "腾讯文档"],
+            "leisure_title_keywords": ["bilibili", "YouTube"],
+        },
     )
     config = ProfileCompiler.compile(profile)
     result = ActivityPolicy(config.policies.activity).evaluate(observation(process, title))

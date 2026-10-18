@@ -301,6 +301,52 @@ def test_api_profile_returns_current_committed_profile(tick_history, profile_man
     assert body["profile"]["scenes"] == {"day_work": "WORK"}
 
 
+@pytest.mark.parametrize(
+    "activity, expected",
+    [
+        (None, None),
+        ({}, {"work_processes": [], "leisure_processes": [], "work_title_keywords": [], "leisure_title_keywords": []}),
+        (
+            {"work_processes": ["code"], "leisure_title_keywords": ["YouTube"]},
+            {"work_processes": ["code"], "leisure_processes": [], "work_title_keywords": [], "leisure_title_keywords": ["YouTube"]},
+        ),
+    ],
+)
+def test_profile_api_preserves_preferences_and_activity_after_save_and_reload(
+    app, tmp_path: Path, tick_history: TickHistoryStore, activity: dict[str, list[str]] | None, expected: dict[str, list[str]] | None
+) -> None:
+    _, current = wsgi_get(app, "/api/profile")
+    draft = current["profile"]
+    draft["matching"] = {"preference_tiers": [["weather"], ["activity", "time"]]}
+    draft["activity"] = activity
+    draft["disturbance"]["startup_grace_seconds"] = 30
+
+    status, saved = wsgi_put(app, "/api/profile", draft)
+
+    assert status.startswith("200")
+    assert saved["status"] == "applied"
+    reloaded = ProfileManager(str(tmp_path))
+    reloaded.load_initial_profile()
+    read_status, body = wsgi_get(build_api_app(tick_history, reloaded), "/api/profile")
+    assert read_status.startswith("200")
+    assert body["profile"]["version"] == 2
+    assert body["profile"]["matching"] == {"preference_tiers": [["weather"], ["activity", "time"]]}
+    assert body["profile"]["activity"] == expected
+    assert body["profile"]["disturbance"]["startup_grace_seconds"] == 30
+
+
+def test_profile_api_rejects_repeated_preference_without_changing_saved_profile(app) -> None:
+    _, current = wsgi_get(app, "/api/profile")
+    draft = {**current["profile"], "matching": {"preference_tiers": [["weather"], ["weather"]]}}
+
+    status, rejected = wsgi_put(app, "/api/profile", draft)
+
+    assert status.startswith("422")
+    assert rejected["error"] == "invalid_profile"
+    _, after = wsgi_get(app, "/api/profile")
+    assert after == current
+
+
 def test_api_setup_scans_wallpaper_engine_playlists(tmp_path: Path, tick_history):
     executable = _wallpaper_engine_path(tmp_path)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))

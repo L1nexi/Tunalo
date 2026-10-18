@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { TriangleAlertIcon } from "@lucide/vue"
+import { ChevronDownIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
+import { toast } from "vue-sonner"
 
 import type { Locale } from "@/api/profile"
 import ActivityListInput from "@/components/setup/ActivityListInput.vue"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
 import { COPY, ZH_ACTIVITY_NOTE } from "@/setup/copy"
+import { ACTIVITY_RULE_PACKS, importActivityRulePack } from "@/setup/activityRulePacks"
+import type { ActivityRulePack } from "@/setup/activityRulePacks"
 import type { ActivityField, PendingActivity, ProfileDraft } from "@/setup/model"
 
 type Activity = ProfileDraft["activity"]
@@ -43,6 +48,12 @@ const groups = computed(() => [
 
 function setList(field: keyof Activity, values: string[]): void {
   emit("update:activity", { ...props.activity, [field]: values })
+}
+
+function importPack(pack: ActivityRulePack, target: "work" | "leisure"): void {
+  const result = importActivityRulePack(props.activity, pack, target)
+  if (result.added > 0) emit("update:activity", result.activity)
+  toast(copy.value.activity.imported(result.added, result.skipped))
 }
 </script>
 
@@ -105,5 +116,24 @@ function setList(field: keyof Activity, values: string[]): void {
         </FieldGroup>
       </FieldSet>
     </div>
+    <Collapsible>
+      <CollapsibleTrigger as-child>
+        <Button type="button" variant="ghost"><ChevronDownIcon data-icon="inline-start" />{{ copy.activity.importGroups }}</Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent class="pt-3">
+        <div class="flex flex-col divide-y">
+          <section v-for="pack in ACTIVITY_RULE_PACKS" :key="pack.id" :aria-label="copy.activity.packLabels[pack.id]" class="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div class="min-w-0 flex-1 basis-60">
+              <h3 class="text-sm font-medium">{{ copy.activity.packLabels[pack.id] }}</h3>
+              <p class="mt-1 text-sm text-muted-foreground">{{ pack.apps.map((app) => locale === 'en' ? app.nameEn ?? app.name : app.name).join(locale === 'zh' ? '、' : ', ') }}</p>
+            </div>
+            <div class="flex gap-2">
+              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'work')">{{ copy.activity.importWork }}</Button>
+              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'leisure')">{{ copy.activity.importLeisure }}</Button>
+            </div>
+          </section>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   </section>
 </template>

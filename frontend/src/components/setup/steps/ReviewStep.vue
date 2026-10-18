@@ -6,7 +6,7 @@ import type { Locale, SceneId } from "@/api/profile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { COPY, DISTURBANCE_LABELS, RESPONSE_STYLE_LABELS, SCENE_LABELS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS, preferenceSummary, SCENE_LABELS } from "@/setup/copy"
 import type { StepId } from "@/setup/flow"
 import { detectDisturbancePreset } from "@/setup/model"
 import type { ProfileDraft } from "@/setup/model"
@@ -83,8 +83,8 @@ const changes = computed(() => {
     add("scenes", SCENE_LABELS[props.locale][id], before.scenes[id] || copy.value.review.disabled, after.scenes[id] || (id in after.scenes ? copy.value.review.awaitingPlaylist : copy.value.review.disabled))
   }
   add("scheduling", copy.value.review.response,
-    RESPONSE_STYLE_LABELS[props.locale][before.matching.response_style],
-    RESPONSE_STYLE_LABELS[props.locale][after.matching.response_style])
+    preferenceSummary(before.matching.preference_tiers, props.locale),
+    preferenceSummary(after.matching.preference_tiers, props.locale))
   const timingRows = [
     { field: "startup_grace_seconds", label: copy.value.preferences.startupGrace, unit: copy.value.preferences.seconds },
     { field: "idle_before_switch_seconds", label: copy.value.preferences.idleBeforeSwitch, unit: copy.value.preferences.seconds },
@@ -124,7 +124,7 @@ const reviewGroups = computed(() => [
   {
     id: "scheduling" as const,
     rows: [
-      { id: "response", label: copy.value.review.response, value: RESPONSE_STYLE_LABELS[props.locale][props.draft.matching.response_style] },
+      { id: "response", label: copy.value.review.response, value: preferenceSummary(props.draft.matching.preference_tiers, props.locale) },
       { id: "disturbance", label: copy.value.review.disturbance, value: preset.value === "custom" ? copy.value.common.custom : DISTURBANCE_LABELS[props.locale][preset.value] },
     ],
   },

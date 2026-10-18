@@ -2,7 +2,8 @@
 import { CheckIcon, CircleHelpIcon, SlidersHorizontalIcon } from "@lucide/vue"
 import { computed } from "vue"
 
-import type { Locale, ResponseStyle } from "@/api/profile"
+import type { Locale } from "@/api/profile"
+import PreferenceTiersEditor from "@/components/setup/PreferenceTiersEditor.vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -11,24 +12,24 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { COPY, DISTURBANCE_LABELS, RESPONSE_STYLE_LABELS, ZH_TIMING_HINTS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS, ZH_TIMING_HINTS } from "@/setup/copy"
 import { detectDisturbancePreset, DISTURBANCE_PRESETS, isNonNegativeInteger, parseNumberInput } from "@/setup/model"
-import type { DisturbancePreset, ProfileDraft } from "@/setup/model"
+import type { DisturbancePreset, PreferenceLayer, ProfileDraft } from "@/setup/model"
 
-type Matching = ProfileDraft["matching"]
 type Disturbance = ProfileDraft["disturbance"]
 type DisturbanceKey = keyof Disturbance
 
 const props = defineProps<{
   locale: Locale
-  matching: Matching
+  layers: PreferenceLayer[]
   disturbance: Disturbance
   timingOpen: boolean
   errors: Record<string, string[]>
 }>()
 
 const emit = defineEmits<{
-  "update:matching": [value: Matching]
+  "update:layers": [value: PreferenceLayer[]]
+  addLayer: []
   "update:disturbance": [value: Disturbance]
   "update:timingOpen": [value: boolean]
 }>()
@@ -52,12 +53,6 @@ function timingErrors(field: DisturbanceKey): string[] {
   ]
 }
 
-function setResponseStyle(value: unknown): void {
-  if (typeof value === "string" && value) {
-    emit("update:matching", { response_style: value as ResponseStyle })
-  }
-}
-
 function setPreset(value: unknown): void {
   if (typeof value !== "string" || !(value in DISTURBANCE_PRESETS)) return
   emit("update:disturbance", { ...DISTURBANCE_PRESETS[value as DisturbancePreset] })
@@ -70,41 +65,11 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
 
 <template>
   <section class="flex flex-col gap-8">
-    <FieldSet :data-invalid="messages('matching.response_style').length > 0">
-      <FieldLegend>{{ copy.preferences.responseTitle }}</FieldLegend>
-      <FieldDescription>{{ copy.preferences.responseDescription }}</FieldDescription>
-      <Select :model-value="matching.response_style" @update:model-value="setResponseStyle">
-        <SelectTrigger class="w-full lg:hidden" :aria-label="copy.preferences.responseTitle" :aria-invalid="messages('matching.response_style').length > 0" :aria-describedby="messages('matching.response_style').length ? 'response-style-error' : undefined">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem v-for="style in (Object.keys(RESPONSE_STYLE_LABELS[locale]) as ResponseStyle[])" :key="style" :value="style">{{ RESPONSE_STYLE_LABELS[locale][style] }}</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        :spacing="2"
-        class="hidden w-full lg:flex"
-        :model-value="matching.response_style"
-        :aria-describedby="messages('matching.response_style').length ? 'response-style-error' : undefined"
-        @update:model-value="setResponseStyle"
-      >
-        <ToggleGroupItem
-          v-for="style in (Object.keys(RESPONSE_STYLE_LABELS[locale]) as ResponseStyle[])"
-          :key="style"
-          :value="style"
-          class="min-w-28 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
-        >
-          <CheckIcon v-if="matching.response_style === style" class="text-primary" data-icon="inline-start" />
-          {{ RESPONSE_STYLE_LABELS[locale][style] }}
-        </ToggleGroupItem>
-      </ToggleGroup>
-      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.responseExplanations[matching.response_style] }}</p>
-      <FieldError v-if="messages('matching.response_style').length" id="response-style-error" :errors="messages('matching.response_style')" />
-    </FieldSet>
+    <PreferenceTiersEditor
+      :locale="locale" :layers="layers"
+      :errors="messages('matching', 'matching.preference_tiers')"
+      @update:layers="emit('update:layers', $event)" @add-layer="emit('addLayer')"
+    />
 
     <FieldSet>
       <FieldLegend>{{ copy.preferences.disturbanceTitle }}</FieldLegend>

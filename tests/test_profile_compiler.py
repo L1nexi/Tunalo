@@ -120,10 +120,8 @@ def test_user_activity_rules_reject_normalized_conflicts_and_empty_targets(activ
         profile(activity=activity)
 
 
-@pytest.mark.parametrize("activity, supported_item", [(None, "work"), ({"leisure_processes": ["code.exe"]}, "leisure")])
-def test_activity_default_and_custom_rules_survive_profile_store_round_trip(
-    tmp_path: Path, activity: dict[str, list[str]] | None, supported_item: str
-) -> None:
+@pytest.mark.parametrize("activity, supported_item", [({"work_processes": ["code"]}, "work"), ({"leisure_processes": ["code.exe"]}, "leisure")])
+def test_custom_activity_rules_survive_profile_store_round_trip(tmp_path: Path, activity: dict[str, list[str]], supported_item: str) -> None:
     current = profile(activity=activity)
     store = ProfileStore(str(tmp_path))
     store.commit(current)
@@ -136,10 +134,22 @@ def test_activity_default_and_custom_rules_survive_profile_store_round_trip(
     assert after.salience[supported_item] > 0
 
 
-def test_empty_activity_rules_do_not_reenable_defaults_after_profile_reload(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {},
+        {"activity": None},
+        {"activity": {}},
+        {"activity": {"work_processes": [], "leisure_processes": [], "work_title_keywords": [], "leisure_title_keywords": []}},
+    ],
+)
+def test_absent_or_empty_activity_rules_classify_nothing_after_reload(tmp_path: Path, overrides: dict[str, object]) -> None:
     store = ProfileStore(str(tmp_path))
-    store.commit(profile(activity={}))
+    store.commit(profile(**overrides))
     restored = store.load()
     assert restored is not None
-    result = selector_for(restored, {}).select(Context(window=WindowData(process="code.exe")))
-    assert result.salience["work"] == result.salience["leisure"] == 0
+    selector = selector_for(restored, {})
+    for window in [WindowData(process="code.exe", title="Visual Studio Code"), WindowData(process="vlc.exe", title="YouTube")]:
+        result = selector.select(Context(window=window))
+        assert result.salience["work"] == 0
+        assert result.salience["leisure"] == 0

@@ -36,7 +36,7 @@ const props = defineProps<{
 }>()
 
 const editor = useProfileDraft(props.initialProfile, props.initialLocale)
-const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale } = editor
+const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale, preferenceLayers } = editor
 const copy = computed(() => COPY[locale.value])
 // 坐标是否偏离已保存基线：驱动就近纠错提示，跨步骤切换不丢失。
 const locationEdited = computed(() =>
@@ -47,7 +47,7 @@ const {
   activeStep, previousSection, steps, activeHeading, stepContentClass,
   allValid, missingSteps, evaluation, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
   isStepValid, navigateTo, navigateToStep,
-  updatePath, updateScenes, updateMatching, updateDisturbance, updateActivity, updatePendingActivity,
+  updatePath, updateScenes, updatePreferenceLayers, addPreferenceLayer, updateDisturbance, updateActivity, updatePendingActivity,
 } = flow
 const weather = useWeatherServices(toRef(draft, "weather"), locale, flow.clearWeatherFieldFeedback)
 const {
@@ -194,11 +194,12 @@ onMounted(() => {
           <SchedulingStep
             v-else-if="activeStep === 'scheduling'"
             :locale="locale"
-            :matching="draft.matching"
+            :layers="preferenceLayers"
             :disturbance="draft.disturbance"
             :timing-open="timingOpen"
             :errors="issuesByStep.scheduling"
-            @update:matching="updateMatching"
+            @update:layers="updatePreferenceLayers"
+            @add-layer="addPreferenceLayer"
             @update:disturbance="updateDisturbance"
             @update:timing-open="timingOpen = $event"
           />

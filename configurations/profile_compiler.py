@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from configurations.activity_rules import RULE_GROUPS
 from configurations.profile import ActivityProfile, Profile
 from configurations.runtime_models import (
     ActivityMatcherConfig,
@@ -70,16 +69,14 @@ class ProfileCompiler:
 
     @staticmethod
     def _compile_activity_matchers(activity: ActivityProfile | None) -> list[ActivityMatcherConfig]:
-        """Compile user rules, or product defaults when no rules are supplied."""
+        """Compile only the rules explicitly supplied by the user."""
+        if activity is None:
+            return []
         groups = (
-            RULE_GROUPS
-            if activity is None
-            else (
-                ("process", "work", activity.work_processes),
-                ("process", "leisure", activity.leisure_processes),
-                ("title", "work", activity.work_title_keywords),
-                ("title", "leisure", activity.leisure_title_keywords),
-            )
+            ("process", "work", activity.work_processes),
+            ("process", "leisure", activity.leisure_processes),
+            ("title", "work", activity.work_title_keywords),
+            ("title", "leisure", activity.leisure_title_keywords),
         )
         return [
             ActivityMatcherConfig(source=source, match="exact" if source == "process" else "contains", pattern=pattern, tag=tag)

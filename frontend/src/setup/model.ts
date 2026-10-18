@@ -1,7 +1,8 @@
-import type { Locale, Profile, ResponseStyle, SceneId } from "@/api/profile"
+import { CONTEXT_VARIABLES } from "@/api/profile"
+import type { ActivityProfile, ContextVariable, Locale, Profile, SceneId } from "@/api/profile"
 
 export interface ProfileDraft {
-  version: 1
+  version: 2
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
@@ -14,18 +15,44 @@ export interface ProfileDraft {
   }
   scenes: Partial<Record<SceneId, string>>
   matching: {
-    response_style: ResponseStyle
+    preference_tiers: ContextVariable[][]
   }
   disturbance: {
     startup_grace_seconds: number | null
     idle_before_switch_seconds: number | null
     cycle_interval_minutes: number | null
   }
-  activity: {
-    work_processes: string[]
-    leisure_processes: string[]
-    work_title_keywords: string[]
-    leisure_title_keywords: string[]
+  activity: ActivityProfile
+}
+
+export interface PreferenceLayer {
+  id: number
+  variables: ContextVariable[]
+}
+
+export function normalizePreferenceTiers(tiers: ContextVariable[][]): ContextVariable[][] {
+  return tiers.filter((tier) => tier.length > 0)
+    .map((tier) => [...tier].sort((a, b) => CONTEXT_VARIABLES.indexOf(a) - CONTEXT_VARIABLES.indexOf(b)))
+}
+
+export function hasValidPreferences(matching: ProfileDraft["matching"]): boolean {
+  const variables = matching.preference_tiers.flat()
+  return matching.preference_tiers.every((tier) => tier.length > 0)
+    && variables.every((variable) => CONTEXT_VARIABLES.includes(variable))
+    && new Set(variables).size === variables.length
+}
+
+export function preferenceFingerprint(matching: ProfileDraft["matching"]): string {
+  return JSON.stringify(normalizePreferenceTiers(matching.preference_tiers))
+}
+
+function copyActivity(activity: ActivityProfile | null): ActivityProfile {
+  if (activity === null) return { work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] }
+  return {
+    work_processes: [...activity.work_processes],
+    leisure_processes: [...activity.leisure_processes],
+    work_title_keywords: [...activity.work_title_keywords],
+    leisure_title_keywords: [...activity.leisure_title_keywords],
   }
 }
 
@@ -106,7 +133,7 @@ function requireNonNegativeInteger(value: number | null): number {
 export function createProfileDraft(profile: Profile | null, locale: Locale): ProfileDraft {
   if (profile !== null) {
     return {
-      version: 1,
+      version: 2,
       setup_complete: true,
       wallpaper_engine_path: profile.wallpaper_engine_path,
       language: profile.language,
@@ -118,19 +145,14 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
         },
       },
       scenes: { ...profile.scenes },
-      matching: { ...profile.matching },
+      matching: { preference_tiers: normalizePreferenceTiers(profile.matching.preference_tiers) },
       disturbance: { ...profile.disturbance },
-      activity: {
-        work_processes: [...profile.activity.work_processes],
-        leisure_processes: [...profile.activity.leisure_processes],
-        work_title_keywords: [...profile.activity.work_title_keywords],
-        leisure_title_keywords: [...profile.activity.leisure_title_keywords],
-      },
+      activity: copyActivity(profile.activity),
     }
   }
 
   return {
-    version: 1,
+    version: 2,
     setup_complete: true,
     wallpaper_engine_path: "",
     language: locale,
@@ -149,15 +171,10 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
       rain: "",
     },
     matching: {
-      response_style: "balanced",
+      preference_tiers: [],
     },
     disturbance: { ...DISTURBANCE_PRESETS.balanced },
-    activity: {
-      work_processes: [],
-      leisure_processes: [],
-      work_title_keywords: [],
-      leisure_title_keywords: [],
-    },
+    activity: copyActivity(null),
   }
 }
 
@@ -167,9 +184,10 @@ export function buildProfile(draft: ProfileDraft): Profile {
   if (latitude === null || longitude === null) {
     throw new Error("location_coordinates_required")
   }
+  if (!hasValidPreferences(draft.matching)) throw new Error("invalid_preference_tiers")
 
   return {
-    version: 1,
+    version: 2,
     setup_complete: true,
     wallpaper_engine_path: draft.wallpaper_engine_path,
     language: draft.language,
@@ -181,7 +199,7 @@ export function buildProfile(draft: ProfileDraft): Profile {
       },
     },
     scenes: { ...draft.scenes },
-    matching: { ...draft.matching },
+    matching: { preference_tiers: normalizePreferenceTiers(draft.matching.preference_tiers) },
     disturbance: {
       startup_grace_seconds: requireNonNegativeInteger(draft.disturbance.startup_grace_seconds),
       idle_before_switch_seconds: requireNonNegativeInteger(draft.disturbance.idle_before_switch_seconds),
@@ -205,11 +223,11 @@ export function detectDisturbancePreset(draft: Pick<ProfileDraft, "disturbance">
   return (match?.[0] as DisturbancePreset | undefined) ?? "custom"
 }
 
-function normalizeProcess(value: string): string {
+export function normalizeProcess(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\.exe$/i, "")
 }
 
-function normalizeTitle(value: string): string {
+export function normalizeTitle(value: string): string {
   return value.trim().toLocaleLowerCase()
 }
 
@@ -241,5 +259,9 @@ export function sceneFingerprint(scenes: ProfileDraft["scenes"]): string {
 }
 
 export function profileFingerprint(draft: ProfileDraft): string {
-  return JSON.stringify({ ...draft, scenes: sortedScenes(draft.scenes) })
+  return JSON.stringify({
+    ...draft,
+    scenes: sortedScenes(draft.scenes),
+    matching: { preference_tiers: normalizePreferenceTiers(draft.matching.preference_tiers) },
+  })
 }

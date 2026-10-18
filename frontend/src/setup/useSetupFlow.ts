@@ -7,7 +7,7 @@ import { describeError } from "./errorMessages"
 import { evaluateSteps, STEP_ORDER, stepForIssue, WIDE_STEPS } from "./flow"
 import type { StepId } from "./flow"
 import { hasValidTiming, validationIssueField } from "./model"
-import type { ActivityField, ProfileDraft } from "./model"
+import type { ActivityField, PreferenceLayer, ProfileDraft } from "./model"
 import type { usePlaylistScan } from "./usePlaylistScan"
 import type { ProfileEditor } from "./useProfileDraft"
 
@@ -54,7 +54,9 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
       const fields = grouped[stepForIssue(issue.path)]
       const field = validationIssueField(issue.path)
       fields[field] ??= []
-      fields[field].push(copy.value.errors.issueCodes[issue.code as keyof typeof copy.value.errors.issueCodes] ?? issue.message)
+      fields[field].push(issue.path[0] === "matching"
+        ? copy.value.preferences.invalidPreferences
+        : copy.value.errors.issueCodes[issue.code as keyof typeof copy.value.errors.issueCodes] ?? issue.message)
     }
     return grouped
   })
@@ -125,8 +127,13 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     clearStepFeedback("scenes")
   }
 
-  function updateMatching(value: ProfileDraft["matching"]): void {
-    draft.matching = value
+  function updatePreferenceLayers(value: PreferenceLayer[]): void {
+    editor.updatePreferenceLayers(value)
+    clearStepFeedback("scheduling")
+  }
+
+  function addPreferenceLayer(): void {
+    editor.addPreferenceLayer()
     clearStepFeedback("scheduling")
   }
 
@@ -191,7 +198,7 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     activeStep, previousSection, steps, activeHeading, stepContentClass,
     evaluation, allValid, missingSteps, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
     isStepValid, navigateTo, navigateToStep, clearStepFeedback, clearWeatherFieldFeedback,
-    updatePath, updateScenes, updateMatching, updateDisturbance, updateActivity, updatePendingActivity,
+    updatePath, updateScenes, updatePreferenceLayers, addPreferenceLayer, updateDisturbance, updateActivity, updatePendingActivity,
     prepareSubmission, reportSubmissionFailure, clearSubmissionFailure, resetFeedback,
   }
 }

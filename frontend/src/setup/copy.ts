@@ -1,4 +1,4 @@
-import type { Locale, SceneId } from "@/api/profile";
+import type { ContextVariable, Locale, SceneId } from "@/api/profile";
 import type { DisturbancePreset } from "@/setup/model";
 
 const zh = {
@@ -169,21 +169,26 @@ const zh = {
     unavailable: "场景绑定需要至少一个包含壁纸的播放列表。",
     groupSummary: (enabled: number, total: number) => `已启用 ${enabled}/${total}`,
     groups: { season: "季节氛围", context: "日常情境", weather: "天气氛围" },
-    matchExplanation: "天气、时段、季节和活动会共同参与场景匹配；同时成立时由匹配结果决定候选场景，不按此处的列表顺序固定优先。",
+    matchExplanation: "根据情境与偏好选择场景；此处的排列顺序不影响优先级。",
   },
   preferences: {
     title: "调整调度风格",
     description: "",
-    responseTitle: "响应风格",
-    responseDescription:
-      "决定匹配场景时更看重长期情境，还是当前天气与活动；不改变允许切换的时机。",
-    responseExplanations: {
-      background: "季节与时段相对更有影响；天气和活动仍参与匹配。",
-      background_leaning: "与平衡档相比，长期情境的影响更大。",
-      balanced: "长期情境与当前天气、活动共同参与匹配。",
-      current_leaning: "与平衡档相比，当前天气和活动的影响更大。",
-      current: "五档中最重视当前天气和活动；仍结合时段与季节。",
-    },
+    responseTitle: "情境偏好",
+    responseDescription: "将情境拖入优先级，上方优先，同层并列。",
+    unassigned: "未指定优先级",
+    addLayer: "添加层级",
+    layer: (number: number) => `第 ${number} 优先级`,
+    dropHere: "拖到这里",
+    dragVariable: (name: string) => `拖动${name}`,
+    moveVariable: (name: string) => `移动${name}到`,
+    moved: (name: string, destination: string) => `${name}已移到${destination}`,
+    moveLayerUp: (number: number) => `上移第 ${number} 优先级`,
+    moveLayerDown: (number: number) => `下移第 ${number} 优先级`,
+    removeLayer: (number: number) => `删除第 ${number} 优先级`,
+    layerMoved: (before: number, after: number) => `第 ${before} 优先级已移到第 ${after} 位`,
+    layerRemoved: "已删除层级，其中的情境已放回未指定优先级。",
+    invalidPreferences: "请检查情境偏好，每项情境只能出现一次。",
     disturbanceTitle: "防打扰程度",
     disturbanceDescription: "调节调度器执行壁纸切换时的防打扰程度。",
     timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
@@ -209,6 +214,11 @@ const zh = {
     titleHelp: "填写窗口标题中会出现的文字，例如“项目计划”；按回车或点“添加”。",
     add: "添加",
     empty: "暂未添加",
+    importGroups: "导入应用组",
+    importWork: "导入工作",
+    importLeisure: "导入休闲",
+    packLabels: { development: "开发人员工具", office: "办公工具", social: "社交", multimedia: "多媒体" },
+    imported: (added: number, skipped: number) => `新增 ${added} 条规则，跳过 ${skipped} 条重复或冲突规则。`,
     conflictTitle: "存在冲突规则",
     conflictDescription: (values: string) =>
       `这些项目同时出现在工作和休闲场景规则中：${values}`,
@@ -224,7 +234,7 @@ const zh = {
     weather: "本次草稿的天气测试",
     location: "经纬度",
     scenes: "场景绑定",
-    response: "响应风格",
+    response: "情境偏好",
     disturbance: "防打扰程度",
     activity: "活动识别规则",
     weatherUntested: "当前草稿密钥尚未手动测试",
@@ -483,22 +493,27 @@ const en: typeof zh = {
       "Scene assignments need at least one playlist containing wallpapers.",
     groupSummary: (enabled: number, total: number) => `${enabled}/${total} enabled`,
     groups: { season: "Seasonal atmosphere", context: "Everyday context", weather: "Weather atmosphere" },
-    matchExplanation: "Weather, time, season, and activity all contribute to Scene matching. The list order does not set a fixed priority when several apply.",
+    matchExplanation: "Scenes are selected using context and your preferences. Their order here does not set priority.",
   },
   preferences: {
     title: "Tune scheduling",
     description:
-      "Response style sets what matters most. Interruption level controls when a switch is appropriate.",
-    responseTitle: "Response style",
-    responseDescription:
-      "Choose what matters more when matching Scenes: longer-term context or current weather and activity. This does not change when switches are allowed.",
-    responseExplanations: {
-      background: "Season and time have relatively more influence; weather and activity still contribute.",
-      background_leaning: "Longer-term context has more influence than in Balanced.",
-      balanced: "Longer-term context, current weather, and activity all contribute.",
-      current_leaning: "Current weather and activity have more influence than in Balanced.",
-      current: "Current weather and activity have the most influence of the five choices; time and season still contribute.",
-    },
+      "Choose context priorities and interruption settings.",
+    responseTitle: "Context preferences",
+    responseDescription: "Drag contexts into priorities. Higher comes first; contexts in one level share priority.",
+    unassigned: "No explicit priority",
+    addLayer: "Add priority level",
+    layer: (number: number) => `Priority ${number}`,
+    dropHere: "Drop here",
+    dragVariable: (name: string) => `Drag ${name}`,
+    moveVariable: (name: string) => `Move ${name} to`,
+    moved: (name: string, destination: string) => `${name} moved to ${destination}`,
+    moveLayerUp: (number: number) => `Move priority ${number} up`,
+    moveLayerDown: (number: number) => `Move priority ${number} down`,
+    removeLayer: (number: number) => `Remove priority ${number}`,
+    layerMoved: (before: number, after: number) => `Priority ${before} moved to position ${after}`,
+    layerRemoved: "Priority level removed. Its contexts now have no explicit priority.",
+    invalidPreferences: "Check context preferences. Each context can appear only once.",
     disturbanceTitle: "Interruption level",
     disturbanceDescription:
       "Choose a preset, or expand the exact timing values.",
@@ -526,6 +541,11 @@ const en: typeof zh = {
     titleHelp: "Enter text found in a window title, such as Project plan, then press Enter or Add.",
     add: "Add",
     empty: "Nothing added",
+    importGroups: "Import app groups",
+    importWork: "Import into work",
+    importLeisure: "Import into leisure",
+    packLabels: { development: "Developer tools", office: "Office tools", social: "Social", multimedia: "Multimedia" },
+    imported: (added: number, skipped: number) => `Added ${added} rules; skipped ${skipped} duplicates or conflicts.`,
     conflictTitle: "Conflicting rules",
     conflictDescription: (values: string) =>
       `These items appear in both work and leisure: ${values}`,
@@ -542,7 +562,7 @@ const en: typeof zh = {
     weather: "Weather test for this draft",
     location: "Location",
     scenes: "Scene assignments",
-    response: "Response style",
+    response: "Context preferences",
     disturbance: "Interruption level",
     activity: "Activity rules",
     weatherUntested: "This draft key has not been tested manually",
@@ -680,50 +700,41 @@ export const SCENE_LABELS: Record<Locale, Record<SceneId, string>> = {
 
 export const SCENE_DESCRIPTIONS: Record<Locale, Record<SceneId, string>> = {
   zh: {
-    day_work: "白天、当前活动为工作时参与匹配。",
-    day_leisure: "白天、当前活动为休闲时参与匹配。",
-    night_work: "夜间、当前活动为工作时参与匹配。",
-    night_leisure: "夜间、当前活动为休闲时参与匹配。",
-    spring: "春季白天更契合，晴好天气加分。",
-    summer: "夏季白天更契合，晴好天气加分。",
-    autumn: "秋季整体契合，黄昏时加分。",
-    winter: "冬季整体契合，黄昏与下雪时加分。",
+    day_work: "呼应白天与工作情境。",
+    day_leisure: "呼应白天与休闲情境。",
+    night_work: "呼应夜间与工作情境。",
+    night_leisure: "呼应夜间与休闲情境。",
+    spring: "呼应春季氛围。",
+    summer: "呼应夏季氛围。",
+    autumn: "呼应秋季氛围。",
+    winter: "呼应冬季氛围。",
     sunset: "黄昏时分的氛围场景。",
-    rain: "下雨时参与匹配，雷雨时加分。",
+    rain: "呼应下雨与雷雨天气。",
   },
   en: {
-    day_work: "Matches on daytime while working.",
-    day_leisure: "Matches on daytime during leisure.",
-    night_work: "Matches at night while working.",
-    night_leisure: "Matches at night during leisure.",
-    spring: "Fits spring days; clear weather adds weight.",
-    summer: "Fits summer days; clear weather adds weight.",
-    autumn: "Fits autumn; sunset hours add weight.",
-    winter: "Fits winter; sunset and snow add weight.",
+    day_work: "Responds to daytime and work.",
+    day_leisure: "Responds to daytime and leisure.",
+    night_work: "Responds to night and work.",
+    night_leisure: "Responds to night and leisure.",
+    spring: "Responds to spring.",
+    summer: "Responds to summer.",
+    autumn: "Responds to autumn.",
+    winter: "Responds to winter.",
     sunset: "An atmosphere scene for sunset hours.",
-    rain: "Matches while raining; storms add weight.",
+    rain: "Responds to rain and thunderstorms.",
   },
 };
 
-export const RESPONSE_STYLE_LABELS: Record<
-  Locale,
-  Record<import("@/api/profile").ResponseStyle, string>
-> = {
-  zh: {
-    background: "背景优先",
-    background_leaning: "偏向背景",
-    balanced: "平衡",
-    current_leaning: "偏向当前",
-    current: "当前优先",
-  },
-  en: {
-    background: "Background first",
-    background_leaning: "Lean background",
-    balanced: "Balanced",
-    current_leaning: "Lean current",
-    current: "Current first",
-  },
+export const CONTEXT_VARIABLE_LABELS: Record<Locale, Record<ContextVariable, string>> = {
+  zh: { weather: "天气", activity: "活动", time: "时段", season: "季节" },
+  en: { weather: "Weather", activity: "Activity", time: "Time", season: "Season" },
 };
+
+export function preferenceSummary(tiers: ContextVariable[][], locale: Locale): string {
+  const labels = CONTEXT_VARIABLE_LABELS[locale]
+  return tiers.map((tier) => tier.map((variable) => labels[variable]).join(locale === "zh" ? "、" : ", ")).join(" > ")
+    || COPY[locale].preferences.unassigned
+}
 
 export const DISTURBANCE_LABELS: Record<
   Locale,
