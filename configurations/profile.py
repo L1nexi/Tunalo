@@ -14,6 +14,7 @@ class ProfileModel(BaseModel):
 
 
 NonEmptyText = Annotated[str, Field(min_length=1)]
+PROFILE_VERSION: Literal[2] = 2
 
 
 class WeatherLocationProfile(ProfileModel):
@@ -69,7 +70,7 @@ class ActivityProfile(ProfileModel):
 
 
 class Profile(ProfileModel):
-    version: Literal[2] = 2
+    version: Literal[2] = PROFILE_VERSION
     setup_complete: Literal[True] = True
     wallpaper_engine_path: NonEmptyText
     language: Literal["zh", "en"] | None = None

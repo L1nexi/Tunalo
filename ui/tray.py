@@ -12,6 +12,7 @@ from app.version import VERSION
 from core.runtime.scheduler import Scheduler
 from ui.i18n import scene_name, t
 from ui.icon_assets import load_tray_icon
+from ui.startup_error import format_startup_error
 
 logger = logging.getLogger("Tunalo.Tray")
 
@@ -138,14 +139,14 @@ class TrayIcon:
         self.scheduler.on_auto_resume = self._sync_icon
 
     @staticmethod
-    def show_startup_error(detail: str) -> None:
+    def show_startup_error(error: Exception) -> None:
         try:
             root = tk.Tk()
             root.withdraw()
             root.attributes("-topmost", True)
             from tkinter import messagebox
 
-            messagebox.showerror(t("startup_error_title"), t("startup_error_body", detail=detail))
+            messagebox.showerror(t("startup_error_title"), format_startup_error(error))
             root.destroy()
         except Exception:
             pass  # tkinter unavailable — error already in log

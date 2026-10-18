@@ -6,13 +6,23 @@ import tempfile
 
 from pydantic import ValidationError
 
-from configurations.profile import Profile
+from configurations.profile import PROFILE_VERSION, Profile
 
 PROFILE_FILE_NAME = "profile.json"
 
 
 class ProfileStoreError(RuntimeError):
     """Raised when the persisted profile cannot be read or replaced."""
+
+
+class UnsupportedProfileVersion(ProfileStoreError):
+    """Raised when a persisted profile uses an unsupported format version."""
+
+    def __init__(self, path: str, version: int):
+        self.path = path
+        self.version = version
+        self.supported_version = PROFILE_VERSION
+        super().__init__(f"profile_version_unsupported: {path} uses version {version}; this application supports version {self.supported_version}")
 
 
 class ProfileStore:
@@ -24,6 +34,8 @@ class ProfileStore:
         """Load the committed profile, returning ``None`` when it does not exist.
 
         Raises:
+            UnsupportedProfileVersion: If the file declares an unsupported
+                integer format version.
             ProfileStoreError: If the file cannot be read or does not contain a
                 valid Profile.
         """
@@ -39,6 +51,9 @@ class ProfileStore:
         try:
             return Profile.model_validate_json(payload)
         except ValidationError as exc:
+            for issue in exc.errors():
+                if issue["loc"] == ("version",) and issue["type"] == "literal_error" and type(issue["input"]) is int:
+                    raise UnsupportedProfileVersion(self.path, issue["input"]) from exc
             raise ProfileStoreError(f"profile_invalid: {exc}") from exc
 
     def commit(self, profile: Profile) -> Profile:

@@ -112,9 +112,8 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
     try:
         api_server.start()
     except OSError as exc:
-        detail = str(exc)
-        logger.critical(detail)
-        TrayIcon.show_startup_error(detail)
+        logger.critical("Failed to start local API server: %s", exc, exc_info=True)
+        TrayIcon.show_startup_error(exc)
         sys.exit(1)
 
     def launch_setup() -> subprocess.Popen[bytes]:
@@ -143,8 +142,8 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
         )
         tray.run()
     except Exception as exc:
-        logger.critical("Failed to start application: %s", exc)
-        TrayIcon.show_startup_error(str(exc))
+        logger.critical("Failed to start application: %s", exc, exc_info=True)
+        TrayIcon.show_startup_error(exc)
     finally:
         scheduler.stop()
         api_server.stop()

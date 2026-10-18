@@ -52,6 +52,7 @@ _ZH: dict[str, str] = {
     "cancel": "取消",
     "startup_error_title": "启动失败",
     "startup_error_body": "调度器启动失败。\n\n{detail}\n\n请查看日志获取详情。",
+    "startup_profile_version_error": ("配置文件版本不兼容。\n\n当前配置版本：{version} ，可用版本： {supported_version} 。\n\n配置文件：{path}"),
     "setup_title": "Tunalo 设置",
     "settings_show": "设置",
     "tick_history_export": "导出近期调度记录",
@@ -100,6 +101,11 @@ _EN: dict[str, str] = {
     "cancel": "Cancel",
     "startup_error_title": "Startup Failed",
     "startup_error_body": "Scheduler failed to start.\n\n{detail}\n\nCheck the log for details.",
+    "startup_profile_version_error": (
+        "The configuration file version is incompatible.\n\n"
+        "Current version: {version}; supported version: {supported_version}.\n\n"
+        "Configuration file: {path}"
+    ),
     "setup_title": "Tunalo Setup",
     "settings_show": "Settings",
     "tick_history_export": "Export recent schedule history",
