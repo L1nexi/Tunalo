@@ -50,9 +50,15 @@ def test_single_scan_without_preferences_keeps_zero_evidence_scenes_eligible(
     _, payload = single_scan
     probabilities = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, activity, "mod_rain")
 
-    # 无偏好时直接尽力选择：同分场景机会相同，零证据场景仍可参与。
-    assert [probabilities[scene_id] for scene_id in ("summer", "rain", "day", scene)] == pytest.approx([probabilities[scene]] * 4)
-    assert 0 < probabilities["dawn"] < probabilities[scene] < 0.25
+    for candidates in (
+        ("spring", "summer", "autumn", "winter"),
+        ("dawn", "day", "sunset", "night"),
+        ("clear", "cloudy", "rain"),
+        ("work", "leisure"),
+    ):
+        assert sum(probabilities[scene_id] for scene_id in candidates) == pytest.approx(0.25)
+    assert probabilities["rain"] == pytest.approx(probabilities[scene])
+    assert 0 < probabilities["dawn"] < probabilities["day"] < probabilities[scene]
     assert probabilities["dawn"] == pytest.approx(probabilities["sunset"])
     assert probabilities["winter"] == probabilities["night"] == 0
     assert sum(probabilities.values()) == pytest.approx(1)
@@ -72,14 +78,14 @@ def test_weather_activity_pair_defaults_to_weather_and_activity_axes(pair_scan: 
     assert {(grid["x"]["name"], grid["y"]["name"]) for grid in payload["grids"]} == {("activity", "weather")}
 
 
-def test_rain_only_favors_rain_and_joint_evidence_favors_rain_work(pair_scan: tuple[Path, dict[str, Any]]) -> None:
+def test_rain_work_receives_both_source_budgets_even_when_activity_is_neutral(pair_scan: tuple[Path, dict[str, Any]]) -> None:
     _, payload = pair_scan
     rain_only = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 0, "mod_rain")
     both = _exported_probabilities(payload, {"hour": 12, "day_of_year": 172}, 1, "mod_rain")
 
-    # ADR-0003：复合场景的优势随两种情境是否同等显著而反转。
-    assert rain_only["rain"] > rain_only["rain_work"] > 0
+    assert rain_only["rain_work"] > rain_only["rain"] > 0
     assert both["rain_work"] > both["rain"] > 0
+    assert both["rain_work"] > rain_only["rain_work"]
 
 
 def test_clear_weather_excludes_rain_work_even_with_full_work(pair_scan: tuple[Path, dict[str, Any]]) -> None:

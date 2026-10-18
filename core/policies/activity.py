@@ -11,7 +11,7 @@ from configurations.runtime_models import ActivityPolicyConfig
 from core.math_utils import time_decaying_activation
 from core.models.activity_target import normalize_match_text, normalize_process_name
 from core.models.context import Context
-from core.models.selection import VARIABLE_ITEMS, ActivityDetails, ActivityEvaluation, ContextVariable, SemanticItem
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ActivityDetails, ActivityEvaluation, ContextVariable, SemanticItem
 from core.policies.base import Policy
 
 _MATCH_SOURCE_PRIORITY = {
@@ -106,7 +106,7 @@ class ActivityPolicy(Policy):
         return ActivityEvaluation(policy_id=self.config_key, salience=self._build_salience(), details=details)
 
     def _build_salience(self) -> dict[SemanticItem, float]:
-        items = VARIABLE_ITEMS[ContextVariable.ACTIVITY]
+        items = VARIABLE_SEMANTIC_ITEMS[ContextVariable.ACTIVITY]
         support = {item: 0.0 for item in items}
         opposition = {item: 0.0 for item in items}
         for activity, (supported_item, opposed_item) in _ACTIVITY_RELATIONS.items():

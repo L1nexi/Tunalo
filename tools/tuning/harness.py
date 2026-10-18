@@ -11,7 +11,7 @@ from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import SchedulerConfig, SeasonPolicyConfig, TimePolicyConfig
 from core.models.context import Context, WeatherData
 from core.models.scene import SceneId
-from core.models.selection import VARIABLE_ITEMS, ContextVariable, SemanticItem
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, SemanticItem
 
 WEATHER_PRESETS: dict[str, tuple[int, str]] = {
     "clear": (800, "Clear"),
@@ -64,8 +64,8 @@ PAIR_SCENES: dict[SceneSuite, dict[str, frozenset[SemanticItem]]] = {
     suite: {
         f"{left.value}_{right.value}": frozenset({left, right})
         for left, right in product(
-            (item for item in VARIABLE_ITEMS[left_variable] if item in SINGLE_SUITE_ITEMS),
-            (item for item in VARIABLE_ITEMS[right_variable] if item in SINGLE_SUITE_ITEMS),
+            (item for item in VARIABLE_SEMANTIC_ITEMS[left_variable] if item in SINGLE_SUITE_ITEMS),
+            (item for item in VARIABLE_SEMANTIC_ITEMS[right_variable] if item in SINGLE_SUITE_ITEMS),
         )
     }
     for suite, (left_variable, right_variable) in _PAIR_VARIABLES.items()

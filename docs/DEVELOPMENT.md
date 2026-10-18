@@ -61,7 +61,7 @@ npm run build-only
 
 ### Profile 与界面接入
 
-Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。尽力选择先向有安全候选的变量分配预算，再在各变量关联的候选中分配；全无证据时变量均分预算。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
 
 `activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity`、设为 `null` 或提供空对象时，均不配置活动识别规则。前端回填为空列表，保存时提交完整规则对象。
 
@@ -76,7 +76,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 | 参数 | 当前值 | 实现入口 |
 | --- | --- | --- |
 | 正向边界、负向边界幅度 | 暂定 0.9、0.1；`s >= 0.9` 召回，`s <= -0.1` 排除 | `MatchingConfig` |
-| 变量温度、场景温度 | 1.4、1.5；前者控制显式偏好层的来源预算，后者控制场景概率的探索程度 | `MatchingConfig` |
+| 变量温度、场景温度 | 1.4、1.5；前者控制变量来源预算，后者控制各变量内部的场景概率分配 | `MatchingConfig` |
 | 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
 | 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |
 | 季节、时段曲线参数 | 各自的 `activation_alpha` 均为 2，有限且大于 1，两者独立 | 对应 PolicyConfig |

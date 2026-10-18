@@ -6,7 +6,7 @@ import time
 from configurations.runtime_models import TimePolicyConfig
 from core.math_utils import mirrored_phase, periodic_salience
 from core.models.context import Context
-from core.models.selection import VARIABLE_ITEMS, ContextVariable, TimeDetails, TimeEvaluation
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, TimeDetails, TimeEvaluation
 from core.policies.base import Policy
 
 logger = logging.getLogger("Tunalo.Policy")
@@ -31,7 +31,7 @@ class TimePolicy(Policy):
             "night": (ns + night_span / 2) % 24,
         }
 
-    _TAG_ORDER = VARIABLE_ITEMS[ContextVariable.TIME]
+    _TAG_ORDER = VARIABLE_SEMANTIC_ITEMS[ContextVariable.TIME]
     _VIRTUAL_PEAKS = [0.0, 6.0, 12.0, 18.0]
 
     @staticmethod

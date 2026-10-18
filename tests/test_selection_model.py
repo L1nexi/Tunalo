@@ -6,7 +6,7 @@ import pytest
 
 from configurations.runtime_models import MatchingConfig, SceneConfig
 from core.models.scene import SceneId
-from core.models.selection import Salience, Selection
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, Salience, Selection
 from core.runtime.selector import calculate_distribution
 
 RAIN = SceneId.RAIN
@@ -27,7 +27,7 @@ def test_m01_four_equal_single_item_scenes_without_preferences_are_uniform() -> 
     selection = choose({"rain": 1, "work": 1, "day": 1, "summer": 1}, {RAIN: {"rain"}, WORK: {"work"}, DAY: {"day"}, SUMMER: {"summer"}})
     assert selection.probabilities == pytest.approx({RAIN: 0.25, WORK: 0.25, DAY: 0.25, SUMMER: 0.25})
     assert selection.reason == "best_effort"
-    assert selection.sources == []
+    assert selection.sources == list(VARIABLE_SEMANTIC_ITEMS)
 
 
 def test_two_significant_time_items_share_one_source_budget() -> None:
@@ -40,10 +40,10 @@ def test_two_significant_time_items_share_one_source_budget() -> None:
     assert two[DAY] == pytest.approx(two[WORK])
 
 
-def test_m02_m03_compound_scene_advantage_reverses_when_both_contexts_are_clear() -> None:
+def test_m02_m03_compound_scene_advantage_within_weather_budget_reverses_when_both_contexts_are_clear() -> None:
     scenes = {RAIN: {"rain"}, RAIN_WORK: {"rain", "work"}}
-    rain_only = choose({"rain": 1}, scenes).probabilities
-    both = choose({"rain": 1, "work": 1}, scenes).probabilities
+    rain_only = choose({"rain": 1}, scenes, [["weather"]]).probabilities
+    both = choose({"rain": 1, "work": 1}, scenes, [["weather"]]).probabilities
     assert rain_only[RAIN] > rain_only[RAIN_WORK] > 0
     assert both[RAIN_WORK] > both[RAIN] > 0
 
@@ -53,11 +53,12 @@ def test_m04_stronger_rain_gets_more_budget_than_summer() -> None:
     assert p[RAIN] > p[SUMMER] > 0
 
 
-def test_m05_spec_independent_numeric_example() -> None:
+@pytest.mark.parametrize("tiers", [None, [["weather", "activity", "time"]]])
+def test_m05_spec_independent_numeric_example(tiers: list[list[str]] | None) -> None:
     p = choose(
         {"rain": 2, "work": 1, "day": 1},
         {RAIN: {"rain"}, WORK: {"work", "day"}},
-        [["weather", "activity", "time"]],
+        tiers,
         variable_temperature=1.4,
         scene_temperature=1.5,
     ).probabilities
@@ -70,11 +71,11 @@ def test_m06_negative_association_excludes_scene_from_every_source() -> None:
     assert result.excluded_scenes == {WINTER_WORK: {"winter"}}
 
 
-def test_m07_m08_m09_neutral_weather_equal_contexts_and_violent_rain() -> None:
+def test_m07_m08_m09_neutral_weather_equal_contexts_and_violent_rain_within_activity_budget() -> None:
     scenes = {SUMMER_WORK: {"summer", "work"}, WORK: {"work"}, RAIN_WORK: {"rain", "work"}}
-    neutral = choose({"summer": 1, "work": 1}, scenes).probabilities
-    equal = choose({"summer": 1, "work": 1, "rain": 1}, scenes).probabilities
-    violent = choose({"summer": 1, "work": 1, "rain": 2}, scenes).probabilities
+    neutral = choose({"summer": 1, "work": 1}, scenes, [["activity"]]).probabilities
+    equal = choose({"summer": 1, "work": 1, "rain": 1}, scenes, [["activity"]]).probabilities
+    violent = choose({"summer": 1, "work": 1, "rain": 2}, scenes, [["activity"]]).probabilities
     assert neutral[SUMMER_WORK] > neutral[WORK] > neutral[RAIN_WORK] > 0
     assert equal[SUMMER_WORK] == pytest.approx(equal[RAIN_WORK])
     assert equal[RAIN_WORK] > equal[WORK]
@@ -105,41 +106,51 @@ def test_m12_partial_empty_tier_renormalizes_without_adding_lower_sources() -> N
     assert p == {WORK: 0.5, DAY: 0.5, SUMMER: 0}
 
 
-def test_m13_exhausted_preferences_use_all_safe_scenes_without_an_implicit_tier() -> None:
+def test_m13_exhausted_preferences_use_all_safe_variable_sources() -> None:
     values = {"summer": 1, "work": 0.3, "winter": -1}
     scenes = {SUMMER: {"summer"}, WORK: {"work"}, WINTER_WORK: {"winter", "work"}}
     result = choose(values, scenes, [["weather"], ["activity"]])
     assert result.reason == "best_effort"
     assert result.selected_tier is None
-    assert result.sources == []
+    assert result.sources == ["season", "activity"]
     assert result.probabilities[SUMMER] > result.probabilities[WORK] > 0
     assert result.probabilities[WINTER_WORK] == 0
     assert result.probabilities == choose(values, scenes).probabilities
 
 
 @pytest.mark.parametrize("variable_temperature", [0.2, 10])
-def test_empty_preferences_score_unrecalled_scenes_without_variable_budgets(variable_temperature: float) -> None:
+def test_empty_preferences_use_variable_temperature_to_budget_unrecalled_sources(variable_temperature: float) -> None:
     scenes = {RAIN: {"rain"}, WORK: {"work"}, WINTER_WORK: {"winter", "work"}}
     result = choose({"rain": 1, "winter": -1}, scenes, variable_temperature=variable_temperature, scene_temperature=1.5)
     assert result.reason == "best_effort"
     assert result.selected_tier is None
-    assert result.sources == []
-    assert result.probabilities == pytest.approx({RAIN: 0.6607563688, WORK: 0.3392436312, WINTER_WORK: 0})
+    assert result.sources == ["weather", "activity"]
+    rain_budget = 1 / (1 + math.exp(-1 / variable_temperature))
+    assert result.probabilities == pytest.approx({RAIN: rain_budget, WORK: 1 - rain_budget, WINTER_WORK: 0})
 
 
-def test_empty_preferences_allocate_to_scenes_while_explicit_tiers_allocate_to_variables() -> None:
-    values = {"rain": 1, "work": 1}
+@pytest.mark.parametrize("tiers", [None, [["season"]]])
+@pytest.mark.parametrize("strength", [0, 0.3, 1])
+def test_best_effort_preserves_variable_budgets_when_scene_counts_differ(tiers: list[list[str]] | None, strength: float) -> None:
+    values = {"rain": strength, "work": strength}
     scenes = {RAIN: {"rain"}, RAIN_WORK: {"rain"}, WORK: {"work"}}
-    unpreferred = choose(values, scenes)
-    preferred = choose(values, scenes, [["weather", "activity"]])
-    assert unpreferred.probabilities == pytest.approx({RAIN: 1 / 3, RAIN_WORK: 1 / 3, WORK: 1 / 3})
-    assert preferred.probabilities == pytest.approx({RAIN: 0.25, RAIN_WORK: 0.25, WORK: 0.5})
+    unpreferred = choose(values, scenes, tiers)
+    assert unpreferred.reason == "best_effort"
+    assert unpreferred.selected_tier is None
+    assert unpreferred.probabilities == pytest.approx({RAIN: 0.25, RAIN_WORK: 0.25, WORK: 0.5})
+    assert unpreferred.sources == ["weather", "activity"]
 
 
-def test_m14_scene_count_changes_internal_allocation_not_variable_budget() -> None:
+def test_best_effort_renormalizes_budgets_after_unavailable_sources_are_removed() -> None:
+    result = choose({"rain": 1, "work": 1, "summer": 100}, {RAIN: {"rain"}, WORK: {"work"}})
+    assert result.probabilities == {RAIN: 0.5, WORK: 0.5}
+    assert result.sources == ["weather", "activity"]
+
+
+@pytest.mark.parametrize("tiers", [None, [["weather", "activity"]]])
+def test_m14_scene_count_changes_internal_allocation_not_variable_budget(tiers: list[list[str]] | None) -> None:
     base = {RAIN: {"rain"}, WORK: {"work"}}
     expanded = {**base, RAIN_WORK: {"rain", "cloudy"}}
-    tiers = [["weather", "activity"]]
     p = choose({"rain": 1, "work": 1}, base, tiers).probabilities
     q = choose({"rain": 1, "work": 1}, expanded, tiers).probabilities
     assert p[RAIN] == pytest.approx(q[RAIN] + q[RAIN_WORK])
@@ -160,19 +171,23 @@ def test_m16_cloudy_work_cannot_take_rain_budget() -> None:
     assert p == {RAIN: 0.5, WORK: 0.5}
 
 
-def test_m17_zero_evidence_is_uniform_despite_different_association_counts() -> None:
+def test_m17_zero_evidence_uniform_variable_budgets_accumulate_on_compound_scenes() -> None:
     scenes = {RAIN: {"rain"}, WORK: {"day", "work"}, SUMMER: {"summer", "day", "work"}}
     zero = choose({}, scenes).probabilities
     tiny = choose({"rain": 1e-10, "work": 1e-10}, scenes).probabilities
-    assert zero == pytest.approx({RAIN: 1 / 3, WORK: 1 / 3, SUMMER: 1 / 3})
+    assert zero == pytest.approx({RAIN: 0.25, WORK: 0.25, SUMMER: 0.5})
     assert tiny == pytest.approx(zero, abs=1e-9)
 
 
 def test_m18_best_effort_preserves_exclusions_and_weak_signed_evidence() -> None:
-    result = choose({"winter": -1, "work": 0.3, "rain": -0.05}, {WINTER_WORK: {"winter", "work"}, WORK: {"work"}, RAIN: {"rain"}}, [["activity"]])
+    result = choose(
+        {"winter": -1, "work": 0.3, "rain": -0.05},
+        {WINTER_WORK: {"winter", "work"}, WORK: {"work"}, RAIN: {"rain"}, DAY: {"clear"}},
+        [["activity"]],
+    )
     assert result.reason == "best_effort"
     assert result.probabilities[WINTER_WORK] == 0
-    assert result.probabilities[WORK] > result.probabilities[RAIN] > 0
+    assert result.probabilities[WORK] > result.probabilities[DAY] > result.probabilities[RAIN] > 0
 
 
 @pytest.mark.parametrize("scenes", [{}, {WINTER_WORK: {"winter"}}])

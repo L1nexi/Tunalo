@@ -33,13 +33,13 @@ class SemanticItem(StrEnum):
     LEISURE = "leisure"
 
 
-VARIABLE_ITEMS: dict[ContextVariable, tuple[SemanticItem, ...]] = {
+VARIABLE_SEMANTIC_ITEMS: dict[ContextVariable, tuple[SemanticItem, ...]] = {
     ContextVariable.SEASON: (SemanticItem.SPRING, SemanticItem.SUMMER, SemanticItem.AUTUMN, SemanticItem.WINTER),
     ContextVariable.TIME: (SemanticItem.DAWN, SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.NIGHT),
     ContextVariable.WEATHER: (SemanticItem.CLEAR, SemanticItem.CLOUDY, SemanticItem.RAIN, SemanticItem.SNOW),
     ContextVariable.ACTIVITY: (SemanticItem.WORK, SemanticItem.LEISURE),
 }
-SEMANTIC_ITEMS: tuple[SemanticItem, ...] = tuple(item for items in VARIABLE_ITEMS.values() for item in items)
+SEMANTIC_ITEMS: tuple[SemanticItem, ...] = tuple(item for items in VARIABLE_SEMANTIC_ITEMS.values() for item in items)
 
 
 class Salience(RootModel[dict[SemanticItem, FiniteFloat]]):

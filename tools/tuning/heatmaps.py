@@ -22,7 +22,7 @@ from matplotlib.collections import QuadMesh
 from matplotlib.ticker import PercentFormatter
 
 from configurations.runtime_models import SchedulerConfig
-from core.models.selection import VARIABLE_ITEMS, ContextVariable, Salience, SemanticItem
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, Salience, SemanticItem
 from core.policies import SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import calculate_distribution
 from tools.tuning.harness import (
@@ -149,8 +149,8 @@ def evaluate_cases(
     time_policy = TimePolicy(config.policies.time)
     season_policy = SeasonPolicy(config.policies.season)
     weather_policy = WeatherPolicy(config.policies.weather)
-    temporal_items = (*VARIABLE_ITEMS[ContextVariable.SEASON], *VARIABLE_ITEMS[ContextVariable.TIME])
-    weather_items = VARIABLE_ITEMS[ContextVariable.WEATHER]
+    temporal_items = (*VARIABLE_SEMANTIC_ITEMS[ContextVariable.SEASON], *VARIABLE_SEMANTIC_ITEMS[ContextVariable.TIME])
+    weather_items = VARIABLE_SEMANTIC_ITEMS[ContextVariable.WEATHER]
     non_activity_items = (*temporal_items, *weather_items)
 
     @lru_cache(maxsize=8192)
