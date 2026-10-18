@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 
+from dotenv import load_dotenv
+
 from app.context import get_app_root
 from app.logging import setup_logger
 
@@ -153,6 +155,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
 
 def main() -> None:
+    load_dotenv(os.path.join(get_app_root(), ".env"), override=False)
     logger = setup_logger()
     logger.info("Tunalo starting...")
 

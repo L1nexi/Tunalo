@@ -1,6 +1,7 @@
 psutil
 pywin32
 requests
+python-dotenv
 pystray
 Pillow
 pydantic

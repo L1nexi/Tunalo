@@ -60,6 +60,7 @@ if %errorlevel% neq 0 (
 
 echo [5/5] Preparing distribution folder...
 copy README.md dist\README.md
+copy .env.example dist\.env.example
 
 echo ==========================================
 echo      Build Complete!
