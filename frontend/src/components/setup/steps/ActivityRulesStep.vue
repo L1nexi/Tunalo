@@ -8,8 +8,8 @@ import ActivityListInput from "@/components/setup/ActivityListInput.vue"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
-import { COPY, ZH_ACTIVITY_NOTE } from "@/setup/copy"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
+import { COPY } from "@/setup/copy"
 import { ACTIVITY_RULE_PACKS, importActivityRulePack } from "@/setup/activityRulePacks"
 import type { ActivityRulePack } from "@/setup/activityRulePacks"
 import type { ActivityField, PendingActivity, ProfileDraft } from "@/setup/model"
@@ -31,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const copy = computed(() => COPY[props.locale])
+const hasRules = computed(() => Object.values(props.activity).some((rules) => rules.length > 0))
 const groups = computed(() => [
   {
     id: "work",
@@ -59,8 +60,7 @@ function importPack(pack: ActivityRulePack, target: "work" | "leisure"): void {
 
 <template>
   <section class="flex flex-col gap-6">
-    <p v-if="locale === 'zh'" class="text-sm leading-relaxed text-muted-foreground">{{ ZH_ACTIVITY_NOTE }}</p>
-    <p class="text-sm leading-relaxed text-muted-foreground">{{ copy.activity.matchingHelp }}</p>
+    <p class="text-sm leading-relaxed text-muted-foreground">{{ copy.activity.recognitionHelp }}</p>
     <Alert v-if="conflicts.length" variant="destructive">
       <TriangleAlertIcon />
       <AlertTitle>{{ copy.activity.conflictTitle }}</AlertTitle>
@@ -73,19 +73,43 @@ function importPack(pack: ActivityRulePack, target: "work" | "leisure"): void {
       <AlertDescription>{{ errors.join('; ') }}</AlertDescription>
     </Alert>
 
-    <div class="grid gap-6 lg:grid-cols-2">
-      <FieldSet v-for="group in groups" :key="group.id" class="gap-5">
+    <Collapsible class="rounded-lg border px-4 py-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="min-w-0 flex-1 basis-64 text-sm leading-relaxed text-muted-foreground">{{ hasRules ? copy.activity.importHelp : copy.activity.emptyHelp }}</p>
+        <CollapsibleTrigger as-child>
+          <Button type="button" variant="outline" class="group"><ChevronDownIcon data-icon="inline-start" class="transition-transform group-data-[state=open]:rotate-180" />{{ copy.activity.importGroups }}</Button>
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent class="pt-3">
+        <div class="flex flex-col divide-y">
+          <section v-for="pack in ACTIVITY_RULE_PACKS" :key="pack.id" :aria-label="copy.activity.packLabels[pack.id]" class="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div class="min-w-0 flex-1 basis-60">
+              <h3 class="text-sm font-medium">{{ copy.activity.packLabels[pack.id] }}</h3>
+              <p class="mt-1 text-sm leading-relaxed text-muted-foreground">{{ pack.apps.map((app) => locale === 'en' ? app.nameEn ?? app.name : app.name).join(locale === 'zh' ? '、' : ', ') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'work')">{{ copy.activity.importWork }}</Button>
+              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'leisure')">{{ copy.activity.importLeisure }}</Button>
+            </div>
+          </section>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+
+    <div class="grid min-w-0 gap-8 lg:grid-cols-2">
+      <FieldSet v-for="group in groups" :key="group.id" class="min-w-0 gap-5">
         <FieldLegend>{{ group.title }}</FieldLegend>
         <FieldGroup>
-          <Field>
+          <Field :data-invalid="showPending && Boolean(pending[group.processKey].trim())">
             <FieldLabel :for="`${group.id}-processes`">{{ copy.activity.processLabel }}</FieldLabel>
-            <p class="text-xs text-muted-foreground">{{ copy.activity.processHelp }}</p>
+            <FieldDescription :id="`${group.id}-process-help`">{{ copy.activity.processHelp }}</FieldDescription>
             <ActivityListInput
               :id="`${group.id}-processes`"
               :model-value="activity[group.processKey]"
               :pending="pending[group.processKey]"
               :invalid="showPending && Boolean(pending[group.processKey].trim())"
               :error-id="`${group.id}-process-pending-error`"
+              :description-id="`${group.id}-process-help`"
               :placeholder="copy.activity.processPlaceholder"
               :add-label="copy.activity.add"
               :remove-label="copy.common.remove"
@@ -95,15 +119,16 @@ function importPack(pack: ActivityRulePack, target: "work" | "leisure"): void {
             />
             <FieldError v-if="showPending && pending[group.processKey].trim()" :id="`${group.id}-process-pending-error`" :errors="[copy.activity.pendingWarning]" />
           </Field>
-          <Field>
+          <Field :data-invalid="showPending && Boolean(pending[group.titleKey].trim())">
             <FieldLabel :for="`${group.id}-title-keywords`">{{ copy.activity.titleKeywordLabel }}</FieldLabel>
-            <p class="text-xs text-muted-foreground">{{ copy.activity.titleHelp }}</p>
+            <FieldDescription :id="`${group.id}-title-help`">{{ copy.activity.titleHelp }}</FieldDescription>
             <ActivityListInput
               :id="`${group.id}-title-keywords`"
               :model-value="activity[group.titleKey]"
               :pending="pending[group.titleKey]"
               :invalid="showPending && Boolean(pending[group.titleKey].trim())"
               :error-id="`${group.id}-title-pending-error`"
+              :description-id="`${group.id}-title-help`"
               :placeholder="copy.activity.keywordPlaceholder"
               :add-label="copy.activity.add"
               :remove-label="copy.common.remove"
@@ -118,21 +143,10 @@ function importPack(pack: ActivityRulePack, target: "work" | "leisure"): void {
     </div>
     <Collapsible>
       <CollapsibleTrigger as-child>
-        <Button type="button" variant="ghost"><ChevronDownIcon data-icon="inline-start" />{{ copy.activity.importGroups }}</Button>
+        <Button type="button" variant="ghost" class="group"><ChevronDownIcon data-icon="inline-start" class="transition-transform group-data-[state=open]:rotate-180" />{{ copy.activity.matchingTitle }}</Button>
       </CollapsibleTrigger>
       <CollapsibleContent class="pt-3">
-        <div class="flex flex-col divide-y">
-          <section v-for="pack in ACTIVITY_RULE_PACKS" :key="pack.id" :aria-label="copy.activity.packLabels[pack.id]" class="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div class="min-w-0 flex-1 basis-60">
-              <h3 class="text-sm font-medium">{{ copy.activity.packLabels[pack.id] }}</h3>
-              <p class="mt-1 text-sm text-muted-foreground">{{ pack.apps.map((app) => locale === 'en' ? app.nameEn ?? app.name : app.name).join(locale === 'zh' ? '、' : ', ') }}</p>
-            </div>
-            <div class="flex gap-2">
-              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'work')">{{ copy.activity.importWork }}</Button>
-              <Button type="button" size="sm" variant="outline" @click="importPack(pack, 'leisure')">{{ copy.activity.importLeisure }}</Button>
-            </div>
-          </section>
-        </div>
+        <p class="text-sm leading-relaxed text-muted-foreground">{{ copy.activity.matchingHelp }}</p>
       </CollapsibleContent>
     </Collapsible>
   </section>

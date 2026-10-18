@@ -69,12 +69,14 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     if (id === "review") return ""
     if (mode === "settings") return changedSteps.value.has(id) ? copy.value.nav.changed : ""
     if (!isStepValid(id)) return copy.value.nav.pending
-    if ((id === "scheduling" || id === "activity") && !changedSteps.value.has(id)) return copy.value.nav.defaultReady
+    if (id === "activity" && !changedSteps.value.has(id)) return copy.value.nav.optional
+    if (id === "scheduling" && !changedSteps.value.has(id)) return copy.value.nav.defaultReady
     return copy.value.nav.complete
   }
 
   async function focusStep(errorFirst: boolean): Promise<void> {
     await nextTick()
+    if (!errorFirst) document.getElementById("setup-step-content")?.scrollTo({ top: 0 })
     const target = errorFirst
       ? [...document.querySelectorAll<HTMLElement>("#setup-step-content [aria-invalid='true']")]
         .find((element) => element.getClientRects().length > 0)

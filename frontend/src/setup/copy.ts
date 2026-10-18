@@ -168,18 +168,23 @@ const zh = {
     required: "至少启用并绑定一个场景。",
     unavailable: "场景绑定需要至少一个包含壁纸的播放列表。",
     groupSummary: (enabled: number, total: number) => `已启用 ${enabled}/${total}`,
-    groups: { season: "季节氛围", context: "日常情境", weather: "天气氛围" },
+    groups: { season: "季节氛围", context: "日常情境", time: "时段氛围", weather: "天气氛围" },
     matchExplanation: "根据情境与偏好选择场景；此处的排列顺序不影响优先级。",
   },
   preferences: {
     title: "调整调度风格",
     description: "",
     responseTitle: "情境偏好",
-    responseDescription: "将情境拖入优先级，上方优先，同层并列。",
+    responseDescription: "拖动情境或使用旁边的下拉菜单调整。越靠上越优先，同层并列。",
+    noPriorityHelp: "不设置优先级时，Tunalo 会综合当前情境选择合适的场景。",
+    cascadeHelp: "从上往下寻找明显的情境和可用场景；找到后优先响应这一层，否则继续下一层。都未命中时，综合当前情境选择。",
+    unassignedHelp: "仍参与场景判断，但不指定响应顺序。",
+    allAssigned: "所有情境均已设置优先级。",
+    moveToNewLayer: "移到新优先级",
     unassigned: "未指定优先级",
     addLayer: "添加层级",
     layer: (number: number) => `第 ${number} 优先级`,
-    dropHere: "拖到这里",
+    dropHere: "将情境移到这里；空层不会保存。",
     dragVariable: (name: string) => `拖动${name}`,
     moveVariable: (name: string) => `移动${name}到`,
     moved: (name: string, destination: string) => `${name}已移到${destination}`,
@@ -203,7 +208,11 @@ const zh = {
   },
   activity: {
     title: "识别当前活动",
-    description: "确定调度器如何根据当前前台窗口信息判定当前活动状态。",
+    description: "用前台应用和窗口标题识别工作或休闲，结合最近约十分钟的活动逐渐调整场景。",
+    recognitionHelp: "标题关键词优先于进程名。休闲指明确的娱乐活动；未命中规则时，本次活动不计为工作或休闲。",
+    matchingTitle: "规则如何匹配",
+    importHelp: "选择常用应用组，导入工作或休闲后，可在下方逐条修改。",
+    emptyHelp: "尚未添加识别规则。可先导入常用应用组，或在下方手动添加。",
     workTitle: "工作场景规则",
     leisureTitle: "休闲场景规则",
     processLabel: "进程名",
@@ -222,7 +231,7 @@ const zh = {
     conflictTitle: "存在冲突规则",
     conflictDescription: (values: string) =>
       `这些项目同时出现在工作和休闲场景规则中：${values}`,
-    matchingHelp: "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。两类规则都未命中时，不据此判断为工作或休闲。",
+    matchingHelp: "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。例如，浏览器可归入工作，再用视频网站的标题关键词识别休闲。",
     pendingWarning: "输入框中有尚未添加的文字。请按回车或点“添加”，或者清空后再保存。",
   },
   review: {
@@ -492,7 +501,7 @@ const en: typeof zh = {
     unavailable:
       "Scene assignments need at least one playlist containing wallpapers.",
     groupSummary: (enabled: number, total: number) => `${enabled}/${total} enabled`,
-    groups: { season: "Seasonal atmosphere", context: "Everyday context", weather: "Weather atmosphere" },
+    groups: { season: "Seasonal atmosphere", context: "Everyday context", time: "Time of day", weather: "Weather atmosphere" },
     matchExplanation: "Scenes are selected using context and your preferences. Their order here does not set priority.",
   },
   preferences: {
@@ -500,11 +509,16 @@ const en: typeof zh = {
     description:
       "Choose context priorities and interruption settings.",
     responseTitle: "Context preferences",
-    responseDescription: "Drag contexts into priorities. Higher comes first; contexts in one level share priority.",
+    responseDescription: "Drag contexts or use their menus. Higher levels come first; contexts in one level share priority.",
+    noPriorityHelp: "Without explicit priorities, Tunalo uses the current context to choose suitable scenes.",
+    cascadeHelp: "Tunalo responds to the first level with a clear context and available scenes. If none qualifies, it uses the overall context to choose.",
+    unassignedHelp: "Still considered when choosing scenes, without an explicit response order.",
+    allAssigned: "All contexts have an explicit priority.",
+    moveToNewLayer: "Move to a new priority",
     unassigned: "No explicit priority",
     addLayer: "Add priority level",
     layer: (number: number) => `Priority ${number}`,
-    dropHere: "Drop here",
+    dropHere: "Move a context here. Empty levels are not saved.",
     dragVariable: (name: string) => `Drag ${name}`,
     moveVariable: (name: string) => `Move ${name} to`,
     moved: (name: string, destination: string) => `${name} moved to ${destination}`,
@@ -529,8 +543,11 @@ const en: typeof zh = {
   },
   activity: {
     title: "Recognize activity",
-    description:
-      "This step is optional. Matching ignores letter case and the .exe suffix in process names.",
+    description: "Identify work or leisure from foreground apps and window titles. Recent activity over roughly ten minutes gradually shapes scene selection.",
+    recognitionHelp: "Title keywords take priority over process names. Leisure means intentional entertainment; an unmatched observation counts as neither work nor leisure.",
+    matchingTitle: "How rules match",
+    importHelp: "Import familiar apps into work or leisure, then edit individual rules below.",
+    emptyHelp: "No activity rules yet. Import an app group or add your own rules below.",
     workTitle: "Work",
     leisureTitle: "Leisure",
     processLabel: "Process names",
@@ -549,7 +566,7 @@ const en: typeof zh = {
     conflictTitle: "Conflicting rules",
     conflictDescription: (values: string) =>
       `These items appear in both work and leisure: ${values}`,
-    matchingHelp: "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. When no rule matches, activity does not identify work or leisure.",
+    matchingHelp: "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. For example, classify your browser as work and use video-site title keywords to recognize leisure.",
     pendingWarning: "Text is still waiting in an activity field. Press Enter or Add, or clear it before saving.",
   },
   review: {
@@ -662,9 +679,6 @@ export const ZH_TIMING_HINTS = {
   cycleInterval:
     "从上次成功切换起计算。推荐变化很小时按此间隔轮换，变化较大时提前切换；切换仍需通过空闲、全屏和负载检查。",
 } as const;
-
-export const ZH_ACTIVITY_NOTE =
-  "休闲指有意进行的娱乐活动。对于不具明确指向性活动，无需进行场景规则配置。";
 
 export const ZH_WEATHER_SAVE_PROMPT = {
   title: "API Key 连通性测试未通过，仍要保存吗？",

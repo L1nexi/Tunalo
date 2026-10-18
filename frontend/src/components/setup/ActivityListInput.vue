@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { PlusIcon, XIcon } from "@lucide/vue"
+import { nextTick } from "vue"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   InputGroup,
   InputGroupAddon,
@@ -17,6 +19,7 @@ const props = defineProps<{
   emptyLabel: string
   invalid?: boolean
   errorId?: string
+  descriptionId?: string
 }>()
 
 const values = defineModel<string[]>({ required: true })
@@ -31,8 +34,10 @@ function addValue(): void {
   input.value = ""
 }
 
-function removeValue(value: string): void {
+async function removeValue(value: string): Promise<void> {
   values.value = values.value.filter((existing) => existing !== value)
+  await nextTick()
+  document.getElementById(props.id)?.focus()
 }
 </script>
 
@@ -44,11 +49,11 @@ function removeValue(value: string): void {
         v-model="input"
         :placeholder="props.placeholder"
         :aria-invalid="props.invalid || undefined"
-        :aria-describedby="props.invalid ? props.errorId : undefined"
-        @keydown.enter.prevent="addValue"
+        :aria-describedby="[props.descriptionId, props.invalid ? props.errorId : undefined].filter(Boolean).join(' ') || undefined"
+        @keydown.enter="(event: KeyboardEvent) => { if (!event.isComposing) { event.preventDefault(); addValue() } }"
       />
       <InputGroupAddon align="inline-end">
-        <InputGroupButton :aria-label="props.addLabel" @click="addValue">
+        <InputGroupButton :aria-label="props.addLabel" :disabled="!input.trim()" @click="addValue">
           <PlusIcon />
           <span>{{ props.addLabel }}</span>
         </InputGroupButton>
@@ -59,14 +64,13 @@ function removeValue(value: string): void {
       <Badge
         v-for="value in values"
         :key="value"
-        as="button"
-        type="button"
         variant="secondary"
-        :aria-label="`${props.removeLabel}: ${value}`"
-        @click="removeValue(value)"
+        class="h-auto min-h-8 max-w-full gap-1 pr-1"
       >
-        {{ value }}
-        <XIcon data-icon="inline-end" />
+        <span class="min-w-0 whitespace-normal break-all">{{ value }}</span>
+        <Button type="button" variant="ghost" size="icon-xs" class="shrink-0" :aria-label="`${props.removeLabel}: ${value}`" :title="`${props.removeLabel}: ${value}`" @click="removeValue(value)">
+          <XIcon />
+        </Button>
       </Badge>
     </div>
     <p v-else class="text-sm text-muted-foreground">{{ props.emptyLabel }}</p>

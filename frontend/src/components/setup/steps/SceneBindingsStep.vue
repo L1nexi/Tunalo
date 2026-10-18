@@ -44,7 +44,7 @@ interface SceneCard {
 }
 
 interface SceneGroup {
-  id: "season" | "context" | "weather";
+  id: "season" | "context" | "time" | "weather";
   title: string;
   cards: SceneCard[];
 }
@@ -110,9 +110,14 @@ const sceneGroups = computed<SceneGroup[]>(() => {
       sceneIds: ["day_work", "day_leisure", "night_work", "night_leisure"],
     },
     {
+      id: "time",
+      title: copy.value.scenes.groups.time,
+      sceneIds: ["sunset"],
+    },
+    {
       id: "weather",
       title: copy.value.scenes.groups.weather,
-      sceneIds: ["sunset", "rain"],
+      sceneIds: ["rain"],
     },
   ];
   return catalog

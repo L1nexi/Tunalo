@@ -92,7 +92,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="min-h-[100dvh] bg-muted/40 p-4 text-foreground md:h-[100dvh] md:overflow-hidden">
+  <main class="min-h-[100dvh] bg-muted/40 p-2 text-foreground sm:p-4 md:h-[100dvh] md:overflow-hidden">
     <div class="mx-auto grid w-full max-w-[100rem] gap-4 md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]">
       <SetupSidebar
         :locale="locale"
@@ -105,7 +105,7 @@ onMounted(() => {
         @update:locale="setLocale"
       />
 
-      <Card class="min-w-0 min-h-[32rem] md:h-full md:min-h-0 [--card-spacing:--spacing(7)]">
+      <Card class="min-w-0 min-h-[32rem] md:h-full md:min-h-0 [--card-spacing:--spacing(4)] sm:[--card-spacing:--spacing(7)]">
         <CardHeader class="shrink-0">
           <CardTitle><h1 id="setup-step-heading" tabindex="-1" class="text-2xl leading-8 font-semibold tracking-tight focus:outline-none">{{ activeHeading.title }}</h1></CardTitle>
           <CardDescription v-if="activeHeading.description">{{ activeHeading.description }}</CardDescription>
@@ -234,21 +234,23 @@ onMounted(() => {
         </CardContent>
 
         <Separator />
-        <CardFooter class="shrink-0 justify-between gap-3">
-          <Button v-if="activeStep === 'review'" variant="outline" :disabled="submitting" @click="navigateTo(previousSection)">{{ copy.nav.backToSettings }}</Button>
-          <Button v-else variant="ghost" :disabled="submitting" @click="requestClose">{{ mode === 'setup' ? copy.common.cancel : copy.common.close }}</Button>
+        <CardFooter class="shrink-0 items-end justify-between gap-3">
+          <Button v-if="activeStep === 'review'" variant="outline" class="shrink-0" :disabled="submitting" @click="navigateTo(previousSection)">{{ copy.nav.backToSettings }}</Button>
+          <Button v-else variant="ghost" class="shrink-0" :disabled="submitting" @click="requestClose">{{ mode === 'setup' ? copy.common.cancel : copy.common.close }}</Button>
 
-          <Button v-if="activeStep !== 'review'" :variant="mode === 'settings' ? 'outline' : 'default'" :disabled="submitting" @click="navigateToStep('review')">
-            {{ mode === 'setup' ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
-            <ChevronRightIcon data-icon="inline-end" />
-          </Button>
-          <Button v-if="mode === 'settings' || activeStep === 'review'" :disabled="submitting || locating || !allValid || (mode === 'settings' && !isDirty)" @click="submitProfile()">
-            <Spinner v-if="submitting" data-icon="inline-start" />
-            <CheckIcon v-else data-icon="inline-start" />
-            {{ submitting
-              ? (mode === "setup" ? copy.review.creating : copy.review.saving)
-              : (mode === "setup" ? copy.review.create : copy.review.save) }}
-          </Button>
+          <div class="flex min-w-0 flex-wrap justify-end gap-2">
+            <Button v-if="activeStep !== 'review'" :variant="mode === 'settings' ? 'outline' : 'default'" :disabled="submitting" @click="navigateToStep('review')">
+              {{ mode === 'setup' ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
+              <ChevronRightIcon data-icon="inline-end" />
+            </Button>
+            <Button v-if="mode === 'settings' || activeStep === 'review'" :disabled="submitting || locating || !allValid || (mode === 'settings' && !isDirty)" @click="submitProfile()">
+              <Spinner v-if="submitting" data-icon="inline-start" />
+              <CheckIcon v-else data-icon="inline-start" />
+              {{ submitting
+                ? (mode === "setup" ? copy.review.creating : copy.review.saving)
+                : (mode === "setup" ? copy.review.create : copy.review.save) }}
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </div>
