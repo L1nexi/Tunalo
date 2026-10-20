@@ -257,11 +257,13 @@ SCENE_COLORS: dict[str, str] = {
 
 # 二项场景混合两个语义色，再略微压暗，与单项基线区分。
 for _compounds in PAIR_SCENES.values():
-    for _scene, _items in _compounds.items():
+    for _scene, _association in _compounds.items():
         if _scene in SCENE_COLORS:
             continue
-        _rgb = np.mean([mpl_colors.to_rgb(SCENE_COLORS[item.value]) for item in sorted(_items)], axis=0) * 0.9
+        _items = sorted(item for items in _association.values() for item in items)
+        _rgb = np.mean([mpl_colors.to_rgb(SCENE_COLORS[item.value]) for item in _items], axis=0) * 0.9
         SCENE_COLORS[_scene] = mpl_colors.to_hex(_rgb)
+
 
 def render_mode_figures(
     grids_by_mode: dict[str, list[HeatmapGrid]],

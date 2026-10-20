@@ -4,9 +4,10 @@ import math
 
 import pytest
 
-from configurations.runtime_models import MatchingConfig, SceneConfig
+from configurations.runtime_models import MatchingConfig
+from core.models.association import Association
 from core.models.scene import SceneId
-from core.models.selection import VARIABLE_SEMANTIC_ITEMS, Salience, Selection
+from core.models.selection import VARIABLE_SEMANTIC_ITEMS, Salience, Selection, SemanticItem
 from core.runtime.selector import calculate_distribution
 
 RAIN = SceneId.RAIN
@@ -18,8 +19,10 @@ WINTER_WORK = SceneId.NIGHT_LEISURE
 DAY = SceneId.SUNSET
 
 
-def choose(values: dict[str, float], scenes: dict[SceneId, set[str]], tiers: list[list[str]] | None = None, **params: float) -> Selection:
-    associations = {scene_id: SceneConfig(playlist="fixture", associations=items).associations for scene_id, items in scenes.items()}
+def choose[SceneKey: str](
+    values: dict[str, float], scenes: dict[SceneKey, set[str]], tiers: list[list[str]] | None = None, **params: float
+) -> Selection[SceneKey]:
+    associations = {scene_id: Association(*(SemanticItem(item) for item in items)) for scene_id, items in scenes.items()}
     return calculate_distribution(Salience(values), associations, MatchingConfig(preference_tiers=tiers or [], **params))
 
 
@@ -231,3 +234,126 @@ def test_product_evidence_produces_a_complete_probability_distribution() -> None
     ).probabilities
     assert all(math.isfinite(value) and value >= 0 for value in p.values())
     assert math.fsum(p.values()) == pytest.approx(1)
+
+
+@pytest.mark.parametrize("rain, snow", [(1, -1), (-1, 1), (1, 1)])
+def test_weather_alternatives_each_recall_the_same_scene(rain: float, snow: float) -> None:
+    result = choose(
+        {"rain": rain, "snow": snow, "summer": 1},
+        {"precipitation": {"rain", "snow"}, "summer": {"summer"}},
+        [["weather"], ["season"]],
+    )
+
+    assert result.probabilities == {"precipitation": 1, "summer": 0}
+    assert result.sources == ["weather"]
+    assert result.reason == "preference"
+    assert result.excluded_scenes == {}
+
+
+@pytest.mark.parametrize("work, leisure", [(1, -1), (-1, 1)])
+def test_selecting_both_activities_still_responds_to_activity(work: float, leisure: float) -> None:
+    result = choose(
+        {"work": work, "leisure": leisure, "rain": 1},
+        {"either_activity": {"work", "leisure"}, "rain": {"rain"}},
+        [["activity"], ["weather"]],
+    )
+
+    assert result.probabilities == {"either_activity": 1, "rain": 0}
+    assert result.sources == ["activity"]
+    assert result.excluded_scenes == {}
+
+
+@pytest.mark.parametrize("rain", [-1, -0.05, 0, 0.4, 1])
+def test_weaker_weather_alternative_neither_dilutes_nor_boosts_a_compound_scene(rain: float) -> None:
+    result = choose(
+        {"rain": rain, "snow": 1, "summer": 1, "work": 1},
+        {"precipitation_work": {"rain", "snow", "work"}, "summer_work": {"summer", "work"}},
+        [["activity"]],
+    )
+
+    assert result.probabilities == {"precipitation_work": 0.5, "summer_work": 0.5}
+    assert result.excluded_scenes == {}
+
+
+@pytest.mark.parametrize("snow, expected_source", [(0.899999, "activity"), (0.9, "weather"), (0.900001, "weather")])
+def test_weather_alternative_uses_the_inclusive_positive_boundary(snow: float, expected_source: str) -> None:
+    result = choose(
+        {"rain": -1, "snow": snow, "work": 1},
+        {"precipitation": {"rain", "snow"}, "work": {"work"}},
+        [["weather"], ["activity"]],
+    )
+
+    assert result.sources == [expected_source]
+    assert result.probabilities["precipitation" if expected_source == "weather" else "work"] == 1
+    assert result.excluded_scenes == {}
+
+
+@pytest.mark.parametrize("snow, excluded", [(-0.099999, False), (-0.1, True), (-0.100001, True)])
+def test_every_weather_alternative_must_be_negative_to_exclude_the_scene(snow: float, excluded: bool) -> None:
+    result = choose(
+        {"rain": -1, "snow": snow},
+        {"precipitation": {"rain", "snow"}, "work": {"work"}},
+    )
+
+    assert (result.probabilities["precipitation"] == 0) is excluded
+    if excluded:
+        assert result.excluded_scenes == {"precipitation": {"rain", "snow"}}
+        assert result.probabilities["work"] == 1
+    else:
+        assert result.probabilities["precipitation"] > 0
+        assert result.excluded_scenes == {}
+
+
+def test_a_negative_season_excludes_the_scene_despite_a_supported_weather_alternative() -> None:
+    result = choose(
+        {"winter": -1, "rain": 1, "snow": -1, "work": 1},
+        {"winter_precipitation": {"winter", "rain", "snow"}, "work": {"work"}},
+        [["weather"], ["activity"]],
+    )
+
+    assert result.probabilities == {"winter_precipitation": 0, "work": 1}
+    assert result.sources == ["activity"]
+    assert result.excluded_scenes == {"winter_precipitation": {"winter"}}
+
+
+def test_all_incompatible_alternatives_leave_no_safe_scenes() -> None:
+    result = choose({"rain": -1, "snow": -0.1}, {"precipitation": {"rain", "snow"}})
+
+    assert result.reason == "no_safe_scenes"
+    assert result.probabilities == {}
+    assert result.excluded_scenes == {"precipitation": {"rain", "snow"}}
+
+
+def test_weak_negative_weather_remains_less_likely_than_neutral_weather() -> None:
+    result = choose(
+        {"rain": -0.02, "snow": -0.08},
+        {"precipitation": {"rain", "snow"}, "clear": {"clear"}},
+    )
+
+    assert result.reason == "best_effort"
+    assert result.probabilities["clear"] > result.probabilities["precipitation"] > 0
+
+
+@pytest.mark.parametrize("tiers", [None, [["season"]], [["weather", "activity"]]])
+@pytest.mark.parametrize("strength", [0, 0.3, 1])
+def test_weather_alternatives_share_one_scene_and_one_variable_budget(tiers: list[list[str]] | None, strength: float) -> None:
+    result = choose(
+        {"rain": strength, "snow": strength, "work": strength},
+        {"precipitation": {"rain", "snow"}, "rain": {"rain"}, "work": {"work"}},
+        tiers,
+    )
+
+    assert result.probabilities == pytest.approx({"precipitation": 0.25, "rain": 0.25, "work": 0.5})
+
+
+@pytest.mark.parametrize("tiers", [None, [["weather", "activity", "time"]]])
+def test_multiple_alternative_groups_preserve_the_spec_numeric_example(tiers: list[list[str]] | None) -> None:
+    result = choose(
+        {"rain": 2, "snow": 0.5, "work": 1, "leisure": -1, "day": 1, "sunset": 0.2},
+        {"precipitation": {"rain", "snow"}, "daytime_activity": {"work", "leisure", "day", "sunset"}},
+        tiers,
+        variable_temperature=1.4,
+        scene_temperature=1.5,
+    )
+
+    assert result.probabilities == pytest.approx({"precipitation": 0.5052844367, "daytime_activity": 0.4947155633})

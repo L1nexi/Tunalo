@@ -75,7 +75,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 | 参数 | 当前值 | 实现入口 |
 | --- | --- | --- |
-| 正向边界、负向边界幅度 | 暂定 0.9、0.1；`s >= 0.9` 召回，`s <= -0.1` 排除 | `MatchingConfig` |
+| 正向边界、负向边界幅度 | 暂定 0.9、0.1；组内最大显著度 `m >= 0.9` 召回，`m <= -0.1` 排除 | `MatchingConfig` |
 | 变量温度、场景温度 | 1.4、1.5；前者控制变量来源预算，后者控制各变量内部的场景概率分配 | `MatchingConfig` |
 | 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
 | 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |
@@ -92,6 +92,10 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 天气、活动、时段显式同层时，变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
 
 配置定义见 [runtime_models.py](../configurations/runtime_models.py)。十个 Scene 的直接语义关联集中在 [ProfileCompiler](../configurations/profile_compiler.py)：四个日间／夜间工作和娱乐场景分别关联时段与活动，四季、黄昏和雨天分别关联对应单项语义。雪、黎明等没有独立预设，不补回旧标签回退，也不由讨论中的复合例子自动扩充产品目录。
+
+场景关联由 `Association(*items)` 表示，构造时按上下文变量归组、去重，支持同一变量内的多个语义项。它提供只读 Mapping 接口：`association[variable]` 读取备选，`len(association)` 返回关联变量数。`SceneConfig.associations` 接收该对象或按变量分组的非空映射；每组非空，语义项须属于对应变量。配置导出保留分组，JSON 形式如 `{"season": ["winter"], "weather": ["rain", "snow"]}`，调参报告采用相同结构。
+
+Selector 直接遍历 Association 各组取最大显著度，用于正向召回、负向排除和评分；同组备选全部明显违和才会排除场景。评分按各组最大值求和，再除以关联变量数的平方根；同组备选作为一个场景参与概率分配。每变量仅关联一项时还原原模型，现有预设沿用相同选择行为。公式见 [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md)。
 
 应用组规则集中在 [activityRulePacks.ts](../frontend/src/setup/activityRulePacks.ts)，导入后成为普通用户规则。导入按匹配语义去重，冲突时保留用户原分类并跳过该项。天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
 
@@ -117,13 +121,13 @@ Controller 持有并编排 TimingControl 与 DisturbanceControl。TimingControl 
 
 成功分布缓存统一命名为 `cached_scenes_probabilities`，只由 TimingControl 持有。Engine 用  `deduce_mode` 根据 WE 状态、手动请求和暂停推导 DecisionMode，再调用 `Controller.decide_action(mode, context, selection)` 决策。PLAYLIST 的 managed 与 unmanaged 情况均不调整成功历史，也不触发恢复；NO_PLAYLIST 保留 RECOVERY。
 
-设本 tick 推荐分布为 P，上次成功执行所采用的分布为 Q，启用场景数为 N，场景 c 的去重语义关联集合为 A_c：
+设本 tick 推荐分布为 P，上次成功执行所采用的分布为 Q，启用场景数为 N，场景 c 的关联变量集合为 V_c：
 
 $$
-d=\frac12\sum_c|P(c)-Q(c)|,\qquad d_{\mathrm{ref}}=\frac{\sum_c|A_c|}{4N}
+d=\frac12\sum_c|P(c)-Q(c)|,\qquad d_{\mathrm{ref}}=\frac{\sum_c|V_c|}{4N}
 $$
 
-Profile 至少启用一个场景，每个场景的语义关联集合非空，因此参考尺度为正。首次没有 Q 时直接取 d=1。没有安全场景时不执行，也不以空分布覆盖 Q；评估仍返回执行前快照和计时，距离、等待阈值及剩余等待为 None，ready 为 false。
+同一变量内的多个备选按一项计数。Profile 至少启用一个场景，每个场景的语义关联集合非空，因此参考尺度为正。首次没有 Q 时直接取 d=1。没有安全场景时不执行，也不以空分布覆盖 Q；评估仍返回执行前快照和计时，距离、等待阈值及剩余等待为 None，ready 为 false。
 
 令 C 为基础轮换间隔，x=d/d_ref。每 tick 重算等待阈值：
 
@@ -156,7 +160,7 @@ Tick History 的 `controller.timing` 记录距离、参考尺度、阈值、已�
 
 ### 概率计算、回放与行为验证
 
-Selector 的场景输入只有 SceneId 和等地位语义关联。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口；它调用匹配流程中的 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
+Selector 的场景输入为 `Mapping[SceneId, Association]`；共享概率入口接受字符串场景标识，供调参工具使用。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口，统一执行组内最大值聚合、评分、排除、召回和预算分配；它调用 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
 
 活动轨迹保存工作（`work`）、娱乐（`leisure`）、游移（`other`）类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，调用 `time_decaying_activation(age, scale=age_scale)`；该函数以默认 alpha=2 激活 `max(1-age/scale,-1)`，再将输出平移到 [0,1]。不新增活动 alpha 参数，数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
 

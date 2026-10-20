@@ -5,8 +5,9 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from core.models.association import Association
 from core.models.scene import SceneId
-from core.models.selection import ContextVariable, SemanticItem
+from core.models.selection import ContextVariable
 
 FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
@@ -14,7 +15,7 @@ FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 class SceneConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     playlist: str = Field(min_length=1)
-    associations: frozenset[SemanticItem] = Field(min_length=1)
+    associations: Association
     item_count: int = 0
 
 

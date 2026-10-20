@@ -3,21 +3,21 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 from configurations.runtime_models import TimingConfig
+from core.models.association import Association
 from core.models.scene import SceneId, Scenes
 from core.models.scheduling import TimingEvaluation, TimingState
-from core.models.selection import SemanticItem
 
 
 class TimingControl:
     def __init__(
         self,
         config: TimingConfig,
-        scene_associations: Mapping[SceneId, frozenset[SemanticItem]],
+        scene_associations: Mapping[SceneId, Association],
         clock: Callable[[], float],
     ) -> None:
         self._clock = clock
         self._cycle_interval = config.cycle_interval
-        self._reference_distance = sum(len(items) for items in scene_associations.values()) / (4 * len(scene_associations))
+        self._reference_distance = sum(len(association) for association in scene_associations.values()) / (4 * len(scene_associations))
         now = clock()
         self._startup_end = now + config.startup_delay
         self._last_success_time = now

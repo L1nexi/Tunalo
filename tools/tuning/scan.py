@@ -84,7 +84,10 @@ def main() -> int:
             "curve": args.curve,
             "alpha": args.alpha,
             "periodic_policies": {"time": config.policies.time.model_dump(), "season": config.policies.season.model_dump()},
-            "scenes": {scene: sorted(item.value for item in items) for scene, items in suite_associations(config, suite).items()},
+            "scenes": {
+                scene: {variable.value: sorted(item.value for item in items) for variable, items in association.items()}
+                for scene, association in suite_associations(config, suite).items()
+            },
             "sampling": asdict(sampling),
             "fixed_points": {axis: [asdict(point) for point in points] for axis, points in fixed_axis_points(config).items()},
             "matching": config.matching.model_dump(mode="json"),

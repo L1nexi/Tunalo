@@ -6,6 +6,7 @@ from typing import Any
 
 from configurations.runtime_models import MatchingConfig
 from core.math_utils import softmax
+from core.models.association import Association
 from core.models.context import Context
 from core.models.scene import SceneId
 from core.models.selection import SEMANTIC_ITEMS, VARIABLE_SEMANTIC_ITEMS, Salience, Selection, SemanticItem
@@ -13,17 +14,18 @@ from core.policies.base import Policy
 
 
 def salience_to_scene_scores[SceneKey: str](
-    salience: Mapping[SemanticItem, float], associations: Mapping[SceneKey, frozenset[SemanticItem]]
+    salience: Mapping[SemanticItem, float], associations: Mapping[SceneKey, Association]
 ) -> dict[SceneKey, float]:
-    return {
-        scene_id: math.fsum(salience[item] for item in sorted(semantic_items)) / math.sqrt(len(semantic_items))
-        for scene_id, semantic_items in associations.items()
-    }
+    scores = {}
+    for scene_id, association in associations.items():
+        values = [max(salience[item] for item in items) for items in association.values()]
+        scores[scene_id] = math.fsum(values) / math.sqrt(len(association))
+    return scores
 
 
 def calculate_distribution[SceneKey: str](
     salience: Salience,
-    associations: Mapping[SceneKey, frozenset[SemanticItem]],
+    associations: Mapping[SceneKey, Association],
     config: MatchingConfig,
 ) -> Selection[SceneKey]:
     """Calculate the full distribution from validated semantic and matching inputs.
@@ -36,16 +38,20 @@ def calculate_distribution[SceneKey: str](
     # negative 为满足负向阈值的语义项集合
     negative = {item for item, value in s.items() if value <= -config.negative_boundary}
     # excluded 为被负向阈值排除的场景字典
-    excluded = {scene_id: semantic_items & negative for scene_id, semantic_items in associations.items() if semantic_items & negative}
+    excluded = {}
+    for scene_id, association in associations.items():
+        excluded_items = frozenset(item for alternatives in association.values() if alternatives <= negative for item in alternatives)
+        if excluded_items:
+            excluded[scene_id] = excluded_items
     # safe 为排除了 excluded 的场景字典
-    safe = {scene_id: semantic_items for scene_id, semantic_items in associations.items() if scene_id not in excluded}
+    safe = {scene_id: association for scene_id, association in associations.items() if scene_id not in excluded}
     if not safe:
         return Selection(probabilities={}, salience=s, reason="no_safe_scenes", excluded_scenes=excluded)
 
     # candidates 为逐变量的可行场景字典，满足正向阈值与反向阈值
     candidates = {
-        variable: {scene_id: semantic_items for scene_id, semantic_items in safe.items() if semantic_items & positive & set(variable_semantic_items)}
-        for variable, variable_semantic_items in VARIABLE_SEMANTIC_ITEMS.items()
+        variable: {scene_id: association for scene_id, association in safe.items() if variable in association and association[variable] & positive}
+        for variable in VARIABLE_SEMANTIC_ITEMS
     }
 
     selected_tier = None
@@ -57,8 +63,8 @@ def calculate_distribution[SceneKey: str](
     else:
         # 显示偏好穷尽仍无候选，放宽正向阈值要求进行尽力选择
         candidates = {
-            variable: {scene_id: semantic_items for scene_id, semantic_items in safe.items() if semantic_items & set(variable_semantic_items)}
-            for variable, variable_semantic_items in VARIABLE_SEMANTIC_ITEMS.items()
+            variable: {scene_id: association for scene_id, association in safe.items() if variable in association}
+            for variable in VARIABLE_SEMANTIC_ITEMS
         }
         effective = [variable for variable in VARIABLE_SEMANTIC_ITEMS if candidates[variable]]
 
@@ -82,7 +88,7 @@ def calculate_distribution[SceneKey: str](
 
 
 class Selector:
-    def __init__(self, associations: Mapping[SceneId, frozenset[SemanticItem]], policies: list[Policy], config: MatchingConfig) -> None:
+    def __init__(self, associations: Mapping[SceneId, Association], policies: list[Policy], config: MatchingConfig) -> None:
         self.associations = dict(associations)
         self.policies = policies
         self.config = config

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from configurations.runtime_models import DisturbanceConfig, TimingConfig
+from core.models.association import Association
 from core.models.context import Context
 from core.models.scene import SceneId, Scenes
 from core.models.scheduling import Action, Blocker, DecisionMode
@@ -30,8 +31,8 @@ def _controller(
         TimingConfig(startup_delay=startup_delay, cycle_interval=900),
         DisturbanceConfig(idle_threshold=idle_threshold, cpu_threshold=80),
         {
-            SceneId.DAY_WORK: frozenset({SemanticItem.DAY, SemanticItem.WORK}),
-            SceneId.RAIN: frozenset({SemanticItem.RAIN}),
+            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
+            SceneId.RAIN: Association(SemanticItem.RAIN),
         },
         clock=clock,
     )
@@ -241,5 +242,43 @@ def test_controller_configuration_replacement_preserves_successful_distribution_
     for now in (130.0, 131.0):
         clock.now = now
         actions.append(replacement.decide_action(DecisionMode.NORMAL, Context(), selection).action)
+
+    assert actions == [Action.NOOP, Action.APPLY]
+
+
+@pytest.mark.parametrize(
+    "scene_associations",
+    [
+        {
+            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
+            SceneId.RAIN: Association(SemanticItem.RAIN),
+        },
+        {
+            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.WORK, SemanticItem.LEISURE),
+            SceneId.RAIN: Association(SemanticItem.RAIN, SemanticItem.SNOW),
+        },
+    ],
+)
+def test_controller_keeps_the_same_switch_time_when_only_same_variable_alternatives_are_added(
+    scene_associations: dict[SceneId, Association],
+) -> None:
+    clock = MutableClock(100.0)
+    controller = Controller(
+        TimingConfig(startup_delay=0, cycle_interval=900),
+        DisturbanceConfig(idle_threshold=0, cpu_threshold=80),
+        scene_associations,
+        clock=clock,
+    )
+    controller.notify_executed(
+        controller.decide_action(
+            DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 0.5, SceneId.RAIN: 0.5}, salience={}, reason="best_effort")
+        )
+    )
+    changed = Selection(probabilities={SceneId.DAY_WORK: 0.125, SceneId.RAIN: 0.875}, salience={}, reason="best_effort")
+
+    actions = []
+    for now in (130.0, 131.0):
+        clock.now = now
+        actions.append(controller.decide_action(DecisionMode.NORMAL, Context(), changed).action)
 
     assert actions == [Action.NOOP, Action.APPLY]

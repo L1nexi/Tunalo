@@ -14,20 +14,21 @@ from configurations.runtime_models import (
     TimingConfig,
     WeatherPolicyConfig,
 )
+from core.models.association import Association
 from core.models.scene import SceneId
 from core.models.selection import SemanticItem
 
-_SCENE_PRESETS: dict[SceneId, frozenset[SemanticItem]] = {
-    SceneId.DAY_WORK: frozenset({SemanticItem.DAY, SemanticItem.WORK}),
-    SceneId.DAY_LEISURE: frozenset({SemanticItem.DAY, SemanticItem.LEISURE}),
-    SceneId.NIGHT_WORK: frozenset({SemanticItem.NIGHT, SemanticItem.WORK}),
-    SceneId.NIGHT_LEISURE: frozenset({SemanticItem.NIGHT, SemanticItem.LEISURE}),
-    SceneId.SPRING: frozenset({SemanticItem.SPRING}),
-    SceneId.SUMMER: frozenset({SemanticItem.SUMMER}),
-    SceneId.AUTUMN: frozenset({SemanticItem.AUTUMN}),
-    SceneId.WINTER: frozenset({SemanticItem.WINTER}),
-    SceneId.SUNSET: frozenset({SemanticItem.SUNSET}),
-    SceneId.RAIN: frozenset({SemanticItem.RAIN}),
+_SCENE_PRESETS: dict[SceneId, Association] = {
+    SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
+    SceneId.DAY_LEISURE: Association(SemanticItem.DAY, SemanticItem.LEISURE),
+    SceneId.NIGHT_WORK: Association(SemanticItem.NIGHT, SemanticItem.WORK),
+    SceneId.NIGHT_LEISURE: Association(SemanticItem.NIGHT, SemanticItem.LEISURE),
+    SceneId.SPRING: Association(SemanticItem.SPRING),
+    SceneId.SUMMER: Association(SemanticItem.SUMMER),
+    SceneId.AUTUMN: Association(SemanticItem.AUTUMN),
+    SceneId.WINTER: Association(SemanticItem.WINTER),
+    SceneId.SUNSET: Association(SemanticItem.SUNSET),
+    SceneId.RAIN: Association(SemanticItem.RAIN),
 }
 
 

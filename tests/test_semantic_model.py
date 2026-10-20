@@ -7,9 +7,10 @@ import pytest
 from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
+from core.models.association import Association
 from core.models.context import Context, WeatherData, WindowData
 from core.models.scene import SceneId
-from core.models.selection import Selection
+from core.models.selection import Selection, SemanticItem
 from core.policies import ActivityPolicy, SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import Selector
 
@@ -132,9 +133,13 @@ def test_literal_activity_matching_keeps_unicode_casefolding() -> None:
 
 def test_s01_semantics_independent_of_preference_scene_catalog_and_playlists() -> None:
     selectors = [
-        Selector({SceneId.RAIN: frozenset({"rain"})}, [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())], MatchingConfig()),
         Selector(
-            {SceneId.DAY_WORK: frozenset({"work", "day"})},
+            {SceneId.RAIN: Association(SemanticItem.RAIN)},
+            [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
+            MatchingConfig(),
+        ),
+        Selector(
+            {SceneId.DAY_WORK: Association(SemanticItem.WORK, SemanticItem.DAY)},
             [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
             MatchingConfig(preference_tiers=[["activity"], ["weather"]]),
         ),
@@ -251,7 +256,11 @@ def test_time_mirror_mapping_keeps_opposing_pairs_symmetric_and_closes_across_mi
 
 def test_time_priority_cascades_after_early_sunset_instead_of_recalling_sunset_two_hours_later() -> None:
     selector = Selector(
-        {SceneId.SUNSET: frozenset({"sunset"}), SceneId.NIGHT_WORK: frozenset({"night"}), SceneId.WINTER: frozenset({"winter"})},
+        {
+            SceneId.SUNSET: Association(SemanticItem.SUNSET),
+            SceneId.NIGHT_WORK: Association(SemanticItem.NIGHT),
+            SceneId.WINTER: Association(SemanticItem.WINTER),
+        },
         [TimePolicy(TimePolicyConfig()), SeasonPolicy(SeasonPolicyConfig())],
         MatchingConfig(preference_tiers=[["time"], ["season"]]),
     )
@@ -414,10 +423,10 @@ def test_missing_or_unrecognized_weather_has_no_evidence(weather: WeatherData | 
 def established_work_selection(weather_code: int) -> Selection:
     selector = Selector(
         {
-            SceneId.DAY_WORK: frozenset({"work"}),
-            SceneId.DAY_LEISURE: frozenset({"work", "clear"}),
-            SceneId.NIGHT_WORK: frozenset({"work", "cloudy"}),
-            SceneId.RAIN: frozenset({"work", "rain"}),
+            SceneId.DAY_WORK: Association(SemanticItem.WORK),
+            SceneId.DAY_LEISURE: Association(SemanticItem.WORK, SemanticItem.CLEAR),
+            SceneId.NIGHT_WORK: Association(SemanticItem.WORK, SemanticItem.CLOUDY),
+            SceneId.RAIN: Association(SemanticItem.WORK, SemanticItem.RAIN),
         },
         [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
         MatchingConfig(preference_tiers=[["activity"]]),

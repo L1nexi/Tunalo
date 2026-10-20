@@ -9,6 +9,7 @@ from typing import Literal
 from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import SchedulerConfig, SeasonPolicyConfig, TimePolicyConfig
+from core.models.association import Association
 from core.models.context import Context, WeatherData
 from core.models.scene import SceneId
 from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, SemanticItem
@@ -60,9 +61,9 @@ _PAIR_VARIABLES: dict[SceneSuite, tuple[ContextVariable, ContextVariable]] = {
     "pair-act-hour": (ContextVariable.TIME, ContextVariable.ACTIVITY),
 }
 
-PAIR_SCENES: dict[SceneSuite, dict[str, frozenset[SemanticItem]]] = {
+PAIR_SCENES: dict[SceneSuite, dict[str, Association]] = {
     suite: {
-        f"{left.value}_{right.value}": frozenset({left, right})
+        f"{left.value}_{right.value}": Association(left, right)
         for left, right in product(
             (item for item in VARIABLE_SEMANTIC_ITEMS[left_variable] if item in SINGLE_SUITE_ITEMS),
             (item for item in VARIABLE_SEMANTIC_ITEMS[right_variable] if item in SINGLE_SUITE_ITEMS),
@@ -72,11 +73,11 @@ PAIR_SCENES: dict[SceneSuite, dict[str, frozenset[SemanticItem]]] = {
 }
 
 
-def suite_associations(config: SchedulerConfig, suite: SceneSuite) -> dict[str, frozenset[SemanticItem]]:
+def suite_associations(config: SchedulerConfig, suite: SceneSuite) -> dict[str, Association]:
     """Give calibration Scenes their own identities and semantic associations."""
     if suite == "product":
         return {scene_id.value: scene.associations for scene_id, scene in config.scenes.items()}
-    baseline = {item.value: frozenset({item}) for item in SINGLE_SUITE_ITEMS}
+    baseline = {item.value: Association(item) for item in SINGLE_SUITE_ITEMS}
     return baseline if suite == "single" else {**baseline, **PAIR_SCENES[suite]}
 
 

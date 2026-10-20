@@ -113,3 +113,19 @@ def test_scans_export_viewable_probability_and_winner_pngs(request: pytest.Fixtu
         with Image.open(output / f"cur-{mode}" / filename) as preview:
             assert preview.format == "PNG"
             preview.verify()
+
+
+@pytest.mark.parametrize(
+    "fixture_name, scene, expected_items",
+    [
+        ("single_scan", "rain", {"weather": ["rain"]}),
+        ("pair_scan", "rain_work", {"weather": ["rain"], "activity": ["work"]}),
+        ("product_scan", "day_work", {"time": ["day"], "activity": ["work"]}),
+    ],
+)
+def test_scans_export_semantic_associations_grouped_by_variable(
+    request: pytest.FixtureRequest, fixture_name: str, scene: str, expected_items: dict[str, list[str]]
+) -> None:
+    _, payload = request.getfixturevalue(fixture_name)
+
+    assert payload["scenes"][scene] == expected_items
