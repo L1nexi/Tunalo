@@ -61,13 +61,17 @@ npm run build-only
 
 ### Profile 与界面接入
 
-Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。尽力选择先向有安全候选的变量分配预算，再在各变量关联的候选中分配；全无证据时变量均分预算。旧响应风格已移除；旧格式走配置验证失败路径。实施不会自动迁移或覆盖本机配置。
+Profile 使用版本 3，`scenes` 按稳定标识保存场景名称、分组语义关联和播单。调用方、测试数据和工具直接使用这一结构。
+
+偏好字段为 `matching.preference_tiers`，空列表直接尽力选择；显式偏好穷尽后也直接尽力选择。尽力选择先向有安全候选的变量分配预算，再在各变量关联的候选中分配；全无证据时变量均分预算。
 
 `activity` 保留用户自定义规则：`work_processes`、`leisure_processes`、`work_title_keywords`、`leisure_title_keywords`。进程按名称精确匹配并统一可选的 `.exe` 后缀，标题按关键词包含匹配，两者都忽略大小写；同一个标准化目标不能同时归入工作与休闲。省略 `activity`、设为 `null` 或提供空对象时，均不配置活动识别规则。前端回填为空列表，保存时提交完整规则对象。
 
 `ProfileCompiler` 只编译用户 Profile 中的规则，生成完整运行时配置。`runtime_models.py` 只定义运行时数据，不依赖 Profile 或活动规则表；直接构造 `ActivityPolicyConfig()` 得到空规则列表。
 
-前端按第 2 版 Profile 创建、保存和回填配置。用户可添加偏好层级，将四个情境变量拖入各层；同层并列，上层优先。空层保留在编辑会话中，提交时过滤。活动页保留自定义规则编辑，并提供开发人员工具、办公工具、社交、多媒体应用组，导入时由用户选择工作或休闲分类。
+前端按第 3 版 Profile 创建、保存和回填配置。场景页只列已添加场景，支持预设批量添加、自定义、分组多选、批量绑定、搜索和移除撤销。编辑器留空的变量不写入关联；同组全选仍表示关联该变量。预设和自定义场景共用编辑与保存流程。
+
+用户可添加偏好层级，将四个情境变量拖入各层；同层并列，上层优先。空层保留在编辑会话中，提交时过滤。活动页保留自定义规则编辑，并提供开发人员工具、办公工具、社交、多媒体应用组，导入时由用户选择工作或休闲分类。
 
 ### 内部参数与规则入口
 
@@ -91,7 +95,7 @@ Profile 使用版本 2，偏好字段为 `matching.preference_tiers`，空列表
 
 天气、活动、时段显式同层时，变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
 
-配置定义见 [runtime_models.py](../configurations/runtime_models.py)。十个 Scene 的直接语义关联集中在 [ProfileCompiler](../configurations/profile_compiler.py)：四个日间／夜间工作和娱乐场景分别关联时段与活动，四季、黄昏和雨天分别关联对应单项语义。雪、黎明等没有独立预设，不补回旧标签回退，也不由讨论中的复合例子自动扩充产品目录。
+配置定义见 [runtime_models.py](../configurations/runtime_models.py)。预设由前端的 [scenePresets.ts](../frontend/src/setup/scenePresets.ts) 管理，按单变量和双变量编组。单变量包含季节四项、时间四项、活动两项、天气四项；双变量包含日间／夜间与工作／休闲的四种组合，以及冬日晴天、冬日雨雪、夏日晴朗、夏日雨天。添加预设会创建独立场景，之后可以修改名称和关联；后端编译 Profile 保存的场景定义。
 
 场景关联由 `Association(*items)` 表示，构造时按上下文变量归组、去重，支持同一变量内的多个语义项。它提供只读 Mapping 接口：`association[variable]` 读取备选，`len(association)` 返回关联变量数。`SceneConfig.associations` 接收该对象或按变量分组的非空映射；每组非空，语义项须属于对应变量。配置导出保留分组，JSON 形式如 `{"season": ["winter"], "weather": ["rain", "snow"]}`，调参报告采用相同结构。
 
@@ -117,7 +121,7 @@ Tick History 继续保留最近 1200 次记录及现有 HTTP 读取、托盘导�
 
 Controller 持有并编排 TimingControl 与 DisturbanceControl。TimingControl 管理成功历史、启动等待和切换阈值，DisturbanceControl 检查空闲、CPU 和全屏。`decide_action` 开头统一调用两个只读的评估函数，再按四种执行模式确定行动。普通模式遵守时序和防打扰门槛，手动、恢复和暂停保留各自的执行规则。
 
-运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。旧 Profile 若仍含删除的字段，会验证失败；本机配置不自动迁移。
+运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。
 
 成功分布缓存统一命名为 `cached_scenes_probabilities`，只由 TimingControl 持有。Engine 用  `deduce_mode` 根据 WE 状态、手动请求和暂停推导 DecisionMode，再调用 `Controller.decide_action(mode, context, selection)` 决策。PLAYLIST 的 managed 与 unmanaged 情况均不调整成功历史，也不触发恢复；NO_PLAYLIST 保留 RECOVERY。
 
@@ -160,7 +164,7 @@ Tick History 的 `controller.timing` 记录距离、参考尺度、阈值、已�
 
 ### 概率计算、回放与行为验证
 
-Selector 的场景输入为 `Mapping[SceneId, Association]`；共享概率入口接受字符串场景标识，供调参工具使用。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口，统一执行组内最大值聚合、评分、排除、召回和预算分配；它调用 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
+Selector 的场景输入为 `Mapping[str, Association]`；共享概率入口使用相同的字符串场景标识，供调参工具使用。`calculate_distribution(Salience, associations, MatchingConfig)` 是运行时与调参工具共用的纯概率入口，统一执行组内最大值聚合、评分、排除、召回和预算分配；它调用 `salience_to_scene_scores(salience, associations)` 取得逐场景评分。观测序列通过 `Selector.select(context)` 或真实 Policy 的 `evaluate(context)` 回放。
 
 活动轨迹保存工作（`work`）、娱乐（`leisure`）、游移（`other`）类别，不用整数隐含方向。支持与反向关系由 ActivityPolicy 统一定义，分别加权汇总各语义项的证据，取净值并按完整窗口分母归一后直接输出。ActivityPolicy 组织 600 个年龄采样点，调用 `time_decaying_activation(age, scale=age_scale)`；该函数以默认 alpha=2 激活 `max(1-age/scale,-1)`，再将输出平移到 [0,1]。不新增活动 alpha 参数，数学工具不提供业务窗口接口。每次新观测推进一槽，状态热替换复制分类观察，进程重启不恢复轨迹。
 
@@ -187,9 +191,9 @@ Selector 的场景输入为 `Mapping[SceneId, Association]`；共享概率入口
 .\.venv\Scripts\python.exe tools/tuning/scan.py --suite product --mode wx-act --out product-wx-act
 ```
 
-`calibrate.py` 导出三类显著度曲线、1800 槽的完整场景分布及 `parameters.json`。`scan.py` 默认扫描单语义项 suite，可通过 `--suite product` 使用产品场景。两个工具的 `--alpha` 都只控制 Time、Season；Activity 的年龄权重仍使用默认 alpha=2。`--curve current` 使用默认生产激活曲线；`--curve hann` 在独立调参进程中替换完整支持轴的激活函数，沿用真实 Policy 的峰值、平台和概率计算，Hann 不使用 alpha。
+`calibrate.py` 导出三类显著度曲线、1800 槽的完整场景分布及 `parameters.json`。`scan.py` 默认扫描单语义项 suite，`--suite product` 使用工具内固定的混合场景基准，包含四种日间／夜间工作与休闲、四季、黄昏和雨天。该基准独立于前端预设目录。两个工具的 `--alpha` 都只控制 Time、Season；Activity 的年龄权重仍使用默认 alpha=2。`--curve current` 使用默认生产激活曲线；`--curve hann` 在独立调参进程中替换完整支持轴的激活函数，沿用真实 Policy 的峰值、平台和概率计算，Hann 不使用 alpha。
 
-单语义项 suite 有 13 个场景：春、夏、秋、冬；晴朗、阴天、雨；黎明、白天、黄昏、夜晚；工作、娱乐。每个场景只关联对应的一个语义项。调参场景有自己的标识，产品场景仍由 ProfileCompiler 定义；共享概率入口按输入关联计算。偏好默认为空。
+单语义项 suite 有 13 个场景：春、夏、秋、冬；晴朗、阴天、雨；黎明、白天、黄昏、夜晚；工作、娱乐。每个场景只关联对应的一个语义项。调参场景有自己的标识和专用配置，共享概率入口按输入关联计算。偏好默认为空。
 
 二项复合按两个粗变量分为六套。每套保留全部 13 个单项基线，再加入两个变量间的全部组合；每个复合场景关联两个等地位语义项，例如 `rain_work` 关联雨与工作。
 

@@ -12,15 +12,17 @@ from pathlib import Path
 import pytest
 import requests
 
+from app.event_logger import JsonlEventLogger
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
 from core.models.context import Context, WeatherData, WindowData
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
 from core.models.trace import TickTrace
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
+from core.state.action_events import ActionEventWriter
 from core.state.tick_history import TickHistoryStore
 from server.app import build_api_app
 from server.host import APIServer
@@ -144,20 +146,24 @@ def wsgi_put(app, path, data=None):
 
 
 def _profile_payload(wallpaper_engine_path: str, *, playlist: str = "WORK") -> dict:
-    return Profile.model_validate(
-        {
-            "wallpaper_engine_path": wallpaper_engine_path,
-            "weather": {
-                "api_key": "test-key",
-                "location": {
-                    "name": "上海",
-                    "latitude": 31.2304,
-                    "longitude": 121.4737,
-                },
+    return {
+        "version": 3,
+        "setup_complete": True,
+        "language": None,
+        "wallpaper_engine_path": wallpaper_engine_path,
+        "weather": {
+            "api_key": "test-key",
+            "location": {
+                "name": "上海",
+                "latitude": 31.2304,
+                "longitude": 121.4737,
             },
-            "scenes": {"day_work": playlist},
-        }
-    ).model_dump(mode="json")
+        },
+        "scenes": {"day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": playlist}},
+        "matching": {"preference_tiers": []},
+        "disturbance": {"startup_grace_seconds": 15, "idle_before_switch_seconds": 20, "cycle_interval_minutes": 15},
+        "activity": None,
+    }
 
 
 def _profile_payload_for(manager: ProfileManager, *, playlist: str = "WORK") -> dict:
@@ -170,8 +176,8 @@ def _make_trace(
     *,
     tick_id: int = 1,
     paused: bool = False,
-    active_scene_before: SceneId | None = None,
-    matched_scene: SceneId | None = None,
+    active_scene_before: str | None = None,
+    matched_scene: str | None = None,
     target_playlist: str | None = None,
     executed: bool = False,
     action_kind: Action = Action.NOOP,
@@ -254,8 +260,8 @@ def test_api_tick_history_window_projects_scene_identity_and_target_playlist(
     tick_history.update(
         _make_trace(
             tick_id=1,
-            active_scene_before=SceneId.DAY_WORK,
-            matched_scene=SceneId.SUNSET,
+            active_scene_before="day_work",
+            matched_scene="sunset",
             target_playlist="test_pl",
             executed=True,
             action_kind=Action.APPLY,
@@ -284,11 +290,20 @@ def test_api_tick_history_window_invalid_count(app):
     assert body["error"] == "invalid_count"
 
 
-def test_removed_setup_api_does_not_fall_through_to_spa(app):
-    status, body = wsgi_get(app, "/api/setup/scenes")
+def test_custom_scene_identity_survives_history_and_event_export(app, tick_history, tmp_path):
+    trace = _make_trace(
+        active_scene_before="previous-custom", matched_scene="winter-rain-snow", target_playlist="WORK", executed=True, action_kind=Action.APPLY
+    )
+    tick_history.update(trace)
+    ActionEventWriter(JsonlEventLogger(str(tmp_path))).on_tick(trace)
 
-    assert "404" in status
-    assert body == {"error": "not_found"}
+    status, body = wsgi_get(app, "/api/tick-history")
+    assert status.startswith("200")
+    assert body["ticks"][0]["summary"]["activeScenes"] == [{"id": "winter-rain-snow"}]
+    record = json.loads(next(tmp_path.glob("events-*.jsonl")).read_text(encoding="utf-8"))
+    assert record["data"]["scenes_from"] == ["previous-custom"]
+    assert record["data"]["scenes_to"] == ["winter-rain-snow"]
+    assert record["data"]["probabilities"] == {"winter-rain-snow": 1}
 
 
 def test_api_profile_returns_current_committed_profile(tick_history, profile_manager):
@@ -297,8 +312,7 @@ def test_api_profile_returns_current_committed_profile(tick_history, profile_man
     status, body = wsgi_get(app, "/api/profile")
 
     assert "200" in status
-    assert "revision" not in body["profile"]
-    assert body["profile"]["scenes"] == {"day_work": "WORK"}
+    assert body["profile"]["scenes"]["day_work"] == {"name": "日间工作", "playlist": "WORK", "associations": {"time": ["day"], "activity": ["work"]}}
 
 
 @pytest.mark.parametrize(
@@ -329,7 +343,7 @@ def test_profile_api_preserves_preferences_and_activity_after_save_and_reload(
     reloaded.load_initial_profile()
     read_status, body = wsgi_get(build_api_app(tick_history, reloaded), "/api/profile")
     assert read_status.startswith("200")
-    assert body["profile"]["version"] == 2
+    assert body["profile"]["version"] == 3
     assert body["profile"]["matching"] == {"preference_tiers": [["weather"], ["activity", "time"]]}
     assert body["profile"]["activity"] == expected
     assert body["profile"]["disturbance"]["startup_grace_seconds"] == 30

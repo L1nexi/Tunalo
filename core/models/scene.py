@@ -1,20 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
-
-
-class SceneId(StrEnum):
-    DAY_WORK = "day_work"
-    DAY_LEISURE = "day_leisure"
-    NIGHT_WORK = "night_work"
-    NIGHT_LEISURE = "night_leisure"
-    SPRING = "spring"
-    SUMMER = "summer"
-    AUTUMN = "autumn"
-    WINTER = "winter"
-    SUNSET = "sunset"
-    RAIN = "rain"
 
 
 @dataclass(frozen=True)
@@ -23,10 +9,10 @@ class SceneBinding:
 
 
 class Scenes:
-    def __init__(self, ids: list[SceneId] | None = None) -> None:
+    def __init__(self, ids: list[str] | None = None) -> None:
         self._ids = list(dict.fromkeys(ids or []))
 
-    def ids(self) -> list[SceneId]:
+    def ids(self) -> list[str]:
         return list(self._ids)
 
     def __len__(self) -> int:
@@ -35,7 +21,7 @@ class Scenes:
     def __bool__(self) -> bool:
         return bool(self._ids)
 
-    def __getitem__(self, index: int) -> SceneId:
+    def __getitem__(self, index: int) -> str:
         return self._ids[index]
 
     def __contains__(self, scene_id: object) -> bool:

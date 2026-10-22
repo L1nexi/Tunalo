@@ -108,6 +108,10 @@ class Engine:
             return
         self.executor.keep_alive()
 
+    def get_scene_name(self, scene_id: str) -> str | None:
+        scene = self.config.scenes.get(scene_id)
+        return scene.name if scene is not None else None
+
     @staticmethod
     def _build_components(config: SchedulerConfig) -> EngineReplacement:
         executor = WEExecutor(config.wallpaper_engine_path)

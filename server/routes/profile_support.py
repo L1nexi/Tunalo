@@ -6,7 +6,6 @@ import logging
 import bottle
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from core.models.scene import SceneId
 from core.runtime.we_config import WEConfigProber, WEConfigReadError
 from core.runtime.we_path import resolve_wallpaper_engine_path
 from integrations.ip_location import LocationDetectionUnavailable, detect_city_location
@@ -21,11 +20,6 @@ class PlaylistScanRequest(BaseModel):
 
 
 def register_profile_support_routes(app: bottle.Bottle) -> None:
-    @app.route("/api/scenes")
-    def api_setup_scenes():
-        bottle.response.content_type = "application/json; charset=utf-8"
-        return {"scenes": [{"id": scene_id.value} for scene_id in SceneId]}
-
     @app.post("/api/location-estimates")
     def api_detect_setup_location():
         bottle.response.content_type = "application/json; charset=utf-8"

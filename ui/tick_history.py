@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from core.models.context import WeatherData
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 from core.models.scheduling import Action, Blocker, DisturbanceEvaluation, TimingEvaluation
 from core.models.selection import ActivityEvaluation, PolicyEvaluation, SeasonEvaluation, TimeEvaluation, WeatherEvaluation
 from core.models.trace import TickTrace
@@ -153,7 +153,7 @@ class PlaylistRefDto(ApiDto):
 
 
 class SceneRefDto(ApiDto):
-    id: SceneId
+    id: str
 
 
 class ActionDecisionDto(ApiDto):
@@ -175,7 +175,7 @@ class SelectionExplanationDto(ApiDto):
     reason: str
     selected_tier: int | None
     sources: list[str]
-    excluded_scenes: dict[SceneId, list[str]]
+    excluded_scenes: dict[str, list[str]]
 
 
 class SenseSnapshotDto(ApiDto):
@@ -223,7 +223,7 @@ class TickWindowResponseDto(ApiDto):
     ticks: list[TickSnapshotDto]
 
 
-def _scene_ref(scene_id: SceneId) -> SceneRefDto:
+def _scene_ref(scene_id: str) -> SceneRefDto:
     return SceneRefDto(id=scene_id)
 
 

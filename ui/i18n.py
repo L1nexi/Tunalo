@@ -3,8 +3,6 @@ import logging
 import os
 from typing import Literal
 
-from core.models.scene import SceneId
-
 logger = logging.getLogger("Tunalo.I18n")
 
 type Lang = Literal["zh", "en"]
@@ -18,16 +16,7 @@ _ZH: dict[str, str] = {
     "tray_outside_configured_scenes": "不在已配置场景中",
     "tray_no_schedulable_target": "无可调度目标",
     "tray_apply_match": "应用匹配: {scene}",
-    "scene_day_work": "日间工作",
-    "scene_day_leisure": "日间休闲",
-    "scene_night_work": "夜间工作",
-    "scene_night_leisure": "夜间休闲",
-    "scene_spring": "春季",
-    "scene_summer": "夏季",
-    "scene_autumn": "秋季",
-    "scene_winter": "冬季",
-    "scene_sunset": "黄昏",
-    "scene_rain": "雨天",
+    "scene_removed": "已移除的场景",
     "tray_unavailable": "不可用",
     "resume": "恢复",
     "pause": "暂停...",
@@ -67,16 +56,7 @@ _EN: dict[str, str] = {
     "tray_outside_configured_scenes": "Outside configured scenes",
     "tray_no_schedulable_target": "No schedulable target found",
     "tray_apply_match": "Apply Match: {scene}",
-    "scene_day_work": "Day Work",
-    "scene_day_leisure": "Day Leisure",
-    "scene_night_work": "Night Work",
-    "scene_night_leisure": "Night Leisure",
-    "scene_spring": "Spring",
-    "scene_summer": "Summer",
-    "scene_autumn": "Autumn",
-    "scene_winter": "Winter",
-    "scene_sunset": "Sunset",
-    "scene_rain": "Rain",
+    "scene_removed": "Removed scene",
     "tray_unavailable": "Unavailable",
     "resume": "Resume",
     "pause": "Pause...",
@@ -197,7 +177,3 @@ def t(key: str, **kwargs) -> str:
             raise
 
     return text
-
-
-def scene_name(scene_id: SceneId) -> str:
-    return t(f"scene_{scene_id.value}")

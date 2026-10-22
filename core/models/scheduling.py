@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 
 if TYPE_CHECKING:
     from core.models.context import Context
@@ -32,7 +32,7 @@ class DecisionMode(StrEnum):
 
 @dataclass(frozen=True)
 class TimingState:
-    cached_scenes_probabilities: dict[SceneId, float]
+    cached_scenes_probabilities: dict[str, float]
     last_success_time: float
     startup_end: float
 
@@ -79,13 +79,13 @@ class Decision:
     target: Scenes
     timing: TimingEvaluation
     disturbance: DisturbanceEvaluation
-    probabilities: dict[SceneId, float] = field(default_factory=dict)
+    probabilities: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
 class ActionResult:
     target_playlist: str | None = None
-    selected_scene: SceneId | None = None
+    selected_scene: str | None = None
     executed: bool = False
 
 

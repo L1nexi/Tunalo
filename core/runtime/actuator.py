@@ -4,7 +4,7 @@ import logging
 import random
 from collections.abc import Mapping
 
-from core.models.scene import SceneBinding, SceneId, Scenes
+from core.models.scene import SceneBinding, Scenes
 from core.models.scheduling import Action, ActionResult, Decision
 from core.runtime.executor import WEExecutor
 
@@ -12,7 +12,7 @@ logger = logging.getLogger("Tunalo.Actuator")
 
 
 class Actuator:
-    def __init__(self, executor: WEExecutor, scene_bindings: Mapping[SceneId, SceneBinding]) -> None:
+    def __init__(self, executor: WEExecutor, scene_bindings: Mapping[str, SceneBinding]) -> None:
         self.executor = executor
         self.scene_bindings = scene_bindings
 

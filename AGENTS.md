@@ -50,7 +50,7 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 
 定义运行时数据模型及契约。
 
-- `scene.py`：定义调度对象 Scenes、预设场景 SceneId 枚举。
+- `scene.py`：定义场景集合 Scenes 和播单绑定 SceneBinding。
 - `context.py`：定义调度器采集的上下文 Context 和对应的 ContextManager。
 - `selection.py`：定义选择模型，即 Policy 和 Select 阶段的数据模型，定义上下文变量、语义项和显著度。
 - `scheduling.py`：定义 Controller 和 Actuator 的数据模型，包括调度器动作、执行模式、时序状态和完整的 `ScheduleResult`。

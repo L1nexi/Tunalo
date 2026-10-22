@@ -6,17 +6,16 @@ import pytest
 
 from configurations.runtime_models import MatchingConfig
 from core.models.association import Association
-from core.models.scene import SceneId
 from core.models.selection import VARIABLE_SEMANTIC_ITEMS, Salience, Selection, SemanticItem
 from core.runtime.selector import calculate_distribution
 
-RAIN = SceneId.RAIN
-WORK = SceneId.DAY_WORK
-RAIN_WORK = SceneId.NIGHT_WORK
-SUMMER = SceneId.SUMMER
-SUMMER_WORK = SceneId.DAY_LEISURE
-WINTER_WORK = SceneId.NIGHT_LEISURE
-DAY = SceneId.SUNSET
+RAIN = "rain"
+WORK = "day_work"
+RAIN_WORK = "night_work"
+SUMMER = "summer"
+SUMMER_WORK = "day_leisure"
+WINTER_WORK = "night_leisure"
+DAY = "sunset"
 
 
 def choose[SceneKey: str](
@@ -194,7 +193,7 @@ def test_m18_best_effort_preserves_exclusions_and_weak_signed_evidence() -> None
 
 
 @pytest.mark.parametrize("scenes", [{}, {WINTER_WORK: {"winter"}}])
-def test_m19_no_available_or_safe_scenes_returns_empty_distribution(scenes: dict[SceneId, set[str]]) -> None:
+def test_m19_no_available_or_safe_scenes_returns_empty_distribution(scenes: dict[str, set[str]]) -> None:
     result = choose({"winter": -1}, scenes)
     assert result.probabilities == {}
 

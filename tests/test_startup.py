@@ -6,7 +6,6 @@ from pathlib import Path
 
 from app.startup import ensure_initial_profile
 from configurations.profile import Profile
-from core.models.scene import SceneId
 from core.runtime.profile_manager import ProfileManager
 
 
@@ -34,7 +33,7 @@ def _profile(tmp_path: Path) -> Profile:
                     "longitude": 121.4737,
                 },
             },
-            "scenes": {"day_work": "WORK"},
+            "scenes": {"day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": "WORK"}},
         }
     )
 
@@ -53,7 +52,7 @@ def test_startup_accepts_profile_when_setup_exits_after_creation(tmp_path: Path)
 
     assert ready is True
     assert manager.get_profile() == draft
-    assert manager.compile_initial_config().scenes[SceneId.DAY_WORK].playlist == "WORK"
+    assert manager.compile_initial_config().scenes["day_work"].playlist == "WORK"
 
 
 def test_startup_returns_none_when_setup_closes_before_creating_profile(tmp_path: Path):

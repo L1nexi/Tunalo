@@ -10,7 +10,7 @@ import pystray
 from app.context import get_app_root
 from app.version import VERSION
 from core.runtime.scheduler import Scheduler
-from ui.i18n import scene_name, t
+from ui.i18n import t
 from ui.icon_assets import load_tray_icon
 from ui.startup_error import format_startup_error
 
@@ -262,12 +262,16 @@ class TrayIcon:
             parts.append(f"{minutes}m")
         return t("status_paused_remaining", remaining=" ".join(parts))
 
+    def _scene_name(self, scene_id: str) -> str:
+        name = self.scheduler.get_scene_name(scene_id)
+        return name if name is not None else t("scene_removed")
+
     def _get_active_text(self) -> str:
         trace = self.scheduler.last_tick_trace
         scenes = trace.target if trace is not None else None
 
         if scenes:
-            primary = scene_name(scenes[0])
+            primary = self._scene_name(scenes[0])
             active = f"{primary}(+{len(scenes) - 1})" if len(scenes) > 1 else primary
         else:
             active = t("tray_outside_configured_scenes")
@@ -280,7 +284,7 @@ class TrayIcon:
         best_scenes = trace.selection.scenes
         if not best_scenes:
             return None
-        primary = scene_name(max(trace.selection.probabilities, key=trace.selection.probabilities.__getitem__))
+        primary = self._scene_name(max(trace.selection.probabilities, key=trace.selection.probabilities.__getitem__))
         if len(best_scenes) > 1:
             return f"{primary}(+{len(best_scenes) - 1})"
         return primary

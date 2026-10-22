@@ -14,22 +14,6 @@ from configurations.runtime_models import (
     TimingConfig,
     WeatherPolicyConfig,
 )
-from core.models.association import Association
-from core.models.scene import SceneId
-from core.models.selection import SemanticItem
-
-_SCENE_PRESETS: dict[SceneId, Association] = {
-    SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
-    SceneId.DAY_LEISURE: Association(SemanticItem.DAY, SemanticItem.LEISURE),
-    SceneId.NIGHT_WORK: Association(SemanticItem.NIGHT, SemanticItem.WORK),
-    SceneId.NIGHT_LEISURE: Association(SemanticItem.NIGHT, SemanticItem.LEISURE),
-    SceneId.SPRING: Association(SemanticItem.SPRING),
-    SceneId.SUMMER: Association(SemanticItem.SUMMER),
-    SceneId.AUTUMN: Association(SemanticItem.AUTUMN),
-    SceneId.WINTER: Association(SemanticItem.WINTER),
-    SceneId.SUNSET: Association(SemanticItem.SUNSET),
-    SceneId.RAIN: Association(SemanticItem.RAIN),
-}
 
 
 class ProfileCompiler:
@@ -43,8 +27,10 @@ class ProfileCompiler:
             wallpaper_engine_path=profile.wallpaper_engine_path,
             language=profile.language,
             scenes={
-                scene_id: SceneConfig(playlist=playlist, associations=_SCENE_PRESETS[scene_id], item_count=item_counts.get(playlist, 0))
-                for scene_id, playlist in profile.scenes.items()
+                scene_id: SceneConfig(
+                    name=scene.name, playlist=scene.playlist, associations=scene.associations, item_count=item_counts.get(scene.playlist, 0)
+                )
+                for scene_id, scene in profile.scenes.items()
             },
             matching=MatchingConfig(preference_tiers=profile.matching.preference_tiers),
             policies=PoliciesConfig(

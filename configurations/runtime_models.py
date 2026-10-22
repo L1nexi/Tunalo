@@ -6,13 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
 from core.models.association import Association
-from core.models.scene import SceneId
 from core.models.selection import ContextVariable
 
 FinitePositive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
 
 class SceneConfig(BaseModel):
+    name: str = Field(min_length=1)
     model_config = ConfigDict(extra="forbid")
     playlist: str = Field(min_length=1)
     associations: Association
@@ -102,7 +102,7 @@ class SchedulerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     wallpaper_engine_path: str = ""
     language: Literal["zh", "en"] | None = None
-    scenes: dict[SceneId, SceneConfig] = Field(default_factory=dict)
+    scenes: dict[str, SceneConfig] = Field(default_factory=dict)
     matching: MatchingConfig = Field(default_factory=MatchingConfig)
     policies: PoliciesConfig = Field(default_factory=PoliciesConfig)
     timing: TimingConfig = Field(default_factory=TimingConfig)

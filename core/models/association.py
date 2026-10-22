@@ -15,6 +15,10 @@ from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, Sema
 class Association(Mapping[ContextVariable, frozenset[SemanticItem]]):
     _groups: Mapping[ContextVariable, frozenset[SemanticItem]]
 
+    def __deepcopy__(self, memo: dict[int, object]) -> Association:
+        """Share this immutable value in Profile snapshots; mappingproxy cannot be deep-copied."""
+        return self
+
     def __init__(self, *items: SemanticItem) -> None:
         """Group a scene's semantic alternatives by variable.
 

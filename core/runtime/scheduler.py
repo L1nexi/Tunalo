@@ -94,6 +94,9 @@ class Scheduler:
     def get_pause_remaining(self) -> float | None:
         return self.state.get_pause_remaining()
 
+    def get_scene_name(self, scene_id: str) -> str | None:
+        return self.engine.get_scene_name(scene_id)
+
     def _run_loop(self) -> None:
         while not self.stop_event.is_set():
             try:

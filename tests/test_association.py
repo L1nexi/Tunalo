@@ -66,7 +66,7 @@ def test_association_requires_at_least_one_item() -> None:
     ],
 )
 def test_scene_config_accepts_grouped_items_or_an_association(raw_associations: object) -> None:
-    scene = SceneConfig.model_validate({"playlist": "Winter", "associations": raw_associations})
+    scene = SceneConfig.model_validate({"name": "Winter rain or snow", "playlist": "Winter", "associations": raw_associations})
 
     assert dict(scene.associations) == {
         ContextVariable.SEASON: frozenset({SemanticItem.WINTER}),
@@ -91,11 +91,16 @@ def test_scene_config_accepts_grouped_items_or_an_association(raw_associations: 
 )
 def test_scene_config_rejects_empty_or_invalid_associations(raw_associations: object) -> None:
     with pytest.raises(ValidationError):
-        SceneConfig.model_validate({"playlist": "Winter", "associations": raw_associations})
+        SceneConfig.model_validate({"name": "Winter rain or snow", "playlist": "Winter", "associations": raw_associations})
 
 
 def test_scene_config_preserves_variable_groups_when_serializing_and_loading() -> None:
-    scene = SceneConfig(playlist="Winter", associations=Association(SemanticItem.WINTER, SemanticItem.RAIN, SemanticItem.SNOW), item_count=7)
+    scene = SceneConfig(
+        name="Winter rain or snow",
+        playlist="Winter",
+        associations=Association(SemanticItem.WINTER, SemanticItem.RAIN, SemanticItem.SNOW),
+        item_count=7,
+    )
 
     assert scene.model_dump()["associations"] == {
         ContextVariable.SEASON: frozenset({SemanticItem.WINTER}),

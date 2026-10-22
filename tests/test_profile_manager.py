@@ -8,7 +8,6 @@ import pytest
 
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
-from core.models.scene import SceneId
 from core.runtime.profile_manager import (
     ProfileAlreadyExists,
     ProfileApplyUnavailable,
@@ -41,7 +40,7 @@ def _profile(wallpaper_engine_path: str, *, playlist: str = "WORK") -> Profile:
                     "longitude": 121.4737,
                 },
             },
-            "scenes": {"day_work": playlist},
+            "scenes": {"day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": playlist}},
         }
     )
 
@@ -55,7 +54,7 @@ def test_profile_manager_initializes_from_persisted_profile(tmp_path: Path):
 
     config = manager.compile_initial_config()
 
-    assert config.scenes[SceneId.DAY_WORK].item_count == 7
+    assert config.scenes["day_work"].item_count == 7
     assert manager.get_profile() == profile
 
 
@@ -75,12 +74,12 @@ def test_create_initial_profile_validates_persists_and_publishes(tmp_path: Path)
 
     assert committed == draft
     assert manager.get_profile() == draft
-    assert manager.compile_initial_config().scenes[SceneId.DAY_WORK].item_count == 7
+    assert manager.compile_initial_config().scenes["day_work"].item_count == 7
 
     reloaded = ProfileManager(str(tmp_path))
     reloaded.load_initial_profile()
     assert reloaded.get_profile() == draft
-    assert reloaded.compile_initial_config().scenes[SceneId.DAY_WORK].item_count == 7
+    assert reloaded.compile_initial_config().scenes["day_work"].item_count == 7
 
 
 def test_create_initial_profile_rejects_existing_persisted_profile(tmp_path: Path):

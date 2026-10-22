@@ -25,7 +25,7 @@ def _profile(*, playlist: str = "WORK") -> Profile:
                     "longitude": 121.4737,
                 },
             },
-            "scenes": {"day_work": playlist},
+            "scenes": {"day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": playlist}},
         }
     )
 
@@ -36,15 +36,15 @@ def test_profile_store_missing_file_returns_none(tmp_path):
     assert store.load() is None
 
 
-def test_profile_store_commit_round_trips_without_revision(tmp_path):
+def test_profile_store_commit_round_trips_scene_definition(tmp_path):
     store = ProfileStore(str(tmp_path))
 
     committed = store.commit(_profile())
 
     assert store.load() == committed
     payload = json.loads((tmp_path / PROFILE_FILE_NAME).read_text(encoding="utf-8"))
-    assert "revision" not in payload
-    assert payload["scenes"] == {"day_work": "WORK"}
+    assert payload["version"] == 3
+    assert payload["scenes"]["day_work"] == {"name": "日间工作", "playlist": "WORK", "associations": {"time": ["day"], "activity": ["work"]}}
 
 
 def test_profile_store_commit_replaces_previous_profile(tmp_path):
@@ -54,7 +54,7 @@ def test_profile_store_commit_replaces_previous_profile(tmp_path):
     committed = store.commit(_profile(playlist="NEW"))
 
     assert store.load() == committed
-    assert committed.scenes == {"day_work": "NEW"}
+    assert committed.scenes["day_work"].playlist == "NEW"
 
 
 def test_profile_store_invalid_json_is_an_explicit_read_error(tmp_path):

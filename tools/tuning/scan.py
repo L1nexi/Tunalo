@@ -17,7 +17,7 @@ r"""扫描场景概率，输出逐场景热图、胜者图与完整概率数据�
 完整支持轴上的 Hann 对照：
     .\.venv\Scripts\python.exe tools/tuning/scan.py --suite single --curve hann --out single-hann-full-axis
 
-产品场景，使用当前生产曲线：
+固定混合场景基准，使用当前生产曲线：
     .\.venv\Scripts\python.exe tools/tuning/scan.py --suite product --curve current --out product-current
 
 输出目录：tools/tuning/runs/<out>/<suite>/cur-<mode>/。
@@ -53,7 +53,7 @@ def main() -> int:
         "--suite",
         choices=("single", "product", "pairs", *PAIR_SCENES),
         default="single",
-        help="single semantics (default), product presets, one pair suite, or all six pairs",
+        help="single semantics (default), fixed mixed-scene benchmark, one pair suite, or all six pairs",
     )
     parser.add_argument(
         "--curve", choices=("current", "hann"), default="current", help="periodic activation: symmetric power (default) or full-axis Hann comparison"

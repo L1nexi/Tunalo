@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 
 from configurations.runtime_models import TimingConfig
 from core.models.association import Association
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 from core.models.scheduling import TimingEvaluation, TimingState
 
 
@@ -12,7 +12,7 @@ class TimingControl:
     def __init__(
         self,
         config: TimingConfig,
-        scene_associations: Mapping[SceneId, Association],
+        scene_associations: Mapping[str, Association],
         clock: Callable[[], float],
     ) -> None:
         self._clock = clock
@@ -21,9 +21,9 @@ class TimingControl:
         now = clock()
         self._startup_end = now + config.startup_delay
         self._last_success_time = now
-        self._cached_scenes_probabilities: dict[SceneId, float] = {}
+        self._cached_scenes_probabilities: dict[str, float] = {}
 
-    def evaluate(self, current: Mapping[SceneId, float]) -> TimingEvaluation:
+    def evaluate(self, current: Mapping[str, float]) -> TimingEvaluation:
         previous = self._cached_scenes_probabilities
         distance = None
         interval = None
@@ -48,7 +48,7 @@ class TimingControl:
             startup_remaining=max(0.0, self._startup_end - now),
         )
 
-    def notify_executed(self, probabilities: Mapping[SceneId, float]) -> None:
+    def notify_executed(self, probabilities: Mapping[str, float]) -> None:
         self._cached_scenes_probabilities = dict(probabilities)
         self._last_success_time = self._clock()
 

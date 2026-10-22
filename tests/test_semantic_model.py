@@ -9,7 +9,6 @@ from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
 from core.models.association import Association
 from core.models.context import Context, WeatherData, WindowData
-from core.models.scene import SceneId
 from core.models.selection import Selection, SemanticItem
 from core.policies import ActivityPolicy, SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import Selector
@@ -110,7 +109,7 @@ def test_user_window_rules_and_title_priority(process: str, title: str, expected
     profile = Profile(
         wallpaper_engine_path="C:/fixture/wallpaper64.exe",
         weather={"api_key": "fixture", "location": {"latitude": 0, "longitude": 0}},
-        scenes={SceneId.DAY_WORK: "WORK"},
+        scenes={"day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": "WORK"}},
         activity={
             "work_processes": ["code", "winword"],
             "leisure_processes": ["dota2"],
@@ -134,12 +133,12 @@ def test_literal_activity_matching_keeps_unicode_casefolding() -> None:
 def test_s01_semantics_independent_of_preference_scene_catalog_and_playlists() -> None:
     selectors = [
         Selector(
-            {SceneId.RAIN: Association(SemanticItem.RAIN)},
+            {"rain": Association(SemanticItem.RAIN)},
             [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
             MatchingConfig(),
         ),
         Selector(
-            {SceneId.DAY_WORK: Association(SemanticItem.WORK, SemanticItem.DAY)},
+            {"day_work": Association(SemanticItem.WORK, SemanticItem.DAY)},
             [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
             MatchingConfig(preference_tiers=[["activity"], ["weather"]]),
         ),
@@ -257,16 +256,16 @@ def test_time_mirror_mapping_keeps_opposing_pairs_symmetric_and_closes_across_mi
 def test_time_priority_cascades_after_early_sunset_instead_of_recalling_sunset_two_hours_later() -> None:
     selector = Selector(
         {
-            SceneId.SUNSET: Association(SemanticItem.SUNSET),
-            SceneId.NIGHT_WORK: Association(SemanticItem.NIGHT),
-            SceneId.WINTER: Association(SemanticItem.WINTER),
+            "sunset": Association(SemanticItem.SUNSET),
+            "night_work": Association(SemanticItem.NIGHT),
+            "winter": Association(SemanticItem.WINTER),
         },
         [TimePolicy(TimePolicyConfig()), SeasonPolicy(SeasonPolicyConfig())],
         MatchingConfig(preference_tiers=[["time"], ["season"]]),
     )
     result = selector.select(observation(day=355, hour=18, sunrise=8, sunset=16))
     assert result.sources == ["season"]
-    assert result.probabilities == {SceneId.SUNSET: 0, SceneId.NIGHT_WORK: 0, SceneId.WINTER: 1}
+    assert result.probabilities == {"sunset": 0, "night_work": 0, "winter": 1}
 
 
 def test_drizzle_strengthening_increases_rain_support() -> None:
@@ -318,7 +317,10 @@ def test_thunderstorm_rain_scene_outweighs_established_work_without_preferences(
         Profile(
             wallpaper_engine_path="C:/wallpaper_engine",
             weather={"api_key": "test-key", "location": {"latitude": 31.0, "longitude": 121.0}},
-            scenes={SceneId.RAIN: "rain-playlist", SceneId.DAY_WORK: "work-playlist"},
+            scenes={
+                "rain": {"name": "雨天", "associations": {"weather": ["rain"]}, "playlist": "rain-playlist"},
+                "day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": "work-playlist"},
+            },
             activity={"work_processes": ["code"]},
         )
     )
@@ -337,7 +339,7 @@ def test_thunderstorm_rain_scene_outweighs_established_work_without_preferences(
     context.weather.main = "Thunderstorm"
     for _ in range(600):
         result = selector.select(context)
-    assert result.probabilities[SceneId.RAIN] > result.probabilities[SceneId.DAY_WORK] > 0
+    assert result.probabilities["rain"] > result.probabilities["day_work"] > 0
 
 
 def test_rain_strength_follows_weather_severity_and_can_exceed_one() -> None:
@@ -423,10 +425,10 @@ def test_missing_or_unrecognized_weather_has_no_evidence(weather: WeatherData | 
 def established_work_selection(weather_code: int) -> Selection:
     selector = Selector(
         {
-            SceneId.DAY_WORK: Association(SemanticItem.WORK),
-            SceneId.DAY_LEISURE: Association(SemanticItem.WORK, SemanticItem.CLEAR),
-            SceneId.NIGHT_WORK: Association(SemanticItem.WORK, SemanticItem.CLOUDY),
-            SceneId.RAIN: Association(SemanticItem.WORK, SemanticItem.RAIN),
+            "day_work": Association(SemanticItem.WORK),
+            "day_leisure": Association(SemanticItem.WORK, SemanticItem.CLEAR),
+            "night_work": Association(SemanticItem.WORK, SemanticItem.CLOUDY),
+            "rain": Association(SemanticItem.WORK, SemanticItem.RAIN),
         },
         [ActivityPolicy(activity_config()), WeatherPolicy(WeatherPolicyConfig())],
         MatchingConfig(preference_tiers=[["activity"]]),
@@ -440,13 +442,13 @@ def established_work_selection(weather_code: int) -> Selection:
 @pytest.mark.parametrize(
     "code, preferred, excluded",
     [
-        (800, SceneId.DAY_LEISURE, SceneId.RAIN),
-        (502, SceneId.RAIN, SceneId.DAY_LEISURE),
-        (211, SceneId.RAIN, SceneId.DAY_LEISURE),
-        (212, SceneId.RAIN, SceneId.DAY_LEISURE),
+        (800, "day_leisure", "rain"),
+        (502, "rain", "day_leisure"),
+        (211, "rain", "day_leisure"),
+        (212, "rain", "day_leisure"),
     ],
 )
-def test_weather_strong_opposition_excludes_scenes_even_when_activity_has_priority(code: int, preferred: SceneId, excluded: SceneId) -> None:
+def test_weather_strong_opposition_excludes_scenes_even_when_activity_has_priority(code: int, preferred: str, excluded: str) -> None:
     result = established_work_selection(code)
     assert result.probabilities[excluded] == 0
     assert max(result.probabilities, key=result.probabilities.__getitem__) == preferred
@@ -454,7 +456,7 @@ def test_weather_strong_opposition_excludes_scenes_even_when_activity_has_priori
 
 def test_overcast_opposition_excludes_clear_work_and_rain_work_even_when_activity_has_priority() -> None:
     result = established_work_selection(804)
-    assert result.probabilities[SceneId.RAIN] == 0
-    assert result.probabilities[SceneId.DAY_LEISURE] == 0
-    assert result.excluded_scenes == {SceneId.RAIN: {"rain"}, SceneId.DAY_LEISURE: {"clear"}}
-    assert result.probabilities[SceneId.NIGHT_WORK] > result.probabilities[SceneId.DAY_WORK] > 0
+    assert result.probabilities["rain"] == 0
+    assert result.probabilities["day_leisure"] == 0
+    assert result.excluded_scenes == {"rain": {"rain"}, "day_leisure": {"clear"}}
+    assert result.probabilities["night_work"] > result.probabilities["day_work"] > 0

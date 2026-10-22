@@ -6,7 +6,7 @@ from typing import Literal, Self
 
 from pydantic import FiniteFloat, RootModel, model_validator
 
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 
 
 class ContextVariable(StrEnum):
@@ -113,7 +113,7 @@ type PolicyEvaluation = ActivityEvaluation | TimeEvaluation | SeasonEvaluation |
 
 
 @dataclass
-class Selection[SceneKey: str = SceneId]:
+class Selection[SceneKey: str = str]:
     probabilities: dict[SceneKey, float]
     salience: dict[SemanticItem, float]
     reason: Literal["preference", "best_effort", "no_safe_scenes"]
@@ -123,5 +123,5 @@ class Selection[SceneKey: str = SceneId]:
     policy_evaluations: list[PolicyEvaluation] = field(default_factory=list)
 
     @property
-    def scenes(self: Selection[SceneId]) -> Scenes:
+    def scenes(self: Selection[str]) -> Scenes:
         return Scenes([scene_id for scene_id, probability in self.probabilities.items() if probability > 0])

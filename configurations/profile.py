@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.models.activity_target import normalize_match_text, normalize_process_name
-from core.models.scene import SceneId
+from core.models.association import Association
 from core.models.selection import ContextVariable
 
 
@@ -14,7 +14,13 @@ class ProfileModel(BaseModel):
 
 
 NonEmptyText = Annotated[str, Field(min_length=1)]
-PROFILE_VERSION: Literal[2] = 2
+PROFILE_VERSION: Literal[3] = 3
+
+
+class SceneProfile(ProfileModel):
+    name: NonEmptyText
+    associations: Association
+    playlist: NonEmptyText
 
 
 class WeatherLocationProfile(ProfileModel):
@@ -70,12 +76,12 @@ class ActivityProfile(ProfileModel):
 
 
 class Profile(ProfileModel):
-    version: Literal[2] = PROFILE_VERSION
+    version: Literal[3] = PROFILE_VERSION
     setup_complete: Literal[True] = True
     wallpaper_engine_path: NonEmptyText
     language: Literal["zh", "en"] | None = None
     weather: WeatherProfile
-    scenes: dict[SceneId, NonEmptyText] = Field(min_length=1)
+    scenes: dict[NonEmptyText, SceneProfile] = Field(min_length=1)
     matching: MatchingProfile = Field(default_factory=MatchingProfile)
     disturbance: DisturbanceProfile = Field(default_factory=DisturbanceProfile)
     activity: ActivityProfile | None = None

@@ -6,7 +6,6 @@ from collections.abc import Callable, Mapping
 from configurations.runtime_models import DisturbanceConfig, TimingConfig
 from core.models.association import Association
 from core.models.context import Context
-from core.models.scene import SceneId
 from core.models.scheduling import Action, Decision, DecisionMode, TimingState
 from core.models.selection import Selection
 from core.runtime.disturbance import DisturbanceControl
@@ -18,7 +17,7 @@ class Controller:
         self,
         timing: TimingConfig,
         disturbance: DisturbanceConfig,
-        scene_associations: Mapping[SceneId, Association],
+        scene_associations: Mapping[str, Association],
         clock: Callable[[], float] | None = None,
     ) -> None:
         self._timing = TimingControl(timing, scene_associations, clock if clock is not None else time.monotonic)

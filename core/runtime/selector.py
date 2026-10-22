@@ -8,7 +8,6 @@ from configurations.runtime_models import MatchingConfig
 from core.math_utils import softmax
 from core.models.association import Association
 from core.models.context import Context
-from core.models.scene import SceneId
 from core.models.selection import SEMANTIC_ITEMS, VARIABLE_SEMANTIC_ITEMS, Salience, Selection, SemanticItem
 from core.policies.base import Policy
 
@@ -88,7 +87,7 @@ def calculate_distribution[SceneKey: str](
 
 
 class Selector:
-    def __init__(self, associations: Mapping[SceneId, Association], policies: list[Policy], config: MatchingConfig) -> None:
+    def __init__(self, associations: Mapping[str, Association], policies: list[Policy], config: MatchingConfig) -> None:
         self.associations = dict(associations)
         self.policies = policies
         self.config = config

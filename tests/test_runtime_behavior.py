@@ -5,7 +5,7 @@ import pytest
 from configurations.runtime_models import DisturbanceConfig, TimingConfig
 from core.models.association import Association
 from core.models.context import Context
-from core.models.scene import SceneId, Scenes
+from core.models.scene import Scenes
 from core.models.scheduling import Action, Blocker, DecisionMode
 from core.models.selection import Selection, SemanticItem
 from core.runtime.controller import Controller
@@ -31,8 +31,8 @@ def _controller(
         TimingConfig(startup_delay=startup_delay, cycle_interval=900),
         DisturbanceConfig(idle_threshold=idle_threshold, cpu_threshold=80),
         {
-            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
-            SceneId.RAIN: Association(SemanticItem.RAIN),
+            "day_work": Association(SemanticItem.DAY, SemanticItem.WORK),
+            "rain": Association(SemanticItem.RAIN),
         },
         clock=clock,
     )
@@ -51,15 +51,15 @@ def test_controller_returns_evaluations_in_every_mode_without_advancing_success(
     clock = MutableClock(100.0)
     controller = _controller(clock, startup_delay=30, idle_threshold=20)
     controller.notify_executed(
-        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 1.0}, salience={}, reason="best_effort"))
+        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 1.0}, salience={}, reason="best_effort"))
     )
-    selection = Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort")
+    selection = Selection(probabilities={"rain": 1.0}, salience={}, reason="best_effort")
     clock.now = 101.0
 
     decision = controller.decide_action(mode, Context(idle=0, cpu=100, fullscreen=True), selection)
 
     assert decision.action == expected
-    assert decision.timing.active_scenes == Scenes([SceneId.DAY_WORK])
+    assert decision.timing.active_scenes == Scenes(["day_work"])
     assert not decision.timing.ready
     assert set(decision.disturbance.blocked_by) == {Blocker.IDLE, Blocker.CPU, Blocker.FULLSCREEN}
 
@@ -67,7 +67,7 @@ def test_controller_returns_evaluations_in_every_mode_without_advancing_success(
     following = controller.decide_action(DecisionMode.NORMAL, Context(idle=30), selection)
 
     assert following.action == Action.APPLY
-    assert following.timing.active_scenes == Scenes([SceneId.DAY_WORK])
+    assert following.timing.active_scenes == Scenes(["day_work"])
     assert following.timing.elapsed == 31.0
 
 
@@ -82,11 +82,11 @@ def test_controller_returns_evaluations_in_every_mode_without_advancing_success(
 def test_controller_times_probability_change_from_the_successful_distribution(factual: FactualPlaylistState) -> None:
     clock = MutableClock(100.0)
     controller = _controller(clock)
-    previous = {SceneId.DAY_WORK: 0.5, SceneId.RAIN: 0.5}
+    previous = {"day_work": 0.5, "rain": 0.5}
     controller.notify_executed(
         controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities=previous, salience={}, reason="best_effort"))
     )
-    selection = Selection(probabilities={SceneId.DAY_WORK: 0.125, SceneId.RAIN: 0.875}, salience={}, reason="best_effort")
+    selection = Selection(probabilities={"day_work": 0.125, "rain": 0.875}, salience={}, reason="best_effort")
     mode = deduce_mode(
         factual=factual,
         paused=False,
@@ -104,11 +104,11 @@ def test_controller_times_probability_change_from_the_successful_distribution(fa
 def test_controller_rechecks_current_distribution_after_a_blocked_tick() -> None:
     clock = MutableClock(100.0)
     controller = _controller(clock, idle_threshold=20)
-    previous = {SceneId.DAY_WORK: 0.5, SceneId.RAIN: 0.5}
+    previous = {"day_work": 0.5, "rain": 0.5}
     controller.notify_executed(
         controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities=previous, salience={}, reason="best_effort"))
     )
-    changed = Selection(probabilities={SceneId.DAY_WORK: 0.125, SceneId.RAIN: 0.875}, salience={}, reason="best_effort")
+    changed = Selection(probabilities={"day_work": 0.125, "rain": 0.875}, salience={}, reason="best_effort")
     unchanged = Selection(probabilities=previous, salience={}, reason="best_effort")
 
     clock.now = 150.0
@@ -126,11 +126,11 @@ def test_controller_rechecks_current_distribution_after_a_blocked_tick() -> None
 def test_controller_does_not_treat_a_tiny_new_candidate_as_an_immediate_switch() -> None:
     clock = MutableClock(100.0)
     controller = _controller(clock)
-    previous = {SceneId.DAY_WORK: 1.0}
+    previous = {"day_work": 1.0}
     controller.notify_executed(
         controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities=previous, salience={}, reason="best_effort"))
     )
-    selection = Selection(probabilities={SceneId.DAY_WORK: 0.999, SceneId.RAIN: 0.001}, salience={}, reason="best_effort")
+    selection = Selection(probabilities={"day_work": 0.999, "rain": 0.001}, salience={}, reason="best_effort")
 
     actions = []
     for now in (999.0, 1000.0):
@@ -148,11 +148,9 @@ def test_controller_first_switch_needs_only_startup_grace() -> None:
     clock = MutableClock(100.0)
     controller = _controller(clock, startup_delay=5)
     clock.now = 104.0
-    before = controller.decide_action(
-        DecisionMode.NORMAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 1.0}, salience={}, reason="best_effort")
-    )
+    before = controller.decide_action(DecisionMode.NORMAL, Context(), Selection(probabilities={"day_work": 1.0}, salience={}, reason="best_effort"))
     clock.now = 105.0
-    after = controller.decide_action(DecisionMode.NORMAL, Context(), Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort"))
+    after = controller.decide_action(DecisionMode.NORMAL, Context(), Selection(probabilities={"rain": 1.0}, salience={}, reason="best_effort"))
 
     assert [before.action, after.action] == [Action.NOOP, Action.APPLY]
 
@@ -161,14 +159,14 @@ def test_controller_never_bypasses_disturbance_checks_when_a_switch_is_due() -> 
     clock = MutableClock(100.0)
     controller = _controller(clock, idle_threshold=20)
     controller.notify_executed(
-        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 1.0}, salience={}, reason="best_effort"))
+        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 1.0}, salience={}, reason="best_effort"))
     )
     clock.now = 3700.0
 
     decision = controller.decide_action(
         DecisionMode.NORMAL,
         Context(idle=5, cpu=90, fullscreen=True),
-        Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort"),
+        Selection(probabilities={"rain": 1.0}, salience={}, reason="best_effort"),
     )
 
     assert decision.action == Action.NOOP
@@ -178,7 +176,7 @@ def test_controller_never_bypasses_disturbance_checks_when_a_switch_is_due() -> 
 def test_controller_recovery_switches_without_normal_execution_gates() -> None:
     controller = _controller(MutableClock(100.0), startup_delay=30, idle_threshold=60)
     controller.notify_executed(
-        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 1.0}, salience={}, reason="best_effort"))
+        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 1.0}, salience={}, reason="best_effort"))
     )
     decision = controller.decide_action(
         deduce_mode(
@@ -187,7 +185,7 @@ def test_controller_recovery_switches_without_normal_execution_gates() -> None:
             manual_requested=False,
         ),
         Context(idle=0, cpu=100, fullscreen=True),
-        Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort"),
+        Selection(probabilities={"rain": 1.0}, salience={}, reason="best_effort"),
     )
 
     assert decision.action == Action.APPLY
@@ -205,7 +203,7 @@ def test_controller_prioritizes_manual_application_then_pause_over_recovery(manu
     decision = controller.decide_action(
         mode,
         Context(idle=0, cpu=100, fullscreen=True),
-        Selection(probabilities={SceneId.RAIN: 1.0}, salience={}, reason="best_effort"),
+        Selection(probabilities={"rain": 1.0}, salience={}, reason="best_effort"),
     )
 
     assert decision.action == expected
@@ -214,7 +212,7 @@ def test_controller_prioritizes_manual_application_then_pause_over_recovery(manu
 def test_controller_recovery_without_a_selection_does_nothing() -> None:
     controller = _controller(MutableClock(100.0))
     controller.notify_executed(
-        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 1.0}, salience={}, reason="best_effort"))
+        controller.decide_action(DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 1.0}, salience={}, reason="best_effort"))
     )
     decision = controller.decide_action(
         DecisionMode.RECOVERY,
@@ -230,13 +228,13 @@ def test_controller_configuration_replacement_preserves_successful_distribution_
     controller = _controller(clock, startup_delay=30)
     controller.notify_executed(
         controller.decide_action(
-            DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 0.5, SceneId.RAIN: 0.5}, salience={}, reason="best_effort")
+            DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 0.5, "rain": 0.5}, salience={}, reason="best_effort")
         )
     )
     clock.now = 105.0
     replacement = _controller(clock, startup_delay=100)
     replacement.import_state(controller.export_state())
-    selection = Selection(probabilities={SceneId.DAY_WORK: 0.125, SceneId.RAIN: 0.875}, salience={}, reason="best_effort")
+    selection = Selection(probabilities={"day_work": 0.125, "rain": 0.875}, salience={}, reason="best_effort")
 
     actions = []
     for now in (130.0, 131.0):
@@ -250,17 +248,17 @@ def test_controller_configuration_replacement_preserves_successful_distribution_
     "scene_associations",
     [
         {
-            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.WORK),
-            SceneId.RAIN: Association(SemanticItem.RAIN),
+            "day_work": Association(SemanticItem.DAY, SemanticItem.WORK),
+            "rain": Association(SemanticItem.RAIN),
         },
         {
-            SceneId.DAY_WORK: Association(SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.WORK, SemanticItem.LEISURE),
-            SceneId.RAIN: Association(SemanticItem.RAIN, SemanticItem.SNOW),
+            "day_work": Association(SemanticItem.DAY, SemanticItem.SUNSET, SemanticItem.WORK, SemanticItem.LEISURE),
+            "rain": Association(SemanticItem.RAIN, SemanticItem.SNOW),
         },
     ],
 )
 def test_controller_keeps_the_same_switch_time_when_only_same_variable_alternatives_are_added(
-    scene_associations: dict[SceneId, Association],
+    scene_associations: dict[str, Association],
 ) -> None:
     clock = MutableClock(100.0)
     controller = Controller(
@@ -271,10 +269,10 @@ def test_controller_keeps_the_same_switch_time_when_only_same_variable_alternati
     )
     controller.notify_executed(
         controller.decide_action(
-            DecisionMode.MANUAL, Context(), Selection(probabilities={SceneId.DAY_WORK: 0.5, SceneId.RAIN: 0.5}, salience={}, reason="best_effort")
+            DecisionMode.MANUAL, Context(), Selection(probabilities={"day_work": 0.5, "rain": 0.5}, salience={}, reason="best_effort")
         )
     )
-    changed = Selection(probabilities={SceneId.DAY_WORK: 0.125, SceneId.RAIN: 0.875}, salience={}, reason="best_effort")
+    changed = Selection(probabilities={"day_work": 0.125, "rain": 0.875}, salience={}, reason="best_effort")
 
     actions = []
     for now in (130.0, 131.0):
