@@ -25,10 +25,15 @@ class Actuator:
         if not target_scenes:
             return ActionResult()
 
-        scene_ids = target_scenes.ids()
-        selected_scene = random.choices(scene_ids, weights=[decision.probabilities[scene_id] for scene_id in scene_ids], k=1)[0]
+        probabilities = {scene_id: decision.probabilities[scene_id] for scene_id in target_scenes.ids()}
+        selected_scene = random.choices(list(probabilities.keys()), weights=list(probabilities.values()), k=1)[0]
         target_playlist = self.scene_bindings[selected_scene].playlist
-        logger.info("Applying scene '%s' via playlist '%s'", selected_scene, target_playlist)
+        logger.info(
+            "Scene sampling: probabilities=%s, selected_scene=%r, target_playlist=%r",
+            probabilities,
+            selected_scene,
+            target_playlist,
+        )
         executed = bool(self.executor.open_playlist(target_playlist))
 
         return ActionResult(

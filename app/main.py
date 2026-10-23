@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import random
 import subprocess
 import sys
 
@@ -164,6 +165,10 @@ def main() -> None:
     if args.window:
         _run_window(args.port, args.locale, setup=args.setup)
         return
+
+    random_seed = int.from_bytes(os.urandom(8), "big")
+    random.seed(random_seed)
+    logger.info("Random seed: %d", random_seed)
 
     config_dir = _resolve_config_path(args.config)
     _run_tray_mode(config_dir, logger, args.api_port)
