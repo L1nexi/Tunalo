@@ -6,11 +6,14 @@ import os
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import psutil
 
+from app.context import get_data_dir
+from ui.appearance import AppearanceStore, Theme
 from ui.i18n import t
 from ui.icon_assets import icon_path
 
@@ -19,7 +22,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("Tunalo.WebView")
 
-# frontend/src/components/setup/SetupWorkspace.vue 监听同名事件，把关闭决定交回页面。
+# frontend/src/setup/workspace/useSetupWindow.ts 监听同名事件，把关闭决定交回页面。
 _NATIVE_CLOSE_EVENT = "tunalo:native-close-request"
 
 WM_SETICON = 0x0080
@@ -62,9 +65,18 @@ def _set_window_icon() -> None:
 
 
 class _WindowAPI:
-    def __init__(self) -> None:
+    def __init__(self, appearance: AppearanceStore) -> None:
+        self._appearance = appearance
         self._page_ready = False
         self._close_allowed = False
+
+    def get_theme(self) -> Theme:
+        """Read the saved theme; raises OSError or ValidationError for an unreadable or invalid file."""
+        return self._appearance.load().theme
+
+    def set_theme(self, theme: Theme) -> None:
+        """Save the theme; raises OSError on write failure or ValidationError for an invalid theme."""
+        self._appearance.save_theme(theme)
 
     def page_ready(self) -> None:
         """Mark the page as loaded so native close requests are guarded by the page."""
@@ -105,14 +117,17 @@ class _WindowAPI:
 
 
 class AppWindow:
-    def __init__(self, api_port: int, locale: str, *, path: str = "/", title_key: str = "setup_title"):
+    def __init__(
+        self, api_port: int, locale: str, *, path: str = "/", title_key: str = "setup_title", appearance: AppearanceStore | None = None
+    ) -> None:
         self._url = f"http://127.0.0.1:{api_port}{path}?locale={locale}"
         self._title = t(title_key)
+        self._appearance = appearance if appearance is not None else AppearanceStore(Path(get_data_dir()) / "appearance.json")
 
     def create_and_block(self) -> None:
         import webview
 
-        api = _WindowAPI()
+        api = _WindowAPI(self._appearance)
         window = webview.create_window(
             title=self._title,
             url=self._url,
@@ -162,7 +177,7 @@ def _notify_page_of_close(window: webview.Window, api: _WindowAPI) -> None:
 
 
 def focus_process_window(process_id: int) -> bool:
-    """Restore and focus a visible window owned by a process or its children."""
+    """Focus a visible process window, restoring it only when minimized."""
 
     if sys.platform != "win32":
         return False
@@ -190,5 +205,6 @@ def focus_process_window(process_id: int) -> bool:
     if not target:
         return False
 
-    user32.ShowWindow(target[0], 9)  # SW_RESTORE
+    if user32.IsIconic(target[0]):
+        user32.ShowWindow(target[0], 9)  # SW_RESTORE
     return bool(user32.SetForegroundWindow(target[0]))

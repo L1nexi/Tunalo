@@ -9,7 +9,7 @@ async function openSection(page: Page, name: string): Promise<void> {
 
 test("三个调度时间项通过问号说明，活动规则保留中立活动", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await navigation.getByRole("button", { name: "调度风格" }).click()
   await page.getByRole("button", { name: "自定义防打扰设置" }).click()
@@ -34,7 +34,7 @@ test("仅修改计时仍保留已有偏好和自定义活动规则", async ({ pa
     activity: { work_processes: ["custom.exe"], leisure_processes: [], work_title_keywords: ["项目计划"], leisure_title_keywords: ["电影"] },
   }
   await mockSetupApi(page, true, configured)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "自定义防打扰设置", exact: true }).click()
   await page.getByRole("spinbutton", { name: "启动等待", exact: true }).fill("30")
@@ -50,7 +50,7 @@ test("仅修改计时仍保留已有偏好和自定义活动规则", async ({ pa
 
 test("计时输入校验、检查页纠错跳转及修正后保存", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await navigation.getByRole("button", { name: "调度风格", exact: true }).click()
   const timing = page.getByRole("button", { name: "自定义防打扰设置", exact: true })

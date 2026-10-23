@@ -4,7 +4,7 @@ import { mockSetupApi } from "./support/profileApi"
 test("语言切换与主题选择可保留并跟随系统", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.emulateMedia({ colorScheme: "light" })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
 
   await page.getByRole("group", { name: "语言" }).getByRole("button", { name: "English" }).click()
   await expect(page.getByRole("heading", { name: "Connect Wallpaper Engine" })).toBeVisible()
@@ -36,7 +36,7 @@ test("语言切换与主题选择可保留并跟随系统", async ({ page }) => 
 test("关闭确认说明修改后果，窄窗口可调整偏好", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.setViewportSize({ width: 900, height: 600 })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "调度风格" }).click()
   await page.getByRole("button", { name: "添加层级" }).click()
   await page.getByRole("combobox", { name: "移动天气到", exact: true }).click()
@@ -51,7 +51,7 @@ test("关闭确认说明修改后果，窄窗口可调整偏好", async ({ page 
 test("切换设置项时显示新页面顶部", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 650 })
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   const navigation = page.getByRole("navigation")
   await navigation.getByRole("button", { name: "活动识别", exact: true }).click()
   await page.getByRole("button", { name: "规则如何匹配", exact: true }).click()
@@ -67,7 +67,7 @@ test("切换设置项时显示新页面顶部", async ({ page }) => {
 
 test("首启自动探测回填的 Wallpaper Engine 路径不算未保存修改", async ({ page }) => {
   await mockSetupApi(page, false)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
 
   // 挂载扫描会自动探测并回填 Wallpaper Engine 路径；播放列表表格可见即回填已发生。
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
@@ -78,7 +78,7 @@ test("首启自动探测回填的 Wallpaper Engine 路径不算未保存修改",
 
 test("回填后用户再编辑路径，关闭仍需确认", async ({ page }) => {
   await mockSetupApi(page, false)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
 
   await page.getByRole("textbox", { name: "Wallpaper Engine 可执行文件" }).fill("D:\\Other\\wallpaper64.exe")

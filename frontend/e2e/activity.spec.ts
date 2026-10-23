@@ -10,7 +10,7 @@ test("导入应用组保留原分类、去重，并保留输入框中的文字",
   await mockSetupApi(page, true, {
     ...profile, activity: { work_processes: ["SLACK.EXE"], leisure_processes: ["Discord.EXE"], work_title_keywords: [], leisure_title_keywords: [] },
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "活动识别")
   const input = page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })
   await input.fill("custom.exe")
@@ -33,7 +33,7 @@ test("导入应用组保留原分类、去重，并保留输入框中的文字",
 
 test("应用组按用户选择导入休闲，保存后仍可逐项编辑", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, activity: null })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "活动识别")
   await page.getByRole("button", { name: "导入应用组", exact: true }).click()
   await page.getByRole("region", { name: "开发人员工具", exact: true }).getByRole("button", { name: "导入休闲", exact: true }).click()
@@ -47,7 +47,7 @@ test("应用组按用户选择导入休闲，保存后仍可逐项编辑", async
 
 test("未添加的活动文字跨分类保留，保存前要求处理", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await navigation.getByRole("button", { name: "活动识别" }).click()
   await page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("进程名", { exact: true }).fill("Photoshop.exe")
@@ -69,7 +69,7 @@ test("未添加的活动文字跨分类保留，保存前要求处理", async ({
 
 test("中文输入法确认文字不会提前添加规则，移除后焦点回到输入框", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "活动识别", exact: true }).click()
   const group = page.getByRole("group", { name: "工作场景规则", exact: true })
   const input = group.getByRole("textbox", { name: "窗口标题关键词", exact: true })

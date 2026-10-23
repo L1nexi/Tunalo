@@ -24,6 +24,8 @@ npm run dev
 
 如需其他端口，请保持后端端口与前端的 `TUNALO_API_PORT` 一致。
 
+在普通浏览器中联调时，打开带 `test=1` 的地址，该参数显式启用浏览器测试模式，提供原生桥接功能。
+
 ## 检查与构建
 
 ```powershell
@@ -41,7 +43,7 @@ npm run type-check
 npm run build-only
 ```
 
-设置页浏览器测试会启动独立的 Vite 服务，并在浏览器边界替代本地接口响应，不会读取或修改真实 `config/profile.json`。Windows 发布包由仓库根目录的 `scripts/build.bat` 构建；该脚本会清理既有的 `build/` 和 `dist/`。
+设置页浏览器测试会启动独立的 Vite 服务，普通用例通过 `test=1` 使用浏览器测试模式；验证原生外观桥接的用例提供桥接替身。测试会替代本地接口响应，不会读取或修改真实 `config/profile.json`。Windows 发布包由仓库根目录的 `scripts/build.bat` 构建；该脚本会清理既有的 `build/` 和 `dist/`。
 
 ## 实现入口
 
@@ -51,9 +53,19 @@ npm run build-only
 - `core/math_utils.py`：概率归一化、完整支持轴激活、时间衰减、相位映射与周期距离映射的纯数学函数。
 - `server/`：本地接口与设置页静态资源。
 - `frontend/`：首次设置和运行时设置界面。
+- `frontend/src/theme.ts`：外观初始化、系统外观响应和保存队列；`setup/workspace/useSetupWindow.ts` 在关闭窗口前等待队列完成。
+- `ui/webview.py`、`ui/appearance.py`：原生窗口聚焦、外观桥接与文件存储。
 - `config/profile.json`：用户配置；`data/`：运行状态与事件；`logs/scheduler.log`：运行日志。
 
 需要排查天气或本地服务时，可临时设置 `TUNALO_LOG_LEVEL=DEBUG`。分享日志前请检查敏感内容。产品化规划、验收事项和后续改进见 [文档索引](index.md)。
+
+## 窗口与外观偏好
+
+托盘聚焦已有设置窗口时，只还原最小化窗口，保留最大化状态。关闭窗口后再次打开会创建新窗口，窗口大小仍使用默认值。
+
+正常窗口默认通过 pywebview 桥接，在挂载前读取 `data/appearance.json`。该文件独立于 Profile，保存 `auto`（跟随系统）、`light`（浅色）或 `dark`（深色）；首次使用时跟随系统。切换后立即生效并依次保存，窗口关闭前等待全部保存完成。外观变化不会将 Profile 草稿标记为已修改，放弃草稿也会保留外观选择。读取失败时暂用系统外观；保存失败时显示错误提示，用户可重新选择外观。
+
+外观存储和聚焦行为分别由 [test_appearance.py](../tests/test_appearance.py)、[test_settings_window.py](../tests/test_settings_window.py) 验证；页面交互由 [appearance.spec.ts](../frontend/e2e/appearance.spec.ts) 和 [workspace.spec.ts](../frontend/e2e/workspace.spec.ts) 覆盖。测试只替代原生桥接、操作系统和本地接口等外部交互，使用页面操作和公共接口验证结果。
 
 ## 场景选择模型
 
@@ -77,17 +89,17 @@ Profile 使用版本 3，`scenes` 按稳定标识保存场景名称、分组语�
 
 以下为 2026-10-13 的实现取值，不是用户设置，也不将所有初值固定成长期决策。调整参数继续满足 ADR 的感知锚点、分布性质与暴雨排序约束。
 
-| 参数 | 当前值 | 实现入口 |
-| --- | --- | --- |
-| 正向边界、负向边界幅度 | 暂定 0.9、0.1；组内最大显著度 `m >= 0.9` 召回，`m <= -0.1` 排除 | `MatchingConfig` |
-| 变量温度、场景温度 | 1.4、1.5；前者控制变量来源预算，后者控制各变量内部的场景概率分配 | `MatchingConfig` |
-| 活动窗口、年龄尺度 | 600 槽、300 槽半权重点；600 槽及之后权重为零 | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
-| 活动显著度 | 年龄加权净证据直接输出，不再套用幅度曲线 | `ActivityPolicy` |
-| 季节、时段曲线参数 | 各自的 `activation_alpha` 均为 2，有限且大于 1，两者独立 | 对应 PolicyConfig |
-| 时段相位映射参数 | `phase_gamma` 默认 2，有限且不小于 1；1 为线性映射 | `math_utils.mirrored_phase` 的函数参数 |
-| 季节周期、四季峰值 | 365 日；80／172／265／355 | `SeasonPolicy`、`SeasonPolicyConfig` |
-| 季节平台半宽、时段平台 | 本位与相对位置前后 7 日；时段无平台 | `SeasonPolicyConfig`、`TimePolicy` |
-| 天气弱反向系数 | 0.25 | `WeatherPolicy` |
+| 参数                   | 当前值                                                           | 实现入口                                                       |
+| ---------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| 正向边界、负向边界幅度 | 暂定 0.9、0.1；组内最大显著度 `m >= 0.9` 召回，`m <= -0.1` 排除  | `MatchingConfig`                                               |
+| 变量温度、场景温度     | 1.4、1.5；前者控制变量来源预算，后者控制各变量内部的场景概率分配 | `MatchingConfig`                                               |
+| 活动窗口、年龄尺度     | 600 槽、300 槽半权重点；600 槽及之后权重为零                     | `ActivityPolicy.WINDOW_SIZE`、`ActivityPolicyConfig.age_scale` |
+| 活动显著度             | 年龄加权净证据直接输出，不再套用幅度曲线                         | `ActivityPolicy`                                               |
+| 季节、时段曲线参数     | 各自的 `activation_alpha` 均为 2，有限且大于 1，两者独立         | 对应 PolicyConfig                                              |
+| 时段相位映射参数       | `phase_gamma` 默认 2，有限且不小于 1；1 为线性映射               | `math_utils.mirrored_phase` 的函数参数                         |
+| 季节周期、四季峰值     | 365 日；80／172／265／355                                        | `SeasonPolicy`、`SeasonPolicyConfig`                           |
+| 季节平台半宽、时段平台 | 本位与相对位置前后 7 日；时段无平台                              | `SeasonPolicyConfig`、`TimePolicy`                             |
+| 天气弱反向系数         | 0.25                                                             | `WeatherPolicy`                                                |
 
 `salience_activation(x, alpha=2)` 使用对称幂函数覆盖完整的 [-1,1] 支持轴，保持零点和正负对称，两端平、中心陡。`periodic_salience` 将距各自峰值的最短周期距离归一到这条支持轴，平台只位于最支持与最不支持两端。季节采用实际年内日期，邻季峰值的输出接近零而不强制精确为零；时段保留真实昼夜锚点到虚拟时间的映射。完整轴上的 Hann 对照为 `sin(πx/2)`。
 
@@ -123,7 +135,7 @@ Controller 持有并编排 TimingControl 与 DisturbanceControl。TimingControl 
 
 运行时配置分别为 `timing` 与 `disturbance`；Profile 中删除 `maximum_deferral_minutes`，其余三个用户计时字段保留原位置。
 
-成功分布缓存统一命名为 `cached_scenes_probabilities`，只由 TimingControl 持有。Engine 用  `deduce_mode` 根据 WE 状态、手动请求和暂停推导 DecisionMode，再调用 `Controller.decide_action(mode, context, selection)` 决策。PLAYLIST 的 managed 与 unmanaged 情况均不调整成功历史，也不触发恢复；NO_PLAYLIST 保留 RECOVERY。
+成功分布缓存统一命名为 `cached_scenes_probabilities`，只由 TimingControl 持有。Engine 用 `deduce_mode` 根据 WE 状态、手动请求和暂停推导 DecisionMode，再调用 `Controller.decide_action(mode, context, selection)` 决策。PLAYLIST 的 managed 与 unmanaged 情况均不调整成功历史，也不触发恢复；NO_PLAYLIST 保留 RECOVERY。
 
 设本 tick 推荐分布为 P，上次成功执行所采用的分布为 Q，启用场景数为 N，场景 c 的关联变量集合为 V_c：
 
@@ -170,15 +182,15 @@ Selector 的场景输入为 `Mapping[str, Association]`；共享概率入口使�
 
 模型回归在既有公开入口验证：ADR 中的约束实例与分布性质、真实 Policy 的观测序列、Profile 保存和编译，以及 Controller 的决策结果。测试替身仅用于 Windows、网络、时钟、随机源、文件系统和 Wallpaper Engine 执行边界。
 
-| 行为证据 | 入口 |
-| --- | --- |
-| 无偏好分布、简单与复合场景、显式预算、级联、排除、尽力选择与边界 | [test_selection_model.py](../tests/test_selection_model.py) |
-| 完整支持轴、有限衰减终点、周期最短距离和峰值平台 | [test_math_utils.py](../tests/test_math_utils.py) |
-| 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系 | [test_semantic_model.py](../tests/test_semantic_model.py) |
-| 偏好编译、播单名称与大小无关、自定义活动规则及保存回填 | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
-| 分布变化时序、启动等待、防打扰和配置替换后的分布与计时保留 | [test_runtime_behavior.py](../tests/test_runtime_behavior.py) |
-| Profile 初始化、首次创建及应用时机 | [test_profile_manager.py](../tests/test_profile_manager.py) |
-| 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py) |
+| 行为证据                                                          | 入口                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| 无偏好分布、简单与复合场景、显式预算、级联、排除、尽力选择与边界  | [test_selection_model.py](../tests/test_selection_model.py)   |
+| 完整支持轴、有限衰减终点、周期最短距离和峰值平台                  | [test_math_utils.py](../tests/test_math_utils.py)             |
+| 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系              | [test_semantic_model.py](../tests/test_semantic_model.py)     |
+| 偏好编译、播单名称与大小无关、自定义活动规则及保存回填            | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
+| 分布变化时序、启动等待、防打扰和配置替换后的分布与计时保留        | [test_runtime_behavior.py](../tests/test_runtime_behavior.py) |
+| Profile 初始化、首次创建及应用时机                                | [test_profile_manager.py](../tests/test_profile_manager.py)   |
+| 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py)                     |
 
 确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。设置界面的创建、保存、回填和交互由浏览器测试覆盖；后续事项见 [TODO](TODO.md)。
 
@@ -197,25 +209,25 @@ Selector 的场景输入为 `Mapping[str, Association]`；共享概率入口使�
 
 二项复合按两个粗变量分为六套。每套保留全部 13 个单项基线，再加入两个变量间的全部组合；每个复合场景关联两个等地位语义项，例如 `rain_work` 关联雨与工作。
 
-| suite | 复合变量 | 新增场景 | 默认扫描 |
-| --- | --- | ---: | --- |
-| `pair-wx-doy` | 季节×天气 | 12 | `wx-doy` |
-| `pair-hour-doy` | 季节×时间 | 16 | `hour-doy` |
-| `pair-act-doy` | 季节×活动 | 8 | `act-doy` |
-| `pair-wx-hour` | 天气×时间 | 12 | `wx-hour` |
-| `pair-wx-act` | 天气×活动 | 6 | `wx-act` |
-| `pair-act-hour` | 时间×活动 | 8 | `act-hour` |
+| suite           | 复合变量  | 新增场景 | 默认扫描   |
+| --------------- | --------- | -------: | ---------- |
+| `pair-wx-doy`   | 季节×天气 |       12 | `wx-doy`   |
+| `pair-hour-doy` | 季节×时间 |       16 | `hour-doy` |
+| `pair-act-doy`  | 季节×活动 |        8 | `act-doy`  |
+| `pair-wx-hour`  | 天气×时间 |       12 | `wx-hour`  |
+| `pair-wx-act`   | 天气×活动 |        6 | `wx-act`   |
+| `pair-act-hour` | 时间×活动 |        8 | `act-hour` |
 
 `--suite pairs` 顺序扫描六套，分别输出到对应 suite 目录。二项 suite 默认只扫描自己的两条轴；显式 `--mode` 可覆盖默认范围。标准扫描共生成 146 张图。各套使用相同基线，便于观察复合场景进入后如何承接和分配概率。
 
 六种扫描模式使用同一组固定轴取点。扫描两条轴时，剩余两条轴各取四点，按笛卡尔积组成 16 个子图，统一排成 4×4。
 
-| 固定轴 | 峰值态、偏向过渡态、中间态、另一峰值态 |
-| --- | --- |
-| 时间 | 白天峰 12:00、偏白天 13:30、白天／黄昏中点 15:00、黄昏峰 18:00 |
-| 季节 | 春峰 80、偏春 103、春夏中点 126、夏峰 172；日期按当前季节峰值推导 |
-| 活动 | 工作 1、偏工作 0.75、中等工作证据 0.5、中性 0 |
-| 天气 | 无天气、小雨 500、中雨 501、大雨 502 |
+| 固定轴 | 峰值态、偏向过渡态、中间态、另一峰值态                            |
+| ------ | ----------------------------------------------------------------- |
+| 时间   | 白天峰 12:00、偏白天 13:30、白天／黄昏中点 15:00、黄昏峰 18:00    |
+| 季节   | 春峰 80、偏春 103、春夏中点 126、夏峰 172；日期按当前季节峰值推导 |
+| 活动   | 工作 1、偏工作 0.75、中等工作证据 0.5、中性 0                     |
+| 天气   | 无天气、小雨 500、中雨 501、大雨 502                              |
 
 季节中点指日期中点，实际显著度由选定曲线决定。活动 0 表示无明确工作或娱乐方向，不单独建立空闲场景。扫描步长沿用时间 0.5 小时、日期 4 日、活动 0.05；天气扫描轴补齐小雨与暴雨。
 

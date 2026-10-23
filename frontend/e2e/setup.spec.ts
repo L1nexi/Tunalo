@@ -9,7 +9,7 @@ async function openSection(page: Page, name: string): Promise<void> {
 
 test("首次设置允许自由选择分类，并在检查页指出未完成设置", async ({ page }) => {
   await mockSetupApi(page, false)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
 
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await expect(navigation).toBeVisible()
@@ -61,7 +61,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   await page.route("**/api/weather-key-validations", async (route) => {
     await route.fulfill({ json: { status: "valid" } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /查看配置草稿/ }).click()
   await page.getByText("查看当前草稿全部设置").click()
 
@@ -79,7 +79,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
 
 test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({ page }) => {
   await mockSetupApi(page, false)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
   await openSection(page, "天气服务")
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true }).fill("test-key")

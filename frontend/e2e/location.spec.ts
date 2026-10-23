@@ -6,7 +6,7 @@ test("经纬度估算失败说明原因，仍可手填坐标", async ({ page }) 
   await page.route("**/api/location-estimates", async (route) => {
     await route.fulfill({ status: 503, json: { error: "location_detection_unavailable", reason: "proxy_error" } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByText(/代理连接失败/)).toBeVisible()
@@ -20,7 +20,7 @@ test("经纬度估算不需要城市名称", async ({ page }) => {
   await page.route("**/api/location-estimates", async (route) => {
     await route.fulfill({ json: { location: { latitude: 47.498253, longitude: 19.03978 } } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByRole("spinbutton", { name: "纬度" })).toHaveValue("47.498253")
@@ -35,7 +35,7 @@ test("经纬度估算显示 IP 返回的城市，手动修改后清除提示", a
   await page.route("**/api/location-estimates", async (route) => {
     await route.fulfill({ json: { location: { city: "Budapest", latitude: 47.498253, longitude: 19.03978 } } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "估算经纬度" }).click()
   await expect(page.getByText("城市：Budapest，已填入预估经纬度。")).toBeVisible()
@@ -45,7 +45,7 @@ test("经纬度估算显示 IP 返回的城市，手动修改后清除提示", a
 
 test("坐标越界或缺失时就近提示，不再等检查页", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
 
   await page.getByRole("spinbutton", { name: "纬度" }).fill("121.4737")

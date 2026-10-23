@@ -12,7 +12,7 @@ const twoSceneProfile: Profile = {
 
 test("移除再撤销保留原场景和绑定，不构成未保存修改", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "移除: 日间工作", exact: true }).click()
   await expect(page.getByRole("group", { name: "日间工作", exact: true })).toHaveCount(0)
@@ -23,7 +23,7 @@ test("移除再撤销保留原场景和绑定，不构成未保存修改", async
 
 test("跨设置项撤销场景移除，同时保留其他设置的修改", async ({ page }) => {
   await mockSetupApi(page, true, twoSceneProfile)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "移除: 日间工作", exact: true }).click()
   await page.getByRole("button", { name: "移除: 冬季", exact: true }).click()
@@ -55,7 +55,7 @@ test("保存期间禁用撤销，响应后仍可恢复并再次保存", async ({
     await responseGate
     await route.fallback()
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "移除: 日间工作", exact: true }).click()
   const submitted = page.waitForRequest((request) => request.method() === "PUT" && new URL(request.url()).pathname === "/api/profile")

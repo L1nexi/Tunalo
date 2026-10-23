@@ -9,7 +9,7 @@ test("320px 英文浅色窗口可调整偏好并导入应用组", async ({ page 
     matching: { preference_tiers: [["weather"], ["activity", "time"], ["season"]] },
     activity: { ...profile.activity!, leisure_title_keywords: ["超长窗口标题测试".repeat(15)] },
   })
-  await page.goto("/?locale=en")
+  await page.goto("/?locale=en&test=1")
   const navigation = page.getByRole("navigation")
   await navigation.getByRole("button", { name: "Scheduling feel", exact: true }).click()
   await page.getByRole("combobox", { name: "Move Weather to", exact: true }).click()
@@ -33,7 +33,7 @@ test("320px 英文深色窗口中可完成预设和自定义场景编辑", async
   await page.setViewportSize({ width: 320, height: 720 })
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" })
   await mockSetupApi(page, true, { ...profile, language: "en" })
-  await page.goto("/?locale=en")
+  await page.goto("/?locale=en&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "Scene assignments", exact: true }).click()
   await page.getByRole("button", { name: "Add presets", exact: true }).click()
   const dialog = page.getByRole("dialog")

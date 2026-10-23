@@ -31,7 +31,7 @@ test("单变量和双变量预设按组添加，保存完整的名称与语义�
     } },
   ]
   await mockSetupApi(page, true, { ...profile, scenes: {} })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "从预设添加", exact: true }).click()
   const dialog = page.getByRole("dialog")
@@ -64,7 +64,7 @@ test("单变量和双变量预设按组添加，保存完整的名称与语义�
 
 test("预设跨组选取并批量绑定，已有关联不会重复添加", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "从预设添加", exact: true }).click()
   const dialog = page.getByRole("dialog")
@@ -97,7 +97,7 @@ test("没有可用播放列表时，场景页可直接跳到 Wallpaper Engine", 
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
     await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [] } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /场景绑定/ }).click()
   await expect(page.getByText("场景绑定需要至少一个包含壁纸的播放列表。")).toBeVisible()
   await page.getByRole("button", { name: "连接 Wallpaper Engine" }).click()

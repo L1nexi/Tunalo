@@ -3,7 +3,7 @@ import { mockSetupApi, profile, saveSettings } from "./support/profileApi"
 
 test("自定义场景保存同组多选，重开后名称、播单与关联一致", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   await page.getByRole("button", { name: "自定义场景", exact: true }).click()
   const dialog = page.getByRole("dialog")
@@ -49,7 +49,7 @@ test("自定义场景保存同组多选，重开后名称、播单与关联一�
 
 test("编辑取消不改变草稿，空关联给出就近校验", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   const edit = page.getByRole("button", { name: "编辑场景: 日间工作", exact: true })
   await edit.click()
@@ -79,7 +79,7 @@ test("窄窗口可搜索长播单，重新打开选择器后恢复完整选项",
       playlists: [{ name: longName, item_count: 60 }, { name: "RAIN", item_count: 20 }],
     } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "场景绑定", exact: true }).click()
   const picker = page.getByRole("button", { name: "日间工作: 播放列表", exact: true })
   await expect(picker).toContainText(longName)

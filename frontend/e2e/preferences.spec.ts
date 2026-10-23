@@ -8,7 +8,7 @@ async function openSection(page: Page, name: string): Promise<void> {
 
 test("空活动配置可打开，添加空层跨分类保留且不构成配置修改", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, activity: null })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "活动识别")
   await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })).toBeEmpty()
   await openSection(page, "调度风格")
@@ -26,7 +26,7 @@ test("空活动配置可打开，添加空层跨分类保留且不构成配置�
 
 test("拖拽与键盘设置同层偏好，保存过滤空层并在重开后恢复", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, activity: null })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   for (let index = 0; index < 3; index++) await page.getByRole("button", { name: "添加层级", exact: true }).click()
   await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
@@ -52,7 +52,7 @@ test("拖拽与键盘设置同层偏好，保存过滤空层并在重开后恢�
 
 test("移动和删除层级改变优先顺序，删除的变量回到待选区", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, matching: { preference_tiers: [["weather"], ["activity", "time"]] } })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "上移第 2 优先级", exact: true }).click()
   expect((await saveSettings(page)).matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["activity", "time"]), new Set(["weather"])])
@@ -70,7 +70,7 @@ test("移动和删除层级改变优先顺序，删除的变量回到待选区",
 
 test("同层变量拖出再放回原层不构成配置修改", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, matching: { preference_tiers: [["activity", "weather"]] } })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "未指定优先级", exact: true }))
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeEnabled()
@@ -82,7 +82,7 @@ test("同层变量拖出再放回原层不构成配置修改", async ({ page }) 
 
 test("点击、拖到区域外或按 Escape 取消均保留原有偏好", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, matching: { preference_tiers: [["weather"], ["activity"]] } })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   const weather = page.getByRole("button", { name: "拖动天气", exact: true })
   await weather.click()
@@ -104,7 +104,7 @@ test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
     if (route.request().method() === "GET") return route.fallback()
     await route.fulfill({ status: 422, json: { error: "invalid_profile", issues: [{ path: ["matching", "preference_tiers", 0, 0], code: "value_error", message: "invalid preference tiers" }] } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "添加层级", exact: true }).click()
   await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
@@ -116,7 +116,7 @@ test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
 
 test("直接用键盘创建优先级，移动后保留焦点并保存顺序", async ({ page }) => {
   await mockSetupApi(page, true)
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "调度风格", exact: true }).click()
   await expect(page.getByText("不设置优先级时，Tunalo 会综合当前情境选择合适的场景。", { exact: true })).toBeVisible()
 

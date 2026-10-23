@@ -6,6 +6,8 @@ import subprocess
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 from ui.settings_window import SettingsWindowController
 from ui.webview import focus_process_window
 
@@ -89,7 +91,8 @@ def test_show_reports_focus_failure_without_starting_duplicate(caplog):
     assert "Failed to focus settings window process 42" in caplog.text
 
 
-def test_show_focuses_window_owned_by_settings_child_process(monkeypatch):
+@pytest.mark.parametrize("state", ["normal", "maximized", "minimized", "minimized_from_maximized"])
+def test_show_focuses_window_owned_by_settings_child_process(monkeypatch: pytest.MonkeyPatch, state: str) -> None:
     child = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(10)"],
         creationflags=subprocess.CREATE_NO_WINDOW,
@@ -98,6 +101,7 @@ def test_show_focuses_window_owned_by_settings_child_process(monkeypatch):
     class WindowsBoundary:
         def __init__(self):
             self.foreground_windows: list[int] = []
+            self.state = state
 
         def EnumWindows(self, callback, _param):
             callback(101, 0)
@@ -108,7 +112,12 @@ def test_show_focuses_window_owned_by_settings_child_process(monkeypatch):
         def IsWindowVisible(self, _window):
             return True
 
-        def ShowWindow(self, _window, _command):
+        def IsIconic(self, _window: int) -> bool:
+            return self.state in {"minimized", "minimized_from_maximized"}
+
+        def ShowWindow(self, _window: int, command: int) -> bool:
+            if command == 9:  # Win32 SW_RESTORE restores a minimized window to its previous state.
+                self.state = "maximized" if self.state == "minimized_from_maximized" else "normal"
             return True
 
         def SetForegroundWindow(self, window):
@@ -128,6 +137,7 @@ def test_show_focuses_window_owned_by_settings_child_process(monkeypatch):
         controller.show()
         assert len(spawned) == 1
         assert boundary.foreground_windows == [101]
+        assert boundary.state == ("maximized" if state in {"maximized", "minimized_from_maximized"} else "normal")
     finally:
         child.terminate()
         child.wait(timeout=5)

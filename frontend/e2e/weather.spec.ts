@@ -7,7 +7,7 @@ test("天气页测试 Key 时说明代理失败原因", async ({ page }) => {
   await page.route("**/api/weather-key-validations", async (route) => {
     await route.fulfill({ status: 503, json: { error: "weather_validation_unavailable", reason: "proxy_error" } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await expect(page.getByText("如何获取 API Key")).toBeVisible()
   await page.getByText("如何获取 API Key").click()
@@ -25,7 +25,7 @@ test("无效的天气密钥显示字段错误", async ({ page }) => {
   await page.route("**/api/weather-key-validations", async (route) => {
     await route.fulfill({ status: 422, json: { error: "weather_validation_failed", issues: [{ path: ["weather", "api_key"], code: "weather_api_key_invalid", message: "weather_api_key_invalid" }] } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("button", { name: "测试连接" }).click()
   await expect(page.getByText("无效的 API Key。", { exact: true })).toBeVisible()
@@ -45,7 +45,7 @@ test("已验证的当前 API Key 可直接保存，后续网络故障不抹去�
     const updated = route.request().postDataJSON() as Profile
     await route.fulfill({ json: { status: "applied", profile: updated } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("another-key")
   const tested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/weather-key-validations" && request.method() === "POST")
@@ -74,7 +74,7 @@ test("天气服务暂不可用时可确认保存当前草稿", async ({ page }) 
     const updated = route.request().postDataJSON() as Profile
     await route.fulfill({ json: { status: "applied", profile: updated } })
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("another-key")
   await page.getByRole("button", { name: "测试连接" }).click()
@@ -106,7 +106,7 @@ test("保存时才遇到天气连接故障，也可确认继续保存", async ({
       await route.fulfill({ status: 503, json: { error: "weather_validation_unavailable", reason: "timeout" } })
     }
   })
-  await page.goto("/?locale=zh")
+  await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "天气服务" }).click()
   await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("another-key")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
