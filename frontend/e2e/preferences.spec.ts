@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
-import type { Profile } from "../src/api/profile"
-import { mockSetupApi, profile, addPreset, saveSettings } from "./support/profileApi"
+import { mockSetupApi, profile, saveSettings } from "./support/profileApi"
 
 async function openSection(page: Page, name: string): Promise<void> {
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name }).click()
@@ -99,65 +98,6 @@ test("点击、拖到区域外或按 Escape 取消均保留原有偏好", async 
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
 })
 
-test("仅修改计时仍保留已有偏好和自定义活动规则", async ({ page }) => {
-  const configured: Profile = {
-    ...profile, matching: { preference_tiers: [["weather", "activity"], ["season"]] },
-    activity: { work_processes: ["custom.exe"], leisure_processes: [], work_title_keywords: ["项目计划"], leisure_title_keywords: ["电影"] },
-  }
-  await mockSetupApi(page, true, configured)
-  await page.goto("/?locale=zh")
-  await openSection(page, "调度风格")
-  await page.getByRole("button", { name: "自定义防打扰设置", exact: true }).click()
-  await page.getByRole("spinbutton", { name: "启动等待", exact: true }).fill("30")
-  await openSection(page, "查看配置草稿")
-  await expect(page.getByText("15 秒 → 30 秒", { exact: true })).toBeVisible()
-  const saved = await saveSettings(page)
-  expect(saved.matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["weather", "activity"]), new Set(["season"])])
-  expect(saved.activity).toEqual({ work_processes: ["custom.exe"], leisure_processes: [], work_title_keywords: ["项目计划"], leisure_title_keywords: ["电影"] })
-  await page.reload()
-  await openSection(page, "活动识别")
-  await expect(page.getByRole("button", { name: "移除: custom.exe", exact: true })).toBeVisible()
-})
-
-test("导入应用组保留原分类、去重，并保留输入框中的文字", async ({ page }) => {
-  await mockSetupApi(page, true, {
-    ...profile, activity: { work_processes: ["SLACK.EXE"], leisure_processes: ["Discord.EXE"], work_title_keywords: [], leisure_title_keywords: [] },
-  })
-  await page.goto("/?locale=zh")
-  await openSection(page, "活动识别")
-  const input = page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })
-  await input.fill("custom.exe")
-  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-  const social = page.getByRole("region", { name: "社交", exact: true })
-  await social.getByRole("button", { name: "导入工作", exact: true }).click()
-  await expect(input).toHaveValue("custom.exe")
-  await expect(page.getByText("新增 6 条规则，跳过 2 条重复或冲突规则。", { exact: true })).toBeVisible()
-  await social.getByRole("button", { name: "导入工作", exact: true }).click()
-  await input.fill("")
-  const saved = await saveSettings(page)
-  expect(new Set(saved.activity?.work_processes)).toEqual(new Set(["SLACK.EXE", "wechat", "weixin", "qq", "telegram", "ms-teams", "teams"]))
-  expect(saved.activity?.leisure_processes).toEqual(["Discord.EXE"])
-  await social.getByRole("button", { name: "导入休闲", exact: true }).click()
-  await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
-  await page.reload()
-  await openSection(page, "活动识别")
-  await expect(page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: Discord.EXE", exact: true })).toBeVisible()
-})
-
-test("应用组按用户选择导入休闲，保存后仍可逐项编辑", async ({ page }) => {
-  await mockSetupApi(page, true, { ...profile, activity: null })
-  await page.goto("/?locale=zh")
-  await openSection(page, "活动识别")
-  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-  await page.getByRole("region", { name: "开发人员工具", exact: true }).getByRole("button", { name: "导入休闲", exact: true }).click()
-  const saved = await saveSettings(page)
-  expect(saved.activity?.leisure_processes).toContain("code")
-  expect(saved.activity?.leisure_title_keywords).toContain("Visual Studio Code")
-  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-  await page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: code", exact: true }).click()
-  expect((await saveSettings(page)).activity?.leisure_processes).not.toContain("code")
-})
-
 test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/profile", async (route) => {
@@ -174,23 +114,18 @@ test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
   await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toBeFocused()
 })
 
-test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({ page }) => {
-  await mockSetupApi(page, false)
+test("直接用键盘创建优先级，移动后保留焦点并保存顺序", async ({ page }) => {
+  await mockSetupApi(page, true)
   await page.goto("/?locale=zh")
-  await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
-  await openSection(page, "天气服务")
-  await page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true }).fill("test-key")
-  await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("31")
-  await page.getByRole("spinbutton", { name: "经度", exact: true }).fill("121")
-  await openSection(page, "场景绑定")
-  await addPreset(page, "时间与活动", "日间工作")
-  await page.getByRole("button", { name: "日间工作: 播放列表", exact: true }).click()
-  await page.getByRole("option", { name: "CASUAL_ANIME", exact: true }).click()
-  await openSection(page, "查看配置草稿")
-  const response = page.waitForResponse((item) => new URL(item.url()).pathname === "/api/profile" && item.request().method() === "POST")
-  await page.getByRole("button", { name: "完成设置", exact: true }).click()
-  const saved = (await response).request().postDataJSON()
-  expect(saved.version).toBe(3)
-  expect(saved.matching).toEqual({ preference_tiers: [] })
-  expect(saved.activity).toEqual({ work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] })
+  await page.getByRole("navigation").getByRole("button", { name: "调度风格", exact: true }).click()
+  await expect(page.getByText("不设置优先级时，Tunalo 会综合当前情境选择合适的场景。", { exact: true })).toBeVisible()
+
+  const menu = page.getByRole("combobox", { name: "移动天气到", exact: true })
+  await menu.focus()
+  await menu.press("Enter")
+  await page.getByRole("option", { name: "移到新优先级", exact: true }).press("Enter")
+  await expect(page.getByRole("group", { name: "第 1 优先级", exact: true }).getByRole("button", { name: "拖动天气", exact: true })).toBeVisible()
+  await expect(menu).toBeFocused()
+
+  expect((await saveSettings(page)).matching.preference_tiers).toEqual([["weather"]])
 })

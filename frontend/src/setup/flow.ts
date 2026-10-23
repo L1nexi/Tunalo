@@ -1,6 +1,6 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, hasValidPreferences, hasValidTiming, preferenceFingerprint, sceneFingerprint } from "./model.ts"
-import type { ProfileDraft } from "./model.ts"
+import { activityConflicts, hasValidPreferences, hasValidTiming, preferenceFingerprint, sceneFingerprint } from "./model"
+import type { ProfileDraft } from "./model"
 
 export const STEP_ORDER = [
   "wallpaper",

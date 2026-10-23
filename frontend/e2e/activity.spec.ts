@@ -1,0 +1,88 @@
+import { expect, test } from "@playwright/test"
+import type { Page } from "@playwright/test"
+import { mockSetupApi, profile, saveSettings } from "./support/profileApi"
+
+async function openSection(page: Page, name: string): Promise<void> {
+  await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name }).click()
+}
+
+test("导入应用组保留原分类、去重，并保留输入框中的文字", async ({ page }) => {
+  await mockSetupApi(page, true, {
+    ...profile, activity: { work_processes: ["SLACK.EXE"], leisure_processes: ["Discord.EXE"], work_title_keywords: [], leisure_title_keywords: [] },
+  })
+  await page.goto("/?locale=zh")
+  await openSection(page, "活动识别")
+  const input = page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })
+  await input.fill("custom.exe")
+  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
+  const social = page.getByRole("region", { name: "社交", exact: true })
+  await social.getByRole("button", { name: "导入工作", exact: true }).click()
+  await expect(input).toHaveValue("custom.exe")
+  await expect(page.getByText("新增 6 条规则，跳过 2 条重复或冲突规则。", { exact: true })).toBeVisible()
+  await social.getByRole("button", { name: "导入工作", exact: true }).click()
+  await input.fill("")
+  const saved = await saveSettings(page)
+  expect(new Set(saved.activity?.work_processes)).toEqual(new Set(["SLACK.EXE", "wechat", "weixin", "qq", "telegram", "ms-teams", "teams"]))
+  expect(saved.activity?.leisure_processes).toEqual(["Discord.EXE"])
+  await social.getByRole("button", { name: "导入休闲", exact: true }).click()
+  await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
+  await page.reload()
+  await openSection(page, "活动识别")
+  await expect(page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: Discord.EXE", exact: true })).toBeVisible()
+})
+
+test("应用组按用户选择导入休闲，保存后仍可逐项编辑", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, activity: null })
+  await page.goto("/?locale=zh")
+  await openSection(page, "活动识别")
+  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
+  await page.getByRole("region", { name: "开发人员工具", exact: true }).getByRole("button", { name: "导入休闲", exact: true }).click()
+  const saved = await saveSettings(page)
+  expect(saved.activity?.leisure_processes).toContain("code")
+  expect(saved.activity?.leisure_title_keywords).toContain("Visual Studio Code")
+  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
+  await page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: code", exact: true }).click()
+  expect((await saveSettings(page)).activity?.leisure_processes).not.toContain("code")
+})
+
+test("未添加的活动文字跨分类保留，保存前要求处理", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  const navigation = page.getByRole("navigation", { name: "设置项" })
+  await navigation.getByRole("button", { name: "活动识别" }).click()
+  await page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("进程名", { exact: true }).fill("Photoshop.exe")
+  await page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("窗口标题关键词", { exact: true }).fill("项目计划")
+  await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
+  await expect(page.getByText(/尚未添加的文字/)).toBeVisible()
+  await navigation.getByRole("button", { name: /活动识别/ }).click()
+  await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("进程名", { exact: true })).toHaveValue("Photoshop.exe")
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("进程名", { exact: true })).toHaveAttribute("aria-invalid", "true")
+  await expect(page.getByText("请先处理尚未添加的活动规则文字。")).toBeVisible()
+  await page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("进程名", { exact: true }).press("Enter")
+  await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("窗口标题关键词", { exact: true })).toHaveAttribute("aria-invalid", "true")
+  await page.getByRole("group", { name: "工作场景规则", exact: true }).getByLabel("窗口标题关键词", { exact: true }).press("Enter")
+  const request = page.waitForRequest((item) => item.url().endsWith("/api/profile") && item.method() === "PUT")
+  await page.getByRole("button", { name: "保存并应用" }).click()
+  expect((await request).postDataJSON().activity.work_processes).toEqual(["Photoshop.exe"])
+})
+
+test("中文输入法确认文字不会提前添加规则，移除后焦点回到输入框", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh")
+  await page.getByRole("navigation").getByRole("button", { name: "活动识别", exact: true }).click()
+  const group = page.getByRole("group", { name: "工作场景规则", exact: true })
+  const input = group.getByRole("textbox", { name: "窗口标题关键词", exact: true })
+  await input.fill("项目计划")
+  await input.dispatchEvent("keydown", { key: "Enter", code: "Enter", isComposing: true })
+  await expect(input).toHaveValue("项目计划")
+  await expect(page.getByRole("button", { name: "移除: 项目计划", exact: true })).toHaveCount(0)
+  await input.press("Enter")
+  await expect(input).toBeEmpty()
+  await group.getByText("项目计划", { exact: true }).click()
+  const remove = group.getByRole("button", { name: "移除: 项目计划", exact: true })
+  await expect(remove).toBeVisible()
+  await remove.click()
+  await expect(input).toBeFocused()
+  await expect(remove).toHaveCount(0)
+})

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref } from "vue"
-import { PencilIcon, PlusIcon, Trash2Icon, LayersIcon, SearchIcon, TriangleAlertIcon } from "@lucide/vue"
+import { PlusIcon, LayersIcon, SearchIcon, TriangleAlertIcon } from "@lucide/vue"
 import type { Locale, PlaylistScanResult, SceneProfile } from "@/api/profile"
 import type { SceneEditorState } from "@/setup/scenes"
-import PlaylistPicker from "../PlaylistPicker.vue"
+import SceneBatchBinding from "../scenes/SceneBatchBinding.vue"
+import SceneBindingRow from "../scenes/SceneBindingRow.vue"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Field, FieldError } from "@/components/ui/field"
+import { FieldError } from "@/components/ui/field"
 import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group"
 import {
   Empty,
@@ -40,7 +41,6 @@ const shared = computed(() => COPY[props.locale])
 const editing = ref<SceneEditorState | null>(null)
 const search = ref("")
 const selected = ref<string[]>([])
-const batchPlaylist = ref("")
 const entries = computed(() => Object.entries(props.scenes))
 const playlistNames = computed(() => new Set(props.playlists.map((playlist) => playlist.name)))
 const pending = computed(
@@ -70,18 +70,14 @@ function toggleAll(checked: boolean | "indeterminate"): void {
   selected.value =
     checked === true ? [...new Set([...selected.value, ...ids])] : selected.value.filter((id) => !ids.has(id))
 }
-function bindSelected(): void {
+function bindSelected(playlist: string): void {
   emit(
     "update:scenes",
     Object.fromEntries(
-      entries.value.map(([id, scene]) => [
-        id,
-        selected.value.includes(id) ? { ...scene, playlist: batchPlaylist.value } : scene,
-      ]),
+      entries.value.map(([id, scene]) => [id, selected.value.includes(id) ? { ...scene, playlist } : scene]),
     ),
   )
   selected.value = []
-  batchPlaylist.value = ""
 }
 function saveScenes(scenes: SceneProfile[]): void {
   const state = editing.value!
@@ -144,91 +140,28 @@ async function removeScene(id: string): Promise<void> {
           copy.clearSelection
         }}</Button>
       </div>
-      <div
-        v-if="selected.length"
-        class="flex flex-wrap items-center gap-3 rounded-lg bg-muted p-3"
-        role="group"
-        :aria-label="copy.batch"
-      >
-        <span class="text-sm font-medium">{{ copy.selected(selected.length) }}</span>
-        <div class="min-w-0 flex-1 basis-44">
-          <PlaylistPicker
-            v-model="batchPlaylist"
-            :locale="locale"
-            :playlists="playlists"
-            :label="copy.batch"
-          />
-        </div>
-        <Button :disabled="!batchPlaylist" @click="bindSelected">{{ copy.applyPlaylist }}</Button>
-      </div>
+      <SceneBatchBinding
+        v-show="selected.length"
+        :locale="locale"
+        :selected-count="selected.length"
+        :playlists="playlists"
+        @apply="bindSelected"
+      />
       <div v-if="visible.length" class="divide-y rounded-lg border px-4" :aria-label="copy.list">
-        <div
+        <SceneBindingRow
           v-for="[id, scene] in visible"
           :key="id"
-          class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 py-4 lg:grid-cols-[minmax(0,1fr)_13rem_auto]"
-          role="group"
-          :aria-label="scene.name"
-        >
-          <div class="flex min-w-0 items-start gap-3">
-            <Checkbox
-              class="mt-1"
-              :aria-label="`${copy.selectedScenes}: ${scene.name}`"
-              :model-value="selected.includes(id)"
-              @update:model-value="toggle(id, $event)"
-            />
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <p class="break-words text-sm font-medium">{{ scene.name }}</p>
-              <p class="text-xs leading-relaxed text-muted-foreground">
-                {{ associationSummary(scene.associations, locale) }}
-              </p>
-            </div>
-          </div>
-          <Field
-            class="col-span-2 row-start-2 gap-1.5 lg:col-span-1 lg:row-start-auto"
-            :data-invalid="(attempted && !playlistNames.has(scene.playlist)) || undefined"
-          >
-            <PlaylistPicker
-              :model-value="scene.playlist"
-              :locale="locale"
-              :playlists="playlists"
-              :label="`${scene.name}: ${shared.scenes.playlist}`"
-              :invalid="attempted && !playlistNames.has(scene.playlist)"
-              :describedby="attempted && !playlistNames.has(scene.playlist) ? `binding-${id}` : undefined"
-              @update:model-value="setPlaylist(id, $event)"
-            />
-            <p v-if="playlistNames.has(scene.playlist)" class="text-xs text-muted-foreground">
-              {{
-                shared.scenes.playlistCount(
-                  playlists.find((playlist) => playlist.name === scene.playlist)!.item_count,
-                )
-              }}
-            </p>
-            <FieldError
-              v-if="attempted && !playlistNames.has(scene.playlist)"
-              :id="`binding-${id}`"
-              :errors="[scene.playlist ? shared.scenes.unavailablePlaylist : shared.scenes.bindingRequired]"
-            />
-          </Field>
-          <div class="col-start-2 row-start-1 flex gap-1 lg:col-start-3">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              :id="`edit-scene-${id}`"
-              :aria-label="`${copy.edit}: ${scene.name}`"
-              :title="copy.edit"
-              @click="editing = { kind: 'edit', id }"
-              ><PencilIcon
-            /></Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              :aria-label="`${copy.remove}: ${scene.name}`"
-              :title="copy.remove"
-              @click="removeScene(id)"
-              ><Trash2Icon
-            /></Button>
-          </div>
-        </div>
+          :id="id"
+          :locale="locale"
+          :scene="scene"
+          :playlists="playlists"
+          :selected="selected.includes(id)"
+          :attempted="attempted"
+          @select="toggle(id, $event)"
+          @playlist="setPlaylist(id, $event)"
+          @edit="editing = { kind: 'edit', id }"
+          @remove="removeScene(id)"
+        />
       </div>
       <Empty v-else
         ><EmptyHeader
