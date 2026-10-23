@@ -60,7 +60,7 @@ export function evaluateSteps(
   const available = new Set(playlists.map((playlist) => playlist.name))
   const assignments = Object.values(draft.scenes)
   const scenesValid =
-    assignments.length > 0 && assignments.every((playlist) => Boolean(playlist && available.has(playlist)))
+    assignments.length > 0 && assignments.every((scene) => scene.name.trim().length > 0 && Object.values(scene.associations).some((items) => items.length > 0) && available.has(scene.playlist))
   const conflicts = activityConflicts(draft)
 
   return {

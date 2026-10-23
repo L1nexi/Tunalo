@@ -1,8 +1,8 @@
-import type { Page } from "@playwright/test"
+import { expect, type Page } from "@playwright/test"
 import type { Profile } from "../../src/api/profile"
 
 export const profile: Profile = {
-  version: 2,
+  version: 3,
   setup_complete: true,
   wallpaper_engine_path: "C:\\Wallpaper Engine\\wallpaper64.exe",
   language: "zh",
@@ -10,7 +10,7 @@ export const profile: Profile = {
     api_key: "saved-key",
     location: { name: "上海", latitude: 31.2304, longitude: 121.4737 },
   },
-  scenes: { day_work: "CASUAL_ANIME" },
+  scenes: { day_work: { name: "日间工作", playlist: "CASUAL_ANIME", associations: { time: ["day"], activity: ["work"] } } },
   matching: { preference_tiers: [] },
   disturbance: {
     startup_grace_seconds: 15,
@@ -37,11 +37,28 @@ export async function mockSetupApi(page: Page, hasProfile: boolean, settingsProf
     exists = true
     await route.fulfill({ json: { status: route.request().method() === "POST" ? "created" : "applied", profile: committed } })
   })
-  await page.route("**/api/scenes", async (route) => {
-    await route.fulfill({ json: { scenes: ["day_work", "day_leisure", "night_work", "night_leisure", "rain", "sunset"].map((id) => ({ id })) } })
-  })
   await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
     await route.fulfill({ json: { wallpaper_engine_path: profile.wallpaper_engine_path, playlists: [{ name: "CASUAL_ANIME", item_count: 60 }] } })
   })
 }
 
+
+export async function saveSettings(page: Page, locale: "zh" | "en" = "zh"): Promise<Profile> {
+  const response = page.waitForResponse(
+    (response) => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/profile",
+  )
+  const button = page.getByRole("button", { name: locale === "zh" ? "保存并应用" : "Save and apply", exact: true })
+  await button.click()
+  const saved = await response
+  expect(saved.ok()).toBe(true)
+  await expect(button).toBeDisabled()
+  return saved.request().postDataJSON() as Profile
+}
+
+export async function addPreset(page: Page, group: string, name: string): Promise<void> {
+  await page.getByRole("button", { name: "从预设添加", exact: true }).click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: group, exact: true }).click()
+  await dialog.getByRole("checkbox", { name, exact: true }).check()
+  await dialog.getByRole("button", { name: "添加 1 个场景", exact: true }).click()
+}

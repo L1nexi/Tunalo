@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { CheckIcon, ChevronRightIcon, TriangleAlertIcon } from "@lucide/vue"
-import { computed, onMounted, ref, shallowRef, toRef } from "vue"
+import { computed, onMounted, toRef } from "vue"
 
-import type { Locale, Profile, SceneCatalogItem } from "@/api/profile"
-import { getSceneCatalog } from "@/api/profile"
+import type { Locale, Profile } from "@/api/profile"
 import SetupSidebar from "@/components/setup/SetupSidebar.vue"
 import ActivityRulesStep from "@/components/setup/steps/ActivityRulesStep.vue"
 import LocationStep from "@/components/setup/steps/LocationStep.vue"
@@ -22,7 +21,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { COPY, ZH_WEATHER_SAVE_PROMPT } from "@/setup/copy"
-import { describeError, describeScanError } from "@/setup/errorMessages"
+import { describeScanError } from "@/setup/errorMessages"
 import { usePlaylistScan } from "@/setup/usePlaylistScan"
 import { useProfileDraft } from "@/setup/useProfileDraft"
 import { useProfileSubmission } from "@/setup/useProfileSubmission"
@@ -36,7 +35,7 @@ const props = defineProps<{
 }>()
 
 const editor = useProfileDraft(props.initialProfile, props.initialLocale)
-const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, rememberedScenes, rememberScene, setLocale, preferenceLayers } = editor
+const { mode, locale, draft, savedDraft, isDirty, pendingActivity, pendingActivityFields, setLocale, preferenceLayers } = editor
 const copy = computed(() => COPY[locale.value])
 // 坐标是否偏离已保存基线：驱动就近纠错提示，跨步骤切换不丢失。
 const locationEdited = computed(() =>
@@ -47,7 +46,7 @@ const {
   activeStep, previousSection, steps, activeHeading, stepContentClass,
   allValid, missingSteps, evaluation, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
   isStepValid, navigateTo, navigateToStep,
-  updatePath, updateScenes, updatePreferenceLayers, addPreferenceLayer, updateDisturbance, updateActivity, updatePendingActivity,
+  updatePath, updateScenes, removeScene, updatePreferenceLayers, addPreferenceLayer, updateDisturbance, updateActivity, updatePendingActivity,
 } = flow
 const weather = useWeatherServices(toRef(draft, "weather"), locale, flow.clearWeatherFieldFeedback)
 const {
@@ -59,19 +58,7 @@ const nativeWindow = useSetupWindow(isDirty)
 const { hasNativeBridge, closeDialogOpen, requestClose, closeWindow, openExternal } = nativeWindow
 const { submitting, submitProfile } = useProfileSubmission(editor, flow, weather, closeWindow)
 
-const sceneCatalog = ref<SceneCatalogItem[]>([])
-const catalogFailure = shallowRef<unknown>(null)
-const catalogError = computed(() => catalogFailure.value ? describeError(catalogFailure.value, locale.value) : "")
 const scanDetail = computed(() => scan.error.value ? describeScanError(scan.error.value, locale.value) : "")
-
-async function loadSceneCatalog(): Promise<void> {
-  catalogFailure.value = null
-  try {
-    sceneCatalog.value = await getSceneCatalog()
-  } catch (error) {
-    catalogFailure.value = error
-  }
-}
 
 async function scanWallpaper(): Promise<void> {
   flow.clearStepFeedback("wallpaper")
@@ -86,7 +73,6 @@ async function chooseWallpaperEngine(): Promise<void> {
 }
 
 onMounted(() => {
-  void loadSceneCatalog()
   void scan.scan().then(editor.acceptDetectedPath)
 })
 </script>
@@ -177,18 +163,13 @@ onMounted(() => {
           <SceneBindingsStep
             v-else-if="activeStep === 'scenes'"
             :locale="locale"
-            :mode="mode"
             :scenes="draft.scenes"
-            :remembered-scenes="rememberedScenes"
-            :catalog="sceneCatalog"
             :playlists="scan.usablePlaylists.value"
-            :catalog-error="catalogError"
             :valid="isStepValid('scenes')"
             :attempted="Boolean(stepError)"
             :errors="issuesByStep.scenes.scenes ?? []"
             @update:scenes="updateScenes"
-            @remember-scene="rememberScene"
-            @retry-catalog="loadSceneCatalog"
+            @remove-scene="removeScene"
             @open-wallpaper="navigateToStep('wallpaper')"
           />
           <SchedulingStep

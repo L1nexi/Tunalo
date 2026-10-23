@@ -1,9 +1,14 @@
 import { computed, reactive, ref, watch } from "vue"
 
-import type { Locale, Profile } from "@/api/profile"
+import type { Locale, Profile, SceneProfile } from "@/api/profile"
 import { STEP_ORDER, stepFingerprint } from "./flow"
 import type { EditableStepId } from "./flow"
-import { createProfileDraft, emptyPendingActivity, normalizePreferenceTiers, profileFingerprint } from "./model"
+import {
+  createProfileDraft,
+  emptyPendingActivity,
+  normalizePreferenceTiers,
+  profileFingerprint,
+} from "./model"
 import type { ActivityField, PreferenceLayer, ProfileDraft } from "./model"
 
 export type SetupMode = "setup" | "settings"
@@ -16,14 +21,15 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
   const savedDraft = ref<ProfileDraft>(createProfileDraft(initialProfile, locale.value))
   const baseline = ref(profileFingerprint(savedDraft.value))
   const pendingActivity = reactive(emptyPendingActivity())
-  const rememberedScenes = reactive<ProfileDraft["scenes"]>({})
+  const submitting = ref(false)
   const preferenceLayers = ref<PreferenceLayer[]>([])
   let nextLayerId = 0
   let pathTouched = false
 
   function resetPreferenceLayers(): void {
     preferenceLayers.value = draft.matching.preference_tiers.map((variables) => ({
-      id: nextLayerId++, variables: [...variables],
+      id: nextLayerId++,
+      variables: [...variables],
     }))
   }
   resetPreferenceLayers()
@@ -37,18 +43,49 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
     updatePreferenceLayers([...preferenceLayers.value, { id: nextLayerId++, variables: [] }])
   }
 
-  const pendingActivityFields = computed(() => (Object.keys(pendingActivity) as ActivityField[])
-    .filter((field) => pendingActivity[field].trim().length > 0))
-  const changedSteps = computed(() => new Set(STEP_ORDER.filter((id): id is EditableStepId => id !== "review")
-    .filter((id) => stepFingerprint(draft, id) !== stepFingerprint(savedDraft.value, id)
-      || (id === "activity" && pendingActivityFields.value.length > 0))))
-  const isDirty = computed(() => profileFingerprint(draft) !== baseline.value || pendingActivityFields.value.length > 0)
+  function updateScenes(scenes: Record<string, SceneProfile>): void {
+    draft.scenes = scenes
+  }
 
-  watch(locale, (value, previous) => {
-    if (previous !== undefined) draft.language = value
-    document.documentElement.lang = value === "zh" ? "zh-CN" : "en"
-    document.title = value === "zh" ? "Tunalo 设置" : "Tunalo Settings"
-  }, { immediate: true })
+  function removeScene(id: string): { name: string; restore: () => void } {
+    const scene = draft.scenes[id]!
+    const remaining = { ...draft.scenes }
+    delete remaining[id]
+    updateScenes(remaining)
+    return {
+      name: scene.name,
+      restore: () => updateScenes({ ...draft.scenes, [id]: scene }),
+    }
+  }
+
+  const pendingActivityFields = computed(() =>
+    (Object.keys(pendingActivity) as ActivityField[]).filter(
+      (field) => pendingActivity[field].trim().length > 0,
+    ),
+  )
+  const changedSteps = computed(
+    () =>
+      new Set(
+        STEP_ORDER.filter((id): id is EditableStepId => id !== "review").filter(
+          (id) =>
+            stepFingerprint(draft, id) !== stepFingerprint(savedDraft.value, id) ||
+            (id === "activity" && pendingActivityFields.value.length > 0),
+        ),
+      ),
+  )
+  const isDirty = computed(
+    () => profileFingerprint(draft) !== baseline.value || pendingActivityFields.value.length > 0,
+  )
+
+  watch(
+    locale,
+    (value, previous) => {
+      if (previous !== undefined) draft.language = value
+      document.documentElement.lang = value === "zh" ? "zh-CN" : "en"
+      document.title = value === "zh" ? "Tunalo 设置" : "Tunalo Settings"
+    },
+    { immediate: true },
+  )
 
   function setLocale(value: unknown): void {
     if (value === "zh" || value === "en") locale.value = value
@@ -68,23 +105,32 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
     })
   }
 
-  function rememberScene(id: keyof ProfileDraft["scenes"], playlist: string): void {
-    rememberedScenes[id] = playlist
-  }
-
   function commit(profile: Profile): void {
     Object.assign(draft, createProfileDraft(profile, locale.value))
     savedDraft.value = createProfileDraft(profile, locale.value)
     baseline.value = profileFingerprint(draft)
     resetPreferenceLayers()
-    for (const id of Object.keys(rememberedScenes) as Array<keyof ProfileDraft["scenes"]>) delete rememberedScenes[id]
   }
 
   return {
-    mode, locale, draft, savedDraft, pendingActivity, pendingActivityFields,
-    rememberedScenes, preferenceLayers, changedSteps, isDirty,
-    updatePreferenceLayers, addPreferenceLayer,
-    setLocale, updatePath, acceptDetectedPath, rememberScene, commit,
+    mode,
+    locale,
+    draft,
+    savedDraft,
+    pendingActivity,
+    pendingActivityFields,
+    preferenceLayers,
+    changedSteps,
+    isDirty,
+    submitting,
+    updatePreferenceLayers,
+    addPreferenceLayer,
+    setLocale,
+    updatePath,
+    updateScenes,
+    removeScene,
+    acceptDetectedPath,
+    commit,
   }
 }
 

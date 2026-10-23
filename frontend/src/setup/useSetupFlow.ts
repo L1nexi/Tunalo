@@ -1,7 +1,11 @@
-import { computed, nextTick, ref, shallowRef } from "vue"
+import { XIcon } from "@lucide/vue"
+import { computed, h, nextTick, onScopeDispose, ref, shallowRef } from "vue"
+import { toast } from "vue-sonner"
 
 import { ApiError } from "@/api/profile"
 import type { ValidationIssue } from "@/api/profile"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { COPY } from "./copy"
 import { describeError } from "./errorMessages"
 import { evaluateSteps, STEP_ORDER, stepForIssue, WIDE_STEPS } from "./flow"
@@ -21,42 +25,71 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
   const validationIssues = ref<ValidationIssue[]>([])
   const submissionFailure = shallowRef<unknown>(null)
   const timingOpen = ref(false)
+  const undoNotifications = new Set<string | number>()
+  onScopeDispose(() => undoNotifications.forEach((id) => toast.dismiss(id)))
   const evaluation = computed(() => evaluateSteps(draft, scan.ready.value, scan.usablePlaylists.value))
   const allValid = computed(() => Object.values(evaluation.value.validity).every(Boolean))
-  const missingSteps = computed(() => STEP_ORDER.filter((id) => id !== "review" && !isStepValid(id))
-    .map((id) => ({ id, ...copy.value.steps[id] })))
-  const steps = computed(() => STEP_ORDER.map((id) => ({
-    id,
-    title: id === "review" ? (mode === "setup" ? copy.value.nav.reviewSetup : copy.value.nav.reviewSettings) : copy.value.steps[id].title,
-    status: stepStatus(id),
-    nextRequired: id === missingSteps.value[0]?.id,
-  })))
+  const missingSteps = computed(() =>
+    STEP_ORDER.filter((id) => id !== "review" && !isStepValid(id)).map((id) => ({
+      id,
+      ...copy.value.steps[id],
+    })),
+  )
+  const steps = computed(() =>
+    STEP_ORDER.map((id) => ({
+      id,
+      title:
+        id === "review"
+          ? mode === "setup"
+            ? copy.value.nav.reviewSetup
+            : copy.value.nav.reviewSettings
+          : copy.value.steps[id].title,
+      status: stepStatus(id),
+      nextRequired: id === missingSteps.value[0]?.id,
+    })),
+  )
   const activeHeading = computed(() => {
     const content = copy.value
     switch (activeStep.value) {
-      case "wallpaper": return { title: content.wallpaper.title, description: content.wallpaper.description }
-      case "weather": return { title: content.weather.title, description: content.weather.description }
-      case "scenes": return { title: content.scenes.title, description: content.scenes.description }
-      case "scheduling": return { title: content.preferences.title, description: content.preferences.description }
-      case "activity": return { title: content.activity.title, description: content.activity.description }
-      case "review": return {
-        title: mode === "setup" ? content.nav.reviewSetup : content.nav.reviewSettings,
-        description: content.review.description,
-      }
+      case "wallpaper":
+        return { title: content.wallpaper.title, description: content.wallpaper.description }
+      case "weather":
+        return { title: content.weather.title, description: content.weather.description }
+      case "scenes":
+        return { title: content.scenes.title, description: content.scenes.description }
+      case "scheduling":
+        return { title: content.preferences.title, description: content.preferences.description }
+      case "activity":
+        return { title: content.activity.title, description: content.activity.description }
+      case "review":
+        return {
+          title: mode === "setup" ? content.nav.reviewSetup : content.nav.reviewSettings,
+          description: content.review.description,
+        }
     }
   })
-  const stepContentClass = computed(() => WIDE_STEPS.has(activeStep.value) ? "max-w-4xl" : "max-w-[47.5rem]")
-  const stepErrorText = computed(() => stepError.value ? copy.value.errors[stepError.value] : "")
-  const submissionError = computed(() => submissionFailure.value ? describeError(submissionFailure.value, locale.value) : "")
+  const stepContentClass = computed(() =>
+    WIDE_STEPS.has(activeStep.value) ? "max-w-4xl" : "max-w-[47.5rem]",
+  )
+  const stepErrorText = computed(() => (stepError.value ? copy.value.errors[stepError.value] : ""))
+  const submissionError = computed(() =>
+    submissionFailure.value ? describeError(submissionFailure.value, locale.value) : "",
+  )
   const issuesByStep = computed<Record<StepId, Record<string, string[]>>>(() => {
-    const grouped = Object.fromEntries(STEP_ORDER.map((id) => [id, {}])) as Record<StepId, Record<string, string[]>>
+    const grouped = Object.fromEntries(STEP_ORDER.map((id) => [id, {}])) as Record<
+      StepId,
+      Record<string, string[]>
+    >
     for (const issue of validationIssues.value) {
       const fields = grouped[stepForIssue(issue.path)]
       const field = validationIssueField(issue.path)
       fields[field] ??= []
-      fields[field].push(issue.path[0] === "matching"
-        ? copy.value.preferences.invalidPreferences
-        : copy.value.errors.issueCodes[issue.code as keyof typeof copy.value.errors.issueCodes] ?? issue.message)
+      fields[field].push(
+        issue.path[0] === "matching"
+          ? copy.value.preferences.invalidPreferences
+          : (copy.value.errors.issueCodes[issue.code as keyof typeof copy.value.errors.issueCodes] ??
+              issue.message),
+      )
     }
     return grouped
   })
@@ -78,8 +111,9 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
     await nextTick()
     if (!errorFirst) document.getElementById("setup-step-content")?.scrollTo({ top: 0 })
     const target = errorFirst
-      ? [...document.querySelectorAll<HTMLElement>("#setup-step-content [aria-invalid='true']")]
-        .find((element) => element.getClientRects().length > 0)
+      ? [...document.querySelectorAll<HTMLElement>("#setup-step-content [aria-invalid='true']")].find(
+          (element) => element.getClientRects().length > 0,
+        )
       : null
     ;(target ?? document.getElementById("setup-step-heading"))?.focus()
   }
@@ -112,10 +146,15 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
   }
 
   function clearWeatherFieldFeedback(field: "api_key" | "location"): void {
-    validationIssues.value = validationIssues.value.filter((issue) =>
-      !(issue.path[0] === "weather" && issue.path[1] === field))
-    if (activeStep.value === "weather" && isStepValid("weather") &&
-      !validationIssues.value.some((issue) => stepForIssue(issue.path) === "weather")) stepError.value = null
+    validationIssues.value = validationIssues.value.filter(
+      (issue) => !(issue.path[0] === "weather" && issue.path[1] === field),
+    )
+    if (
+      activeStep.value === "weather" &&
+      isStepValid("weather") &&
+      !validationIssues.value.some((issue) => stepForIssue(issue.path) === "weather")
+    )
+      stepError.value = null
     submissionFailure.value = null
   }
 
@@ -125,8 +164,53 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
   }
 
   function updateScenes(value: ProfileDraft["scenes"]): void {
-    draft.scenes = value
+    editor.updateScenes(value)
     clearStepFeedback("scenes")
+  }
+
+  function removeScene(id: string): void {
+    const removed = editor.removeScene(id)
+    clearStepFeedback("scenes")
+    function dismiss(): void {
+      toast.dismiss(notification)
+      undoNotifications.delete(notification)
+    }
+    const notification = toast.custom(
+      () =>
+        h(Alert, { class: "flex items-center gap-3" }, () => [
+          h("div", { class: "min-w-0 flex-1" }, [
+            h(AlertTitle, {}, () => copy.value.scenes.removed),
+            h(AlertDescription, { class: "break-words" }, () => removed.name),
+          ]),
+          h(
+            Button,
+            {
+              size: "sm",
+              variant: "secondary",
+              disabled: editor.submitting.value,
+              onClick: () => {
+                if (editor.submitting.value) return
+                removed.restore()
+                clearStepFeedback("scenes")
+                dismiss()
+              },
+            },
+            () => copy.value.scenes.undo,
+          ),
+          h(
+            Button,
+            {
+              size: "icon-sm",
+              variant: "ghost",
+              "aria-label": copy.value.scenes.dismissRemoval,
+              onClick: dismiss,
+            },
+            () => h(XIcon),
+          ),
+        ]),
+      { duration: Infinity, onDismiss: () => undoNotifications.delete(notification) },
+    )
+    undoNotifications.add(notification)
   }
 
   function updatePreferenceLayers(value: PreferenceLayer[]): void {
@@ -153,7 +237,8 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
 
   function updatePendingActivity(field: ActivityField, value: string): void {
     pendingActivity[field] = value
-    if (stepError.value === "pendingActivity" && pendingActivityFields.value.length === 0) stepError.value = null
+    if (stepError.value === "pendingActivity" && pendingActivityFields.value.length === 0)
+      stepError.value = null
   }
 
   function prepareSubmission(): boolean {
@@ -179,7 +264,9 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
       return
     }
     validationIssues.value = error.payload.issues
-    activeStep.value = STEP_ORDER.find((id) => error.payload.issues?.some((issue) => stepForIssue(issue.path) === id)) ?? "review"
+    activeStep.value =
+      STEP_ORDER.find((id) => error.payload.issues?.some((issue) => stepForIssue(issue.path) === id)) ??
+      "review"
     if (error.payload.issues.some((issue) => issue.path[0] === "disturbance")) timingOpen.value = true
     stepError.value = "fieldValidation"
     submissionFailure.value = null
@@ -197,11 +284,36 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
   }
 
   return {
-    activeStep, previousSection, steps, activeHeading, stepContentClass,
-    evaluation, allValid, missingSteps, stepError, stepErrorText, submissionError, issuesByStep, timingOpen,
-    isStepValid, navigateTo, navigateToStep, clearStepFeedback, clearWeatherFieldFeedback,
-    updatePath, updateScenes, updatePreferenceLayers, addPreferenceLayer, updateDisturbance, updateActivity, updatePendingActivity,
-    prepareSubmission, reportSubmissionFailure, clearSubmissionFailure, resetFeedback,
+    activeStep,
+    previousSection,
+    steps,
+    activeHeading,
+    stepContentClass,
+    evaluation,
+    allValid,
+    missingSteps,
+    stepError,
+    stepErrorText,
+    submissionError,
+    issuesByStep,
+    timingOpen,
+    isStepValid,
+    navigateTo,
+    navigateToStep,
+    clearStepFeedback,
+    clearWeatherFieldFeedback,
+    updatePath,
+    updateScenes,
+    removeScene,
+    updatePreferenceLayers,
+    addPreferenceLayer,
+    updateDisturbance,
+    updateActivity,
+    updatePendingActivity,
+    prepareSubmission,
+    reportSubmissionFailure,
+    clearSubmissionFailure,
+    resetFeedback,
   }
 }
 

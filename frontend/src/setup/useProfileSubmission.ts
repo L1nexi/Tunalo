@@ -1,4 +1,4 @@
-import { computed, ref } from "vue"
+import { computed } from "vue"
 import { toast } from "vue-sonner"
 
 import { applyProfile, createInitialProfile } from "@/api/profile"
@@ -15,7 +15,7 @@ export function useProfileSubmission(
   weather: WeatherServices,
   closeWindow: () => Promise<void>,
 ) {
-  const submitting = ref(false)
+  const { submitting } = editor
   const copy = computed(() => COPY[editor.locale.value])
 
   async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
@@ -28,9 +28,10 @@ export function useProfileSubmission(
     try {
       const profile = buildProfile(editor.draft)
       const skipWeatherValidation = allowUnverifiedWeather || hasVerifiedKey
-      const committed = editor.mode === "setup"
-        ? await createInitialProfile(profile, skipWeatherValidation)
-        : await applyProfile(profile, skipWeatherValidation)
+      const committed =
+        editor.mode === "setup"
+          ? await createInitialProfile(profile, skipWeatherValidation)
+          : await applyProfile(profile, skipWeatherValidation)
       editor.commit(committed)
       flow.resetFeedback()
       weather.clearSaveFeedback()

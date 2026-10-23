@@ -2,11 +2,11 @@
 import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
-import type { Locale, SceneId } from "@/api/profile"
+import type { Locale } from "@/api/profile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { COPY, DISTURBANCE_LABELS, preferenceSummary, SCENE_LABELS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS, associationSummary, preferenceSummary } from "@/setup/copy"
 import type { StepId } from "@/setup/flow"
 import { detectDisturbancePreset } from "@/setup/model"
 import type { ProfileDraft } from "@/setup/model"
@@ -57,9 +57,9 @@ const weatherStatusClass = computed(() => {
 })
 const sceneSummary = computed(() => {
   const assignments = Object.values(props.draft.scenes)
-  return copy.value.review.sceneCount(assignments.filter(Boolean).length, assignments.filter((value) => !value).length)
+  return copy.value.review.sceneCount(assignments.filter((scene) => scene.playlist).length, assignments.filter((scene) => !scene.playlist).length)
 })
-const sceneIds = computed(() => Object.keys(props.draft.scenes) as SceneId[])
+const sceneIds = computed(() => Object.keys(props.draft.scenes))
 const changes = computed(() => {
   const before = props.savedDraft
   const after = props.draft
@@ -79,8 +79,11 @@ const changes = computed(() => {
   add("weather", copy.value.review.location,
     before.weather.location.latitude === null || before.weather.location.longitude === null ? empty : copy.value.review.coordinates(before.weather.location.latitude, before.weather.location.longitude),
     locationSummary.value)
-  for (const id of Object.keys(SCENE_LABELS[props.locale]) as SceneId[]) {
-    add("scenes", SCENE_LABELS[props.locale][id], before.scenes[id] || copy.value.review.disabled, after.scenes[id] || (id in after.scenes ? copy.value.review.awaitingPlaylist : copy.value.review.disabled))
+  for (const id of new Set([...Object.keys(before.scenes), ...Object.keys(after.scenes)])) {
+    const describe = (scene: ProfileDraft["scenes"][string] | undefined) => scene
+      ? `${scene.name} · ${associationSummary(scene.associations, props.locale)} · ${scene.playlist || copy.value.review.awaitingPlaylist}`
+      : copy.value.review.disabled
+    add("scenes", after.scenes[id]?.name ?? before.scenes[id]!.name, describe(before.scenes[id]), describe(after.scenes[id]))
   }
   add("scheduling", copy.value.review.response,
     preferenceSummary(before.matching.preference_tiers, props.locale),
@@ -191,7 +194,7 @@ const reviewGroups = computed(() => [
                 <div v-else class="text-sm [overflow-wrap:anywhere]" :class="group.deEmphasized ? 'font-normal text-muted-foreground' : 'font-medium'">
                   {{ row.value }}
                   <ul v-if="row.id === 'scenes'" class="mt-1 text-sm font-normal text-muted-foreground">
-                    <li v-for="id in sceneIds" :key="id">{{ SCENE_LABELS[locale][id] }}：{{ draft.scenes[id] || copy.common.notSet }}</li>
+                    <li v-for="id in sceneIds" :key="id">{{ draft.scenes[id]!.name }}（{{ associationSummary(draft.scenes[id]!.associations, locale) }}）：{{ draft.scenes[id]!.playlist || copy.common.notSet }}</li>
                   </ul>
                 </div>
               </dd>

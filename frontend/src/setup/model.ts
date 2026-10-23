@@ -1,8 +1,8 @@
 import { CONTEXT_VARIABLES } from "@/api/profile"
-import type { ActivityProfile, ContextVariable, Locale, Profile, SceneId } from "@/api/profile"
+import type { ActivityProfile, ContextVariable, Locale, Profile, SceneProfile } from "@/api/profile"
 
 export interface ProfileDraft {
-  version: 2
+  version: 3
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
@@ -13,7 +13,7 @@ export interface ProfileDraft {
       longitude: number | null
     }
   }
-  scenes: Partial<Record<SceneId, string>>
+  scenes: Record<string, SceneProfile>
   matching: {
     preference_tiers: ContextVariable[][]
   }
@@ -133,7 +133,7 @@ function requireNonNegativeInteger(value: number | null): number {
 export function createProfileDraft(profile: Profile | null, locale: Locale): ProfileDraft {
   if (profile !== null) {
     return {
-      version: 2,
+      version: 3,
       setup_complete: true,
       wallpaper_engine_path: profile.wallpaper_engine_path,
       language: profile.language,
@@ -144,7 +144,7 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
           longitude: profile.weather.location.longitude,
         },
       },
-      scenes: { ...profile.scenes },
+      scenes: copyScenes(profile.scenes),
       matching: { preference_tiers: normalizePreferenceTiers(profile.matching.preference_tiers) },
       disturbance: { ...profile.disturbance },
       activity: copyActivity(profile.activity),
@@ -152,7 +152,7 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
   }
 
   return {
-    version: 2,
+    version: 3,
     setup_complete: true,
     wallpaper_engine_path: "",
     language: locale,
@@ -163,13 +163,7 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
         longitude: null,
       },
     },
-    scenes: {
-      day_work: "",
-      day_leisure: "",
-      night_work: "",
-      night_leisure: "",
-      rain: "",
-    },
+    scenes: {},
     matching: {
       preference_tiers: [],
     },
@@ -187,7 +181,7 @@ export function buildProfile(draft: ProfileDraft): Profile {
   if (!hasValidPreferences(draft.matching)) throw new Error("invalid_preference_tiers")
 
   return {
-    version: 2,
+    version: 3,
     setup_complete: true,
     wallpaper_engine_path: draft.wallpaper_engine_path,
     language: draft.language,
@@ -198,7 +192,7 @@ export function buildProfile(draft: ProfileDraft): Profile {
         longitude,
       },
     },
-    scenes: { ...draft.scenes },
+    scenes: copyScenes(draft.scenes),
     matching: { preference_tiers: normalizePreferenceTiers(draft.matching.preference_tiers) },
     disturbance: {
       startup_grace_seconds: requireNonNegativeInteger(draft.disturbance.startup_grace_seconds),
@@ -243,14 +237,24 @@ export function activityConflicts(draft: ProfileDraft): string[] {
   ].filter(Boolean)
 }
 
-// 场景是封闭集合：序列化前按场景 ID 排序，映射键序不参与变化判定，
-// 取消再恢复原绑定不会因对象键序被误判为未保存修改。
+export function copyScene(scene: SceneProfile): SceneProfile {
+  return {
+    ...scene,
+    associations: Object.fromEntries(Object.entries(scene.associations).map(([variable, items]) => [variable, [...items]])),
+  }
+}
+
+export function copyScenes(scenes: ProfileDraft["scenes"]): ProfileDraft["scenes"] {
+  return Object.fromEntries(Object.entries(scenes).map(([id, scene]) => [id, copyScene(scene)]))
+}
+
 function sortedScenes(scenes: ProfileDraft["scenes"]): ProfileDraft["scenes"] {
-  return Object.fromEntries(
-    (Object.keys(scenes) as Array<keyof ProfileDraft["scenes"]>)
-      .sort()
-      .map((id) => [id, scenes[id]]),
-  )
+  return Object.fromEntries(Object.entries(scenes).sort(([a], [b]) => a.localeCompare(b)).map(([id, scene]) => [id, {
+    name: scene.name,
+    playlist: scene.playlist,
+    associations: Object.fromEntries(CONTEXT_VARIABLES.filter((variable) => scene.associations[variable]?.length)
+      .map((variable) => [variable, [...scene.associations[variable]!].sort()])),
+  }]))
 }
 
 /** 场景映射的规范化指纹，供整体与分步指纹共用同一语义。 */

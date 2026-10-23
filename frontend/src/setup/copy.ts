@@ -1,4 +1,5 @@
-import type { ContextVariable, Locale, SceneId } from "@/api/profile";
+import type { ContextVariable, Locale, SceneAssociations } from "@/api/profile";
+import { SCENE_ITEMS, SCENE_VARIABLES } from "./scenes";
 import type { DisturbancePreset } from "@/setup/model";
 
 const zh = {
@@ -67,8 +68,7 @@ const zh = {
     title: "连接 Wallpaper Engine",
     description: "",
     pathLabel: "Wallpaper Engine 可执行文件",
-    pathDescription:
-      "选择 Wallpaper Engine 可执行文件，如 wallpaper64.exe。留空以尝试自动检测。",
+    pathDescription: "选择 Wallpaper Engine 可执行文件，如 wallpaper64.exe。留空以尝试自动检测。",
     pathPlaceholder: "选择 Wallpaper Engine 可执行文件",
     choose: "选择文件",
     detect: "自动检测",
@@ -80,11 +80,9 @@ const zh = {
     playlistName: "Wallpaper Engine 中的播放列表名称",
     wallpaperCount: "壁纸数量",
     itemCount: (count: number) => `${count} 张`,
-    englishNames:
-      "为降低命令行调用时的兼容问题，建议播放列表名称优先使用英文字母与数字的组合。",
+    englishNames: "为降低命令行调用时的兼容问题，建议播放列表名称优先使用英文字母与数字的组合。",
     emptyTitle: "未找到可用播放列表",
-    emptyDescription:
-      "请于 Wallpaper Engine 中创建至少一个包含壁纸的播放列表后重新尝试扫描。",
+    emptyDescription: "请于 Wallpaper Engine 中创建至少一个包含壁纸的播放列表后重新尝试扫描。",
     zeroItem: "未找到壁纸",
     scanAgain: "重新扫描",
     manualHint: "如果自动检测失败，请手动选择 wallpaper64.exe。",
@@ -92,8 +90,7 @@ const zh = {
   },
   weather: {
     title: "连接天气服务",
-    description:
-      "Tunalo 使用 OpenWeatherMap 获取天气以及日出和日落信息。密钥仅保存于本地。",
+    description: "Tunalo 使用 OpenWeatherMap 获取天气以及日出和日落信息。密钥仅保存于本地。",
     keyLabel: "OpenWeatherMap API Key",
     keyDescription: "保存天气设置时会联网校验 API Key 有效性。",
     keyPlaceholder: "粘贴 API Key",
@@ -131,18 +128,16 @@ const zh = {
   },
   location: {
     title: "确认天气地点",
-    setupDescription:
-      "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
-    settingsDescription:
-      "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
+    setupDescription: "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
+    settingsDescription: "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
     detect: "估算经纬度",
     detecting: "正在估算",
     detectHint: "根据公网 IP 估算城市级经纬度，结果可手动修正。",
     detected: (city: string | null) =>
       city ? `城市：${city}，已填入预估经纬度。` : "已填入预估经纬度，请核对。",
-    detectionUnavailable:
-      "无法连接到 ipapi.co。可在地图上查找地点坐标，再将纬度和经度分别填入下方。",
-    manualHelp: "打开 OpenStreetMap，搜索所在地，在目标位置右键选择“显示地址”，从左侧复制纬度和经度；南纬和西经使用负数。",
+    detectionUnavailable: "无法连接到 ipapi.co。可在地图上查找地点坐标，再将纬度和经度分别填入下方。",
+    manualHelp:
+      "打开 OpenStreetMap，搜索所在地，在目标位置右键选择“显示地址”，从左侧复制纬度和经度；南纬和西经使用负数。",
     openMap: "打开地图查找坐标",
     latitudeLabel: "纬度",
     longitudeLabel: "经度",
@@ -154,10 +149,109 @@ const zh = {
     requiredLongitude: "请填写经度。",
   },
   scenes: {
-    title: "绑定使用场景",
-    description:
-      "启用需要的内置场景，并为每个场景选择 Wallpaper Engine 播放列表。多个场景可以共用一个播放列表。",
-    defaultHint: "",
+    addPresets: "从预设添加",
+    create: "自定义场景",
+    edit: "编辑场景",
+    name: "场景名称",
+    namePlaceholder: "例如：冬日雨雪",
+    association: "场景关联",
+    associationHelp: "同一组内可多选，例如雨或雪。留空表示不关联这一类情境。",
+    unassociated: "不关联",
+    requiredName: "请填写场景名称。",
+    requiredAssociation: "至少选择一个关联标签。",
+    cancel: "取消",
+    add: "添加场景",
+    done: "完成编辑",
+    remove: "移除",
+    undo: "撤销",
+    removed: "已移除场景",
+    dismissRemoval: "关闭提示",
+    presets: "挑选预设场景",
+    presetsHelp: "按组挑选需要的场景，添加后仍可修改名称和关联。",
+    sections: { single: "单变量场景", double: "双变量场景" },
+    groups: {
+      time: "时间",
+      activity: "活动",
+      season: "季节",
+      weather: "天气",
+      time_activity: "时间与活动",
+      season_weather: "季节与天气",
+    },
+    groupHelp: {
+      time: "一天中的四个时段",
+      activity: "工作与娱乐",
+      season: "一年四季",
+      weather: "晴、云、雨、雪",
+      time_activity: "日间、夜晚搭配工作与娱乐",
+      season_weather: "冬日晴天、冬日雨雪、夏日晴朗、夏日雨天",
+    },
+    alreadyAdded: "已添加",
+    selectGroup: "选择本组",
+    deselectGroup: "取消本组选中",
+    batchPlaylist: "为本次添加的场景绑定播单",
+    later: "稍后逐个选择",
+    chooseLater: "稍后选择",
+    optional: "可选",
+    selected: (n: number) => `已选 ${n} 个`,
+    addSelected: (n: number) => `添加 ${n} 个场景`,
+    count: (n: number) => `${n} 个场景`,
+    pending: (n: number) => `${n} 个待绑定`,
+    allBound: "已全部绑定",
+    emptyTitle: "添加你的第一个场景",
+    emptyHelp: "从时间、活动、季节或天气开始，再为场景选择合适的壁纸播单。",
+    search: "搜索场景或播单",
+    noMatch: "没有找到匹配的场景",
+    clearSearch: "清除搜索",
+    batch: "批量绑定",
+    selectedScenes: "选中场景",
+    selectAll: "选择全部场景",
+    clearSelection: "取消选择",
+    applyPlaylist: "绑定播单",
+    editHint: "为场景命名，选择关联的情境和播放列表。",
+    list: "已添加的场景",
+    summary: "关联预览",
+    semanticLabels: {
+      dawn: "清晨",
+      day: "日间",
+      sunset: "黄昏",
+      night: "夜晚",
+      work: "工作",
+      leisure: "娱乐",
+      spring: "春季",
+      summer: "夏季",
+      autumn: "秋季",
+      winter: "冬季",
+      clear: "晴空",
+      cloudy: "多云",
+      rain: "雨",
+      snow: "雪",
+    },
+    presetNames: {
+      spring: "春季",
+      summer: "夏季",
+      autumn: "秋季",
+      winter: "冬季",
+      dawn: "清晨",
+      day: "日间",
+      sunset: "黄昏",
+      night: "夜晚",
+      work: "工作",
+      leisure: "娱乐",
+      clear: "晴空",
+      cloudy: "多云",
+      rain: "雨天",
+      snow: "雪天",
+      day_work: "日间工作",
+      day_leisure: "日间休闲",
+      night_work: "夜间工作",
+      night_leisure: "夜间休闲",
+      winter_clear: "冬日晴天",
+      winter_precipitation: "冬日雨雪",
+      summer_clear: "夏日晴朗",
+      summer_rain: "夏日雨天",
+    },
+    title: "管理使用场景",
+    description: "从预设开始，或组合自己的场景。多个场景可以共用一个播放列表。",
     playlist: "播放列表",
     choosePlaylist: "选择播放列表",
     searchPlaylist: "搜索播放列表",
@@ -165,10 +259,8 @@ const zh = {
     playlistCount: (count: number) => `${count} 张壁纸`,
     bindingRequired: "请为此场景选择播放列表。",
     unavailablePlaylist: "已选播放列表不在扫描结果中，请重新选择。",
-    required: "至少启用并绑定一个场景。",
+    required: "至少添加一个场景，并为所有场景选择播放列表。",
     unavailable: "场景绑定需要至少一个包含壁纸的播放列表。",
-    groupSummary: (enabled: number, total: number) => `已启用 ${enabled}/${total}`,
-    groups: { season: "季节氛围", context: "日常情境", time: "时段氛围", weather: "天气氛围" },
     matchExplanation: "根据情境与偏好选择场景；此处的排列顺序不影响优先级。",
   },
   preferences: {
@@ -177,7 +269,8 @@ const zh = {
     responseTitle: "情境偏好",
     responseDescription: "拖动情境或使用旁边的下拉菜单调整。越靠上越优先，同层并列。",
     noPriorityHelp: "不设置优先级时，Tunalo 会综合当前情境选择合适的场景。",
-    cascadeHelp: "从上往下寻找明显的情境和可用场景；找到后优先响应这一层，否则继续下一层。都未命中时，综合当前情境选择。",
+    cascadeHelp:
+      "从上往下寻找明显的情境和可用场景；找到后优先响应这一层，否则继续下一层。都未命中时，综合当前情境选择。",
     unassignedHelp: "仍参与场景判断，但不指定响应顺序。",
     allAssigned: "所有情境均已设置优先级。",
     moveToNewLayer: "移到新优先级",
@@ -229,9 +322,9 @@ const zh = {
     packLabels: { development: "开发人员工具", office: "办公工具", social: "社交", multimedia: "多媒体" },
     imported: (added: number, skipped: number) => `新增 ${added} 条规则，跳过 ${skipped} 条重复或冲突规则。`,
     conflictTitle: "存在冲突规则",
-    conflictDescription: (values: string) =>
-      `这些项目同时出现在工作和休闲场景规则中：${values}`,
-    matchingHelp: "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。例如，浏览器可归入工作，再用视频网站的标题关键词识别休闲。",
+    conflictDescription: (values: string) => `这些项目同时出现在工作和休闲场景规则中：${values}`,
+    matchingHelp:
+      "进程名须完整匹配，忽略大小写和末尾的 .exe；窗口标题只需包含关键词，忽略大小写。例如，浏览器可归入工作，再用视频网站的标题关键词识别休闲。",
     pendingWarning: "输入框中有尚未添加的文字。请按回车或点“添加”，或者清空后再保存。",
   },
   review: {
@@ -260,8 +353,7 @@ const zh = {
     secretChanged: "已更改（内容不显示）",
     activityCount: (windows: number, processes: number) =>
       `窗口名规则 ${windows} 条，进程名规则 ${processes} 条`,
-    coordinates: (latitude: number, longitude: number) =>
-      `纬度 ${latitude}，经度 ${longitude}`,
+    coordinates: (latitude: number, longitude: number) => `纬度 ${latitude}，经度 ${longitude}`,
     create: "完成设置",
     creating: "正在创建",
     save: "保存并应用",
@@ -294,21 +386,17 @@ const zh = {
     httpOther: (status: number) => `服务返回 HTTP ${status}，请稍后重试。`,
     generic: "操作失败。草稿仍然保留，请重试。",
     scanCodes: {
-      wallpaper_engine_executable_not_found:
-        "没有找到 Wallpaper Engine 可执行文件。请手动选择安装位置。",
+      wallpaper_engine_executable_not_found: "没有找到 Wallpaper Engine 可执行文件。请手动选择安装位置。",
       wallpaper_engine_config_not_found:
         "没有找到 Wallpaper Engine 配置文件。请先启动一次 Wallpaper Engine，然后重试。",
       wallpaper_engine_config_read_failed:
         "Wallpaper Engine 配置文件暂时无法读取。请关闭可能正在写入配置的窗口后重试。",
-      unexpected_wallpaper_engine_config_format:
-        "Wallpaper Engine 配置文件格式无法识别。",
+      unexpected_wallpaper_engine_config_format: "Wallpaper Engine 配置文件格式无法识别。",
     },
     issueCodes: {
       weather_api_key_invalid: "无效的 API Key。",
-      weather_location_invalid:
-        "OpenWeatherMap 无法使用这个地点，请检查经纬度。",
-      weather_api_quota_exceeded:
-        "API Key 已达到请求配额，请稍后重试或更换 Key。",
+      weather_location_invalid: "OpenWeatherMap 无法使用这个地点，请检查经纬度。",
+      weather_api_quota_exceeded: "API Key 已达到请求配额，请稍后重试或更换 Key。",
     },
     stages: {
       compile: "配置编译",
@@ -323,13 +411,11 @@ const en: typeof zh = {
   mode: { setup: "First-time setup", settings: "Settings" },
   loading: {
     title: "Loading settings",
-    description:
-      "Connecting to the local scheduler and preparing a Profile draft.",
+    description: "Connecting to the local scheduler and preparing a Profile draft.",
   },
   unavailable: {
     title: "Tunalo is unavailable",
-    description:
-      "Make sure the main application is still running, then try again.",
+    description: "Make sure the main application is still running, then try again.",
     retry: "Try again",
   },
   steps: {
@@ -407,8 +493,7 @@ const en: typeof zh = {
       "Create at least one Wallpaper Engine playlist containing a wallpaper, then scan again.",
     zeroItem: "No wallpapers",
     scanAgain: "Scan again",
-    manualHint:
-      "If automatic detection fails, choose wallpaper64.exe manually.",
+    manualHint: "If automatic detection fails, choose wallpaper64.exe manually.",
     scanRequired: "Scan and confirm at least one usable playlist.",
   },
   weather: {
@@ -425,25 +510,20 @@ const en: typeof zh = {
     guideSteps: [
       {
         title: "Create an account",
-        action:
-          "Create an OpenWeatherMap account and sign in. If you already have one, sign in.",
+        action: "Create an OpenWeatherMap account and sign in. If you already have one, sign in.",
         expected: "You can open the API keys page after signing in.",
-        fallback:
-          "If the site asks you to verify your email, follow its instructions first.",
+        fallback: "If the site asks you to verify your email, follow its instructions first.",
       },
       {
         title: "Generate an API key",
         action: "Click Generate on the API keys page.",
         expected: "The new key appears in your account's key list.",
-        fallback:
-          "Use the Get an API key button here if you cannot find the page.",
+        fallback: "Use the Get an API key button here if you cannot find the page.",
       },
       {
         title: "Check status and paste",
-        action:
-          "Make sure the key's Status is Active, then copy the key itself into the field above.",
-        expected:
-          "Select Test connection and continue to location after it succeeds.",
+        action: "Make sure the key's Status is Active, then copy the key itself into the field above.",
+        expected: "Select Test connection and continue to location after it succeeds.",
         fallback:
           "If Active is not shown, check the key status in your account. For a failed test, check the copied key or follow the network guidance shown here.",
       },
@@ -466,13 +546,15 @@ const en: typeof zh = {
       "Weather, sunrise, and sunset use only latitude and longitude. No city name is needed. Coordinates stay on this device.",
     detect: "Estimate coordinates",
     detecting: "Estimating",
-    detectHint:
-      "Estimate city-level coordinates from your public IP. You can correct the result manually.",
+    detectHint: "Estimate city-level coordinates from your public IP. You can correct the result manually.",
     detected: (city: string | null) =>
-      city ? `City: ${city}. Estimated coordinates filled in.` : "Estimated coordinates filled in. Check that they are accurate.",
+      city
+        ? `City: ${city}. Estimated coordinates filled in.`
+        : "Estimated coordinates filled in. Check that they are accurate.",
     detectionUnavailable:
       "Find your location on a map, then enter its latitude and longitude below, or retry after checking the issue.",
-    manualHelp: "Open OpenStreetMap, search your location, right-click the point and choose Show address. Copy the latitude and longitude from the left panel; use negative values for south and west.",
+    manualHelp:
+      "Open OpenStreetMap, search your location, right-click the point and choose Show address. Copy the latitude and longitude from the left panel; use negative values for south and west.",
     openMap: "Open map for coordinates",
     latitudeLabel: "Latitude",
     longitudeLabel: "Longitude",
@@ -484,34 +566,131 @@ const en: typeof zh = {
     requiredLongitude: "Longitude is required.",
   },
   scenes: {
-    title: "Assign Scenes",
-    description:
-      "Enable built-in Scenes and choose a Wallpaper Engine playlist for each. Multiple Scenes may share a playlist.",
-    defaultHint:
-      "First-time setup preselects four everyday Scenes and Rain. Assign a playlist to each selected Scene; you can reuse one or turn off any Scene you do not need.",
+    addPresets: "Add presets",
+    create: "Custom scene",
+    edit: "Edit scene",
+    name: "Scene name",
+    namePlaceholder: "For example: Winter rain or snow",
+    association: "Scene associations",
+    associationHelp:
+      "Select alternatives within each group, such as rain or snow. Leave a group empty to omit it.",
+    unassociated: "Not associated",
+    requiredName: "Enter a scene name.",
+    requiredAssociation: "Select at least one association.",
+    cancel: "Cancel",
+    add: "Add scene",
+    done: "Done",
+    remove: "Remove",
+    undo: "Undo",
+    removed: "Scene removed",
+    dismissRemoval: "Dismiss notification",
+    presets: "Choose preset scenes",
+    presetsHelp: "Pick scenes by group. You can edit their names and associations after adding them.",
+    sections: { single: "Single-variable scenes", double: "Two-variable scenes" },
+    groups: {
+      time: "Time",
+      activity: "Activity",
+      season: "Season",
+      weather: "Weather",
+      time_activity: "Time and activity",
+      season_weather: "Season and weather",
+    },
+    groupHelp: {
+      time: "Four parts of the day",
+      activity: "Work and leisure",
+      season: "The four seasons",
+      weather: "Clear, cloudy, rain and snow",
+      time_activity: "Day or night, at work or at leisure",
+      season_weather: "Sunny winter, winter rain or snow, sunny summer and rainy summer",
+    },
+    alreadyAdded: "Added",
+    selectGroup: "Select group",
+    deselectGroup: "Deselect group",
+    batchPlaylist: "Playlist for these scenes",
+    later: "Choose individually later",
+    chooseLater: "Choose later",
+    optional: "Optional",
+    selected: (n: number) => `${n} selected`,
+    addSelected: (n: number) => `Add ${n} ${n === 1 ? "scene" : "scenes"}`,
+    count: (n: number) => `${n} ${n === 1 ? "scene" : "scenes"}`,
+    pending: (n: number) => `${n} ${n === 1 ? "needs" : "need"} a playlist`,
+    allBound: "All assigned",
+    emptyTitle: "Add your first scene",
+    emptyHelp: "Start with a time, activity, season or weather, then choose a wallpaper playlist for it.",
+    search: "Search scenes or playlists",
+    noMatch: "No matching scenes",
+    clearSearch: "Clear search",
+    batch: "Assign playlists",
+    selectedScenes: "Selected scenes",
+    selectAll: "Select all scenes",
+    clearSelection: "Clear selection",
+    applyPlaylist: "Assign playlist",
+    editHint: "Choose a name, when it fits, and a playlist.",
+    list: "Your scenes",
+    summary: "Association preview",
+    semanticLabels: {
+      dawn: "Dawn",
+      day: "Daytime",
+      sunset: "Sunset",
+      night: "Night",
+      work: "Work",
+      leisure: "Leisure",
+      spring: "Spring",
+      summer: "Summer",
+      autumn: "Autumn",
+      winter: "Winter",
+      clear: "Clear",
+      cloudy: "Cloudy",
+      rain: "Rain",
+      snow: "Snow",
+    },
+    presetNames: {
+      spring: "Spring",
+      summer: "Summer",
+      autumn: "Autumn",
+      winter: "Winter",
+      dawn: "Dawn",
+      day: "Daytime",
+      sunset: "Sunset",
+      night: "Night",
+      work: "Work",
+      leisure: "Leisure",
+      clear: "Clear skies",
+      cloudy: "Cloudy",
+      rain: "Rain",
+      snow: "Snow",
+      day_work: "Daytime work",
+      day_leisure: "Daytime leisure",
+      night_work: "Nighttime work",
+      night_leisure: "Nighttime leisure",
+      winter_clear: "Sunny winter",
+      winter_precipitation: "Winter rain or snow",
+      summer_clear: "Sunny summer",
+      summer_rain: "Rainy summer",
+    },
+    title: "Manage scenes",
+    description: "Start with presets or create your own scenes. Multiple scenes can share a playlist.",
     playlist: "Playlist",
     choosePlaylist: "Choose a playlist",
     searchPlaylist: "Search playlists",
     noPlaylistMatch: "No matching playlists.",
     playlistCount: (count: number) => `${count} wallpapers`,
     bindingRequired: "Choose a playlist for this Scene.",
-    unavailablePlaylist:
-      "The selected playlist is missing from the scan. Choose another.",
-    required: "Enable and assign at least one Scene.",
-    unavailable:
-      "Scene assignments need at least one playlist containing wallpapers.",
-    groupSummary: (enabled: number, total: number) => `${enabled}/${total} enabled`,
-    groups: { season: "Seasonal atmosphere", context: "Everyday context", time: "Time of day", weather: "Weather atmosphere" },
-    matchExplanation: "Scenes are selected using context and your preferences. Their order here does not set priority.",
+    unavailablePlaylist: "The selected playlist is missing from the scan. Choose another.",
+    required: "Add at least one scene and choose a playlist for every scene.",
+    unavailable: "Scene assignments need at least one playlist containing wallpapers.",
+    matchExplanation:
+      "Scenes are selected using context and your preferences. Their order here does not set priority.",
   },
   preferences: {
     title: "Tune scheduling",
-    description:
-      "Choose context priorities and interruption settings.",
+    description: "Choose context priorities and interruption settings.",
     responseTitle: "Context preferences",
-    responseDescription: "Drag contexts or use their menus. Higher levels come first; contexts in one level share priority.",
+    responseDescription:
+      "Drag contexts or use their menus. Higher levels come first; contexts in one level share priority.",
     noPriorityHelp: "Without explicit priorities, Tunalo uses the current context to choose suitable scenes.",
-    cascadeHelp: "Tunalo responds to the first level with a clear context and available scenes. If none qualifies, it uses the overall context to choose.",
+    cascadeHelp:
+      "Tunalo responds to the first level with a clear context and available scenes. If none qualifies, it uses the overall context to choose.",
     unassignedHelp: "Still considered when choosing scenes, without an explicit response order.",
     allAssigned: "All contexts have an explicit priority.",
     moveToNewLayer: "Move to a new priority",
@@ -529,8 +708,7 @@ const en: typeof zh = {
     layerRemoved: "Priority level removed. Its contexts now have no explicit priority.",
     invalidPreferences: "Check context preferences. Each context can appear only once.",
     disturbanceTitle: "Interruption level",
-    disturbanceDescription:
-      "Choose a preset, or expand the exact timing values.",
+    disturbanceDescription: "Choose a preset, or expand the exact timing values.",
     timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
       `Startup wait ${startup ?? "—"} s; idle wait ${idle ?? "—"} s; baseline rotation interval ${cycle ?? "—"} min, shortened when recommendations change substantially.`,
     fineTune: "Fine-tune timing",
@@ -543,8 +721,10 @@ const en: typeof zh = {
   },
   activity: {
     title: "Recognize activity",
-    description: "Identify work or leisure from foreground apps and window titles. Recent activity over roughly ten minutes gradually shapes scene selection.",
-    recognitionHelp: "Title keywords take priority over process names. Leisure means intentional entertainment; an unmatched observation counts as neither work nor leisure.",
+    description:
+      "Identify work or leisure from foreground apps and window titles. Recent activity over roughly ten minutes gradually shapes scene selection.",
+    recognitionHelp:
+      "Title keywords take priority over process names. Leisure means intentional entertainment; an unmatched observation counts as neither work nor leisure.",
     matchingTitle: "How rules match",
     importHelp: "Import familiar apps into work or leisure, then edit individual rules below.",
     emptyHelp: "No activity rules yet. Import an app group or add your own rules below.",
@@ -561,18 +741,24 @@ const en: typeof zh = {
     importGroups: "Import app groups",
     importWork: "Import into work",
     importLeisure: "Import into leisure",
-    packLabels: { development: "Developer tools", office: "Office tools", social: "Social", multimedia: "Multimedia" },
-    imported: (added: number, skipped: number) => `Added ${added} rules; skipped ${skipped} duplicates or conflicts.`,
+    packLabels: {
+      development: "Developer tools",
+      office: "Office tools",
+      social: "Social",
+      multimedia: "Multimedia",
+    },
+    imported: (added: number, skipped: number) =>
+      `Added ${added} rules; skipped ${skipped} duplicates or conflicts.`,
     conflictTitle: "Conflicting rules",
-    conflictDescription: (values: string) =>
-      `These items appear in both work and leisure: ${values}`,
-    matchingHelp: "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. For example, classify your browser as work and use video-site title keywords to recognize leisure.",
-    pendingWarning: "Text is still waiting in an activity field. Press Enter or Add, or clear it before saving.",
+    conflictDescription: (values: string) => `These items appear in both work and leisure: ${values}`,
+    matchingHelp:
+      "Process names match exactly, ignoring case and a trailing .exe. Window titles contain the keyword, ignoring case. For example, classify your browser as work and use video-site title keywords to recognize leisure.",
+    pendingWarning:
+      "Text is still waiting in an activity field. Press Enter or Add, or clear it before saving.",
   },
   review: {
     title: "Review and save",
-    description:
-      "These settings remain a draft until you confirm and save the Profile.",
+    description: "These settings remain a draft until you confirm and save the Profile.",
     missingTitle: "Needed before saving",
     missingDescription: "Complete these settings in any order.",
     wallpaper: "Wallpaper Engine path",
@@ -597,8 +783,7 @@ const en: typeof zh = {
     secretChanged: "Changed (value hidden)",
     activityCount: (windows: number, processes: number) =>
       `${windows} window rules, ${processes} process names`,
-    coordinates: (latitude: number, longitude: number) =>
-      `Latitude ${latitude}, longitude ${longitude}`,
+    coordinates: (latitude: number, longitude: number) => `Latitude ${latitude}, longitude ${longitude}`,
     create: "Finish setup",
     creating: "Creating",
     save: "Save and apply",
@@ -609,40 +794,27 @@ const en: typeof zh = {
   errors: {
     validation: "Complete the required fields on this page first.",
     pendingActivity: "Finish or clear the text waiting in an activity field.",
-    fieldValidation:
-      "The server found fields that need changes. Follow the messages below.",
-    profileAlreadyExists:
-      "A Profile already exists. Close this window and reopen Settings from the tray.",
-    applyTimeout:
-      "The scheduler did not finish applying the change. Your draft is still here; try again.",
-    applyUnavailable:
-      "The scheduler is not accepting configuration changes right now. Try again shortly.",
-    weatherValidationUnavailable:
-      "The weather check could not finish. Your draft is still here.",
+    fieldValidation: "The server found fields that need changes. Follow the messages below.",
+    profileAlreadyExists: "A Profile already exists. Close this window and reopen Settings from the tray.",
+    applyTimeout: "The scheduler did not finish applying the change. Your draft is still here; try again.",
+    applyUnavailable: "The scheduler is not accepting configuration changes right now. Try again shortly.",
+    weatherValidationUnavailable: "The weather check could not finish. Your draft is still here.",
     locationValidationUnavailable: "Automatic location detection failed.",
     networkReasons: {
-      timeout:
-        "The connection timed out. Check your network or proxy and try again.",
-      proxy_error:
-        "The proxy connection failed. Check the system proxy or try another network.",
-      tls_error:
-        "The secure connection failed. Check your network, proxy, and system clock.",
-      connection_error:
-        "A connection could not be established. Check your network or proxy.",
-      request_error:
-        "The network request failed. Check your connection and try again.",
+      timeout: "The connection timed out. Check your network or proxy and try again.",
+      proxy_error: "The proxy connection failed. Check the system proxy or try another network.",
+      tls_error: "The secure connection failed. Check your network, proxy, and system clock.",
+      connection_error: "A connection could not be established. Check your network or proxy.",
+      request_error: "The network request failed. Check your connection and try again.",
       invalid_json: "The service returned unreadable data. Try again later.",
-      invalid_response:
-        "The service returned incomplete data. Try again later.",
+      invalid_response: "The service returned incomplete data. Try again later.",
       provider_error:
         "The location service rejected the lookup. Enter your location manually or try again later.",
     },
     httpRateLimited: "The service is limiting requests. Try again later.",
-    httpForbidden:
-      "The service denied the request. Check your network or proxy.",
+    httpForbidden: "The service denied the request. Check your network or proxy.",
     httpServerError: "The service is temporarily failing. Try again later.",
-    httpOther: (status: number) =>
-      `The service returned HTTP ${status}. Try again later.`,
+    httpOther: (status: number) => `The service returned HTTP ${status}. Try again later.`,
     generic: "The operation failed. Your draft is still here; try again.",
     scanCodes: {
       wallpaper_engine_executable_not_found:
@@ -656,10 +828,8 @@ const en: typeof zh = {
     },
     issueCodes: {
       weather_api_key_invalid: "This API key is invalid.",
-      weather_location_invalid:
-        "OpenWeatherMap could not use this location. Check the coordinates.",
-      weather_api_quota_exceeded:
-        "This API key has reached its request quota. Try later or use another key.",
+      weather_location_invalid: "OpenWeatherMap could not use this location. Check the coordinates.",
+      weather_api_quota_exceeded: "This API key has reached its request quota. Try later or use another key.",
     },
     stages: {
       compile: "configuration compilation",
@@ -672,8 +842,7 @@ const en: typeof zh = {
 export const COPY = { zh, en } satisfies Record<Locale, typeof zh>;
 
 export const ZH_TIMING_HINTS = {
-  startupGrace:
-    "调度器启动至能够尝试切换的最短等待时间，更高的启动等待时间通常可以增加壁纸选择的稳定性。",
+  startupGrace: "调度器启动至能够尝试切换的最短等待时间，更高的启动等待时间通常可以增加壁纸选择的稳定性。",
   idleBeforeSwitch:
     "停止操作多久后，允许壁纸切换。更短的空闲等待时间通常可以带来更及时的壁纸响应，但也会增加切换次数。",
   cycleInterval:
@@ -685,75 +854,21 @@ export const ZH_WEATHER_SAVE_PROMPT = {
   description: "保存后，天气相关场景可能暂时无法响应。你可以稍后重新测试连接。",
 } as const;
 
-export const SCENE_LABELS: Record<Locale, Record<SceneId, string>> = {
-  zh: {
-    day_work: "日间工作",
-    day_leisure: "日间休闲",
-    night_work: "夜间工作",
-    night_leisure: "夜间休闲",
-    spring: "春季",
-    summer: "夏季",
-    autumn: "秋季",
-    winter: "冬季",
-    sunset: "黄昏",
-    rain: "雨天",
-  },
-  en: {
-    day_work: "Day work",
-    day_leisure: "Day leisure",
-    night_work: "Night work",
-    night_leisure: "Night leisure",
-    spring: "Spring",
-    summer: "Summer",
-    autumn: "Autumn",
-    winter: "Winter",
-    sunset: "Sunset",
-    rain: "Rain",
-  },
-};
-
-export const SCENE_DESCRIPTIONS: Record<Locale, Record<SceneId, string>> = {
-  zh: {
-    day_work: "呼应白天与工作情境。",
-    day_leisure: "呼应白天与休闲情境。",
-    night_work: "呼应夜间与工作情境。",
-    night_leisure: "呼应夜间与休闲情境。",
-    spring: "呼应春季氛围。",
-    summer: "呼应夏季氛围。",
-    autumn: "呼应秋季氛围。",
-    winter: "呼应冬季氛围。",
-    sunset: "黄昏时分的氛围场景。",
-    rain: "呼应下雨与雷雨天气。",
-  },
-  en: {
-    day_work: "Responds to daytime and work.",
-    day_leisure: "Responds to daytime and leisure.",
-    night_work: "Responds to night and work.",
-    night_leisure: "Responds to night and leisure.",
-    spring: "Responds to spring.",
-    summer: "Responds to summer.",
-    autumn: "Responds to autumn.",
-    winter: "Responds to winter.",
-    sunset: "An atmosphere scene for sunset hours.",
-    rain: "Responds to rain and thunderstorms.",
-  },
-};
-
 export const CONTEXT_VARIABLE_LABELS: Record<Locale, Record<ContextVariable, string>> = {
   zh: { weather: "天气", activity: "活动", time: "时段", season: "季节" },
   en: { weather: "Weather", activity: "Activity", time: "Time", season: "Season" },
 };
 
 export function preferenceSummary(tiers: ContextVariable[][], locale: Locale): string {
-  const labels = CONTEXT_VARIABLE_LABELS[locale]
-  return tiers.map((tier) => tier.map((variable) => labels[variable]).join(locale === "zh" ? "、" : ", ")).join(" > ")
-    || COPY[locale].preferences.unassigned
+  const labels = CONTEXT_VARIABLE_LABELS[locale];
+  return (
+    tiers
+      .map((tier) => tier.map((variable) => labels[variable]).join(locale === "zh" ? "、" : ", "))
+      .join(" > ") || COPY[locale].preferences.unassigned
+  );
 }
 
-export const DISTURBANCE_LABELS: Record<
-  Locale,
-  Record<DisturbancePreset, string>
-> = {
+export const DISTURBANCE_LABELS: Record<Locale, Record<DisturbancePreset, string>> = {
   zh: {
     eager: "积极",
     responsive: "灵敏",
@@ -769,3 +884,14 @@ export const DISTURBANCE_LABELS: Record<
     minimal: "Minimal",
   },
 };
+
+export function associationSummary(associations: SceneAssociations, locale: Locale): string {
+  return SCENE_VARIABLES.filter((variable) => associations[variable]?.length)
+    .map((variable) =>
+      SCENE_ITEMS[variable]
+        .filter((item) => associations[variable]!.includes(item))
+        .map((item) => COPY[locale].scenes.semanticLabels[item])
+        .join(locale === "zh" ? "或" : " or "),
+    )
+    .join(" · ");
+}

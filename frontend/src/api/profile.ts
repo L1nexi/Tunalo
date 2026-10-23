@@ -1,15 +1,3 @@
-export type SceneId =
-  | "day_work"
-  | "day_leisure"
-  | "night_work"
-  | "night_leisure"
-  | "spring"
-  | "summer"
-  | "autumn"
-  | "winter"
-  | "sunset"
-  | "rain"
-
 export type Locale = "zh" | "en"
 
 export const CONTEXT_VARIABLES = ["weather", "activity", "time", "season"] as const
@@ -29,7 +17,7 @@ export interface WeatherLocationProfile {
 }
 
 export interface Profile {
-  version: 2
+  version: 3
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
@@ -37,7 +25,7 @@ export interface Profile {
     api_key: string
     location: WeatherLocationProfile
   }
-  scenes: Partial<Record<SceneId, string>>
+  scenes: Record<string, SceneProfile>
   matching: {
     preference_tiers: ContextVariable[][]
   }
@@ -49,8 +37,12 @@ export interface Profile {
   activity: ActivityProfile | null
 }
 
-export interface SceneCatalogItem {
-  id: SceneId
+export type SemanticItem = "dawn" | "day" | "sunset" | "night" | "work" | "leisure" | "spring" | "summer" | "autumn" | "winter" | "clear" | "cloudy" | "rain" | "snow"
+export type SceneAssociations = Partial<Record<ContextVariable, SemanticItem[]>>
+export interface SceneProfile {
+  name: string
+  associations: SceneAssociations
+  playlist: string
 }
 
 export interface PlaylistScanResult {
@@ -121,11 +113,6 @@ export async function getProfile(): Promise<Profile | null> {
     }
     throw error
   }
-}
-
-export async function getSceneCatalog(): Promise<SceneCatalogItem[]> {
-  const response = await requestJson<{ scenes: SceneCatalogItem[] }>("/api/scenes")
-  return response.scenes
 }
 
 export async function detectLocation(): Promise<DetectedLocation> {

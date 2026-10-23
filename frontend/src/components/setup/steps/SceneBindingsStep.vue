@@ -1,336 +1,258 @@
 <script setup lang="ts">
-import { ChevronDownIcon, LightbulbIcon, TriangleAlertIcon } from "@lucide/vue";
-import { computed, ref } from "vue";
-
-import type {
-  Locale,
-  PlaylistScanResult,
-  SceneCatalogItem,
-  SceneId,
-} from "@/api/profile";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { computed, defineAsyncComponent, nextTick, ref } from "vue"
+import { PencilIcon, PlusIcon, Trash2Icon, LayersIcon, SearchIcon, TriangleAlertIcon } from "@lucide/vue"
+import type { Locale, PlaylistScanResult, SceneProfile } from "@/api/profile"
+import type { SceneEditorState } from "@/setup/scenes"
+import PlaylistPicker from "../PlaylistPicker.vue"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Field, FieldError } from "@/components/ui/field"
+import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group"
 import {
-  Combobox,
-  ComboboxAnchor,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-  ComboboxViewport,
-} from "@/components/ui/combobox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { FieldError } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
-import { COPY, SCENE_DESCRIPTIONS, SCENE_LABELS } from "@/setup/copy";
-import type { ProfileDraft } from "@/setup/model";
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
+} from "@/components/ui/empty"
+import { COPY, associationSummary } from "@/setup/copy"
 
-type Scenes = ProfileDraft["scenes"];
-type Playlist = PlaylistScanResult["playlists"][number];
-
-interface SceneCard {
-  sceneId: SceneId;
-  label: string;
-  description: string;
-  enabled: boolean;
-  bindingInvalid: boolean;
-  bound: Playlist | undefined;
-}
-
-interface SceneGroup {
-  id: "season" | "context" | "time" | "weather";
-  title: string;
-  cards: SceneCard[];
-}
+const SceneEditor = defineAsyncComponent(() => import("../SceneEditor.vue"))
 
 const props = defineProps<{
-  locale: Locale;
-  mode: "setup" | "settings";
-  scenes: Scenes;
-  rememberedScenes: Scenes;
-  catalog: SceneCatalogItem[];
-  playlists: PlaylistScanResult["playlists"];
-  catalogError: string;
-  valid: boolean;
-  attempted: boolean;
-  errors: string[];
-}>();
-
+  locale: Locale
+  scenes: Record<string, SceneProfile>
+  playlists: PlaylistScanResult["playlists"]
+  valid: boolean
+  attempted: boolean
+  errors: string[]
+}>()
 const emit = defineEmits<{
-  "update:scenes": [value: Scenes];
-  rememberScene: [id: SceneId, playlist: string];
-  retryCatalog: [];
-  openWallpaper: [];
-}>();
+  "update:scenes": [scenes: Record<string, SceneProfile>]
+  removeScene: [id: string]
+  openWallpaper: []
+}>()
+const copy = computed(() => COPY[props.locale].scenes)
+const shared = computed(() => COPY[props.locale])
+const editing = ref<SceneEditorState | null>(null)
+const search = ref("")
+const selected = ref<string[]>([])
+const batchPlaylist = ref("")
+const entries = computed(() => Object.entries(props.scenes))
+const playlistNames = computed(() => new Set(props.playlists.map((playlist) => playlist.name)))
+const pending = computed(
+  () => entries.value.filter(([, scene]) => !playlistNames.value.has(scene.playlist)).length,
+)
+const visible = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  return entries.value.filter(([, scene]) =>
+    `${scene.name} ${scene.playlist} ${associationSummary(scene.associations, props.locale)}`
+      .toLocaleLowerCase()
+      .includes(query),
+  )
+})
+const allSelected = computed(
+  () => visible.value.length > 0 && visible.value.every(([id]) => selected.value.includes(id)),
+)
+const someSelected = computed(() => visible.value.some(([id]) => selected.value.includes(id)))
 
-const copy = computed(() => COPY[props.locale]);
-const supportedScenes = computed(
-  () => new Set(props.catalog.map((scene) => scene.id)),
-);
-const availablePlaylists = computed(
-  () => new Set(props.playlists.map((playlist) => playlist.name)),
-);
-const openPicker = ref<SceneId | null>(null);
-
-function toSceneCard(sceneId: SceneId): SceneCard {
-  const name = props.scenes[sceneId];
-  return {
-    sceneId,
-    label: SCENE_LABELS[props.locale][sceneId],
-    description: SCENE_DESCRIPTIONS[props.locale][sceneId],
-    enabled: sceneId in props.scenes,
-    bindingInvalid:
-      sceneId in props.scenes && !availablePlaylists.value.has(name ?? ""),
-    bound: name
-      ? props.playlists.find((playlist) => playlist.name === name)
-      : undefined,
-  };
+function setPlaylist(id: string, playlist: string): void {
+  emit("update:scenes", { ...props.scenes, [id]: { ...props.scenes[id]!, playlist } })
 }
-
-const sceneGroups = computed<SceneGroup[]>(() => {
-  const catalog: Array<{
-    id: SceneGroup["id"];
-    title: string;
-    sceneIds: SceneId[];
-  }> = [
-    {
-      id: "season",
-      title: copy.value.scenes.groups.season,
-      sceneIds: ["spring", "summer", "autumn", "winter"],
-    },
-    {
-      id: "context",
-      title: copy.value.scenes.groups.context,
-      sceneIds: ["day_work", "day_leisure", "night_work", "night_leisure"],
-    },
-    {
-      id: "time",
-      title: copy.value.scenes.groups.time,
-      sceneIds: ["sunset"],
-    },
-    {
-      id: "weather",
-      title: copy.value.scenes.groups.weather,
-      sceneIds: ["rain"],
-    },
-  ];
-  return catalog
-    .map(({ id, title, sceneIds }) => ({
-      id,
-      title,
-      cards: sceneIds
-        .filter((sceneId) => supportedScenes.value.has(sceneId))
-        .map(toSceneCard),
-    }))
-    .filter((group) => group.cards.length > 0);
-});
-
-function groupEnabledCount(group: SceneGroup): number {
-  return group.cards.filter((card) => card.enabled).length;
+function toggle(id: string, checked: boolean | "indeterminate"): void {
+  selected.value = checked === true ? [...selected.value, id] : selected.value.filter((value) => value !== id)
 }
-
-// 每组固定拆成两列（前一半进左列，后一半进右列）：列归属由序号决定，
-// 启停任意卡片只影响自己所在列的高度，其他卡片不会跳列重排；
-// 列内卡片紧贴堆叠，窄窗口两列叠回一列时仍保持原始顺序。
-function splitColumns(cards: SceneCard[]): SceneCard[][] {
-  const headLength = Math.ceil(cards.length / 2);
-  return [cards.slice(0, headLength), cards.slice(headLength)];
+function toggleAll(checked: boolean | "indeterminate"): void {
+  const ids = new Set(visible.value.map(([id]) => id))
+  selected.value =
+    checked === true ? [...new Set([...selected.value, ...ids])] : selected.value.filter((id) => !ids.has(id))
 }
-
-function toggleScene(
-  sceneId: SceneId,
-  enabled: boolean | "indeterminate",
-): void {
-  const updated = { ...props.scenes };
-  if (enabled === true) {
-    updated[sceneId] ??= props.rememberedScenes[sceneId] ?? "";
-  } else {
-    if (updated[sceneId]) emit("rememberScene", sceneId, updated[sceneId]);
-    delete updated[sceneId];
-  }
-  if (openPicker.value === sceneId) openPicker.value = null;
-  emit("update:scenes", updated);
+function bindSelected(): void {
+  emit(
+    "update:scenes",
+    Object.fromEntries(
+      entries.value.map(([id, scene]) => [
+        id,
+        selected.value.includes(id) ? { ...scene, playlist: batchPlaylist.value } : scene,
+      ]),
+    ),
+  )
+  selected.value = []
+  batchPlaylist.value = ""
 }
-
-function setPlaylist(sceneId: SceneId, value: unknown): void {
-  if (typeof value === "string") {
-    emit("update:scenes", { ...props.scenes, [sceneId]: value });
-  }
+function saveScenes(scenes: SceneProfile[]): void {
+  const state = editing.value!
+  const changes = Object.fromEntries(
+    scenes.map((scene) => [state.kind === "edit" ? state.id : crypto.randomUUID(), scene]),
+  )
+  emit("update:scenes", { ...props.scenes, ...changes })
+  search.value = ""
+  editing.value = null
 }
-
-function cardClass(card: SceneCard): string {
-  return cn(
-    "flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg p-3",
-    // 未启用场景退为安静的填充块：底色与无描边表达选中差异，
-    // 不压整卡透明度，说明文字保持可读对比度。
-    card.enabled ? "border bg-card" : "bg-muted/40",
-    props.attempted && card.bindingInvalid && "border-destructive",
-  );
+async function removeScene(id: string): Promise<void> {
+  const index = visible.value.findIndex(([sceneId]) => sceneId === id)
+  const next = visible.value[index + 1] ?? visible.value[index - 1]
+  emit("removeScene", id)
+  selected.value = selected.value.filter((value) => value !== id)
+  await nextTick()
+  document.getElementById(next ? `edit-scene-${next[0]}` : "add-scene-presets")?.focus()
 }
 </script>
 
 <template>
-  <section class="flex flex-col gap-6">
-    <Alert v-if="mode === 'setup' && copy.scenes.defaultHint">
-      <LightbulbIcon />
-      <AlertDescription>{{ copy.scenes.defaultHint }}</AlertDescription>
+  <section class="flex flex-col gap-5">
+    <Alert v-if="!playlists.length" variant="destructive">
+      <TriangleAlertIcon /><AlertDescription>{{ shared.scenes.unavailable }}</AlertDescription>
+      <Button variant="outline" size="sm" @click="emit('openWallpaper')">{{ shared.wallpaper.title }}</Button>
     </Alert>
-
-    <Alert v-if="catalogError" variant="destructive">
-      <TriangleAlertIcon />
-      <AlertDescription>{{ catalogError }}</AlertDescription>
-      <Button variant="outline" size="sm" @click="emit('retryCatalog')">{{
-        copy.common.retry
-      }}</Button>
-    </Alert>
-
-    <Alert v-if="playlists.length === 0" variant="destructive">
-      <TriangleAlertIcon />
-      <AlertDescription>{{ copy.scenes.unavailable }}</AlertDescription>
-      <Button variant="outline" size="sm" @click="emit('openWallpaper')">{{
-        copy.wallpaper.title
-      }}</Button>
-    </Alert>
-
-    <p class="text-sm leading-relaxed text-muted-foreground">
-      {{ copy.scenes.matchExplanation }}
-    </p>
-
-    <Collapsible
-      v-for="group in sceneGroups"
-      :key="group.id"
-      :default-open="true"
-    >
-      <CollapsibleTrigger as-child>
-        <button
-          type="button"
-          class="group flex w-full items-center gap-2 rounded-md px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/30 hover:bg-accent/50"
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2" aria-live="polite">
+        <h2 class="text-base font-semibold">{{ copy.count(entries.length) }}</h2>
+        <Badge v-if="pending" variant="outline">{{ copy.pending(pending) }}</Badge>
+        <span v-else-if="entries.length" class="text-xs text-muted-foreground">{{ copy.allBound }}</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <Button id="add-scene-presets" @click="editing = { kind: 'presets' }"
+          ><LayersIcon data-icon="inline-start" />{{ copy.addPresets }}</Button
         >
-          <ChevronDownIcon
-            class="transition-transform group-data-[state=closed]:-rotate-90"
+        <Button variant="outline" @click="editing = { kind: 'create' }"
+          ><PlusIcon data-icon="inline-start" />{{ copy.create }}</Button
+        >
+      </div>
+    </div>
+    <Empty v-if="!entries.length" class="border py-12">
+      <EmptyHeader
+        ><EmptyMedia variant="icon"><LayersIcon /></EmptyMedia><EmptyTitle>{{ copy.emptyTitle }}</EmptyTitle
+        ><EmptyDescription>{{ copy.emptyHelp }}</EmptyDescription></EmptyHeader
+      >
+    </Empty>
+    <template v-else>
+      <div class="flex items-center gap-3">
+        <Checkbox
+          :aria-label="copy.selectAll"
+          :model-value="allSelected ? true : someSelected ? 'indeterminate' : false"
+          @update:model-value="toggleAll"
+        />
+        <InputGroup class="max-w-sm"
+          ><InputGroupAddon><SearchIcon /></InputGroupAddon
+          ><InputGroupInput v-model="search" :aria-label="copy.search" :placeholder="copy.search"
+        /></InputGroup>
+        <Button v-if="selected.length" variant="ghost" size="sm" @click="selected = []">{{
+          copy.clearSelection
+        }}</Button>
+      </div>
+      <div
+        v-if="selected.length"
+        class="flex flex-wrap items-center gap-3 rounded-lg bg-muted p-3"
+        role="group"
+        :aria-label="copy.batch"
+      >
+        <span class="text-sm font-medium">{{ copy.selected(selected.length) }}</span>
+        <div class="min-w-0 flex-1 basis-44">
+          <PlaylistPicker
+            v-model="batchPlaylist"
+            :locale="locale"
+            :playlists="playlists"
+            :label="copy.batch"
           />
-          <span class="text-base font-semibold">{{ group.title }}</span>
-          <span class="text-sm text-muted-foreground">{{
-            copy.scenes.groupSummary(
-              groupEnabledCount(group),
-              group.cards.length,
-            )
-          }}</span>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <!-- 两列按内容自然高度排布，列内卡片紧贴堆叠，避免行对齐留下的空隙。 -->
-        <div class="flex flex-col gap-3 pt-2 md:flex-row md:items-start">
-          <!-- 卡片本体是复选框的原生 label：点击场景名、说明等非交互区域由浏览器直接转发切换，
-               没有第二层 JS 点击路径；卡内选择器是交互元素，规范豁免不会误触。 -->
-          <div
-            v-for="(column, columnIndex) in splitColumns(group.cards)"
-            :key="columnIndex"
-            class="flex min-w-0 flex-1 flex-col gap-3"
-          >
-            <label
-              v-for="card in column"
-              :key="card.sceneId"
-              :for="`scene-${card.sceneId}`"
-              :class="cardClass(card)"
-              :data-disabled="card.enabled ? undefined : ''"
-            >
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm font-medium">{{ card.label }}</span>
-              <Checkbox
-                :id="`scene-${card.sceneId}`"
-                :aria-label="card.label"
-                :model-value="card.enabled"
-                :disabled="playlists.length === 0"
-                @update:model-value="
-                  (value) => toggleScene(card.sceneId, value)
-                "
-              />
-            </div>
-            <p class="text-sm text-muted-foreground">{{ card.description }}</p>
-
-            <template v-if="card.enabled">
-              <Combobox
-                :open="openPicker === card.sceneId"
-                :model-value="scenes[card.sceneId] ?? ''"
-                :reset-search-term-on-blur="true"
-                @update:open="
-                  (open) => (openPicker = open ? card.sceneId : null)
-                "
-                @update:model-value="
-                  (value) => setPlaylist(card.sceneId, value)
-                "
-              >
-                <ComboboxAnchor as-child>
-                  <ComboboxTrigger as-child>
-                    <Button
-                      variant="outline"
-                      class="w-full justify-between font-normal"
-                      :aria-label="`${card.label}: ${copy.scenes.playlist}`"
-                      :aria-invalid="attempted && card.bindingInvalid"
-                      :aria-describedby="
-                        attempted && card.bindingInvalid
-                          ? `scene-error-${card.sceneId}`
-                          : undefined
-                      "
-                    >
-                      <span class="min-w-0 truncate">{{
-                        scenes[card.sceneId] || copy.scenes.choosePlaylist
-                      }}</span>
-                      <ChevronDownIcon class="opacity-50" />
-                    </Button>
-                  </ComboboxTrigger>
-                </ComboboxAnchor>
-                <ComboboxList>
-                  <ComboboxInput
-                    :placeholder="copy.scenes.searchPlaylist"
-                    :display-value="() => ''"
-                  />
-                  <ComboboxEmpty>{{
-                    copy.scenes.noPlaylistMatch
-                  }}</ComboboxEmpty>
-                  <ComboboxViewport>
-                    <ComboboxItem
-                      v-for="playlist in playlists"
-                      :key="playlist.name"
-                      :value="playlist.name"
-                    >
-                      <span class="min-w-0 truncate" :title="playlist.name">{{ playlist.name }}</span>
-                    </ComboboxItem>
-                  </ComboboxViewport>
-                </ComboboxList>
-              </Combobox>
-              <p v-if="card.bound" class="text-xs text-muted-foreground">
-                {{ copy.scenes.playlistCount(card.bound.item_count) }}
+        </div>
+        <Button :disabled="!batchPlaylist" @click="bindSelected">{{ copy.applyPlaylist }}</Button>
+      </div>
+      <div v-if="visible.length" class="divide-y rounded-lg border px-4" :aria-label="copy.list">
+        <div
+          v-for="[id, scene] in visible"
+          :key="id"
+          class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 py-4 lg:grid-cols-[minmax(0,1fr)_13rem_auto]"
+          role="group"
+          :aria-label="scene.name"
+        >
+          <div class="flex min-w-0 items-start gap-3">
+            <Checkbox
+              class="mt-1"
+              :aria-label="`${copy.selectedScenes}: ${scene.name}`"
+              :model-value="selected.includes(id)"
+              @update:model-value="toggle(id, $event)"
+            />
+            <div class="flex min-w-0 flex-col gap-1.5">
+              <p class="break-words text-sm font-medium">{{ scene.name }}</p>
+              <p class="text-xs leading-relaxed text-muted-foreground">
+                {{ associationSummary(scene.associations, locale) }}
               </p>
-              <FieldError
-                v-if="attempted && card.bindingInvalid"
-                :id="`scene-error-${card.sceneId}`"
-                :errors="[
-                  scenes[card.sceneId]
-                    ? copy.scenes.unavailablePlaylist
-                    : copy.scenes.bindingRequired,
-                ]"
-              />
-            </template>
-            </label>
+            </div>
+          </div>
+          <Field
+            class="col-span-2 row-start-2 gap-1.5 lg:col-span-1 lg:row-start-auto"
+            :data-invalid="(attempted && !playlistNames.has(scene.playlist)) || undefined"
+          >
+            <PlaylistPicker
+              :model-value="scene.playlist"
+              :locale="locale"
+              :playlists="playlists"
+              :label="`${scene.name}: ${shared.scenes.playlist}`"
+              :invalid="attempted && !playlistNames.has(scene.playlist)"
+              :describedby="attempted && !playlistNames.has(scene.playlist) ? `binding-${id}` : undefined"
+              @update:model-value="setPlaylist(id, $event)"
+            />
+            <p v-if="playlistNames.has(scene.playlist)" class="text-xs text-muted-foreground">
+              {{
+                shared.scenes.playlistCount(
+                  playlists.find((playlist) => playlist.name === scene.playlist)!.item_count,
+                )
+              }}
+            </p>
+            <FieldError
+              v-if="attempted && !playlistNames.has(scene.playlist)"
+              :id="`binding-${id}`"
+              :errors="[scene.playlist ? shared.scenes.unavailablePlaylist : shared.scenes.bindingRequired]"
+            />
+          </Field>
+          <div class="col-start-2 row-start-1 flex gap-1 lg:col-start-3">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              :id="`edit-scene-${id}`"
+              :aria-label="`${copy.edit}: ${scene.name}`"
+              :title="copy.edit"
+              @click="editing = { kind: 'edit', id }"
+              ><PencilIcon
+            /></Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              :aria-label="`${copy.remove}: ${scene.name}`"
+              :title="copy.remove"
+              @click="removeScene(id)"
+              ><Trash2Icon
+            /></Button>
           </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
-
+      </div>
+      <Empty v-else
+        ><EmptyHeader
+          ><EmptyTitle>{{ copy.noMatch }}</EmptyTitle></EmptyHeader
+        ><EmptyContent
+          ><Button variant="outline" @click="search = ''">{{ copy.clearSearch }}</Button></EmptyContent
+        ></Empty
+      >
+    </template>
+    <p v-if="entries.length" class="text-xs leading-relaxed text-muted-foreground">
+      {{ shared.scenes.matchExplanation }}
+    </p>
     <FieldError
       v-if="(attempted && !valid) || errors.length"
-      :errors="[
-        ...(attempted && !valid ? [copy.scenes.required] : []),
-        ...errors,
-      ]"
+      :errors="[...(attempted && !valid ? [shared.scenes.required] : []), ...errors]"
+    />
+    <SceneEditor
+      v-if="editing !== null"
+      :locale="locale"
+      :state="editing"
+      :scenes="scenes"
+      :playlists="playlists"
+      @close="editing = null"
+      @save="saveScenes"
     />
   </section>
 </template>

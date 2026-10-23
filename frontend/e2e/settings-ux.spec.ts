@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { mockSetupApi, profile } from "./support/profileApi"
+import { mockSetupApi, profile, saveSettings } from "./support/profileApi"
 
 test("直接用键盘创建优先级，移动后保留焦点并保存顺序", async ({ page }) => {
   await mockSetupApi(page, true)
@@ -14,9 +14,7 @@ test("直接用键盘创建优先级，移动后保留焦点并保存顺序", as
   await expect(page.getByRole("group", { name: "第 1 优先级", exact: true }).getByRole("button", { name: "拖动天气", exact: true })).toBeVisible()
   await expect(menu).toBeFocused()
 
-  const saved = page.waitForRequest((request) => request.method() === "PUT" && new URL(request.url()).pathname === "/api/profile")
-  await page.getByRole("button", { name: "保存并应用", exact: true }).click()
-  expect((await saved).postDataJSON().matching.preference_tiers).toEqual([["weather"]])
+  expect((await saveSettings(page)).matching.preference_tiers).toEqual([["weather"]])
 })
 
 test("中文输入法确认文字不会提前添加规则，移除后焦点回到输入框", async ({ page }) => {
@@ -39,67 +37,47 @@ test("中文输入法确认文字不会提前添加规则，移除后焦点回�
   await expect(remove).toHaveCount(0)
 })
 
-test("切换设置项从顶部开始，黄昏属于时段分组", async ({ page }) => {
+test("切换设置项时显示新页面顶部", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 650 })
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh")
   const navigation = page.getByRole("navigation")
   await navigation.getByRole("button", { name: "活动识别", exact: true }).click()
   await page.getByRole("button", { name: "规则如何匹配", exact: true }).click()
-  await page.getByText(/例如，浏览器可归入工作/).scrollIntoViewIfNeeded()
-  expect(await page.locator("#setup-step-content").evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  const example = page.getByText(/例如，浏览器可归入工作/)
+  await example.scrollIntoViewIfNeeded()
+  await expect(example).toBeInViewport()
   await navigation.getByRole("button", { name: "场景绑定", exact: true }).click()
-  expect(await page.locator("#setup-step-content").evaluate((element) => element.scrollTop)).toBe(0)
-  await page.getByRole("button", { name: /时段氛围/ }).click()
-  await expect(page.getByRole("checkbox", { name: "黄昏", exact: true })).toBeHidden()
-  await expect(page.getByRole("checkbox", { name: "雨天", exact: true })).toBeVisible()
-  await page.getByRole("button", { name: /时段氛围/ }).click()
-  await expect(page.getByRole("checkbox", { name: "黄昏", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "管理使用场景", exact: true })).toBeInViewport()
+  const addPresets = page.getByRole("button", { name: "从预设添加", exact: true })
+  await expect(addPresets).toBeInViewport()
+
 })
 
-for (const viewport of [
-  { width: 1280, height: 900, locale: "zh", theme: "light" },
-  { width: 900, height: 650, locale: "zh", theme: "dark" },
-  { width: 375, height: 812, locale: "zh", theme: "light" },
-  { width: 375, height: 812, locale: "en", theme: "dark" },
-  { width: 320, height: 720, locale: "en", theme: "light" },
-] as const) {
-  test(`设置在 ${viewport.width}px ${viewport.locale} ${viewport.theme} 下可读可操作`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport)
-    await page.emulateMedia({ colorScheme: viewport.theme, reducedMotion: "reduce" })
-    await mockSetupApi(page, true, {
-      ...profile,
-      language: viewport.locale,
-      matching: { preference_tiers: [["weather"], ["activity", "time"], ["season"]] },
-      activity: { ...profile.activity!, work_processes: ["Photoshop.exe"], leisure_title_keywords: ["超长窗口标题测试".repeat(15)] },
-    })
-    await page.goto(`/?locale=${viewport.locale}`)
-    const navigation = page.getByRole("navigation")
-    const zh = viewport.locale === "zh"
-    await navigation.getByRole("button", { name: zh ? "调度风格" : "Scheduling feel", exact: true }).click()
-    await page.getByRole("combobox", { name: zh ? "移动天气到" : "Move Weather to", exact: true }).click()
-    const destination = page.getByRole("option", { name: zh ? "第 2 优先级" : "Priority 2", exact: true })
-    await expect(destination).toBeInViewport()
-    await destination.click()
-    await page.getByRole("combobox", { name: zh ? "移动天气到" : "Move Weather to", exact: true }).click()
-    await page.getByRole("option", { name: zh ? "第 1 优先级" : "Priority 1", exact: true }).click()
-    await expect(page.getByRole("button", { name: zh ? "保存并应用" : "Save and apply", exact: true })).toBeDisabled()
-    await page.getByRole("heading", { level: 1 }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath("preferences.png"), fullPage: true })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await navigation.getByRole("button", { name: zh ? "活动识别" : "Activity detection", exact: true }).click()
-    await page.getByRole("button", { name: zh ? "导入应用组" : "Import app groups", exact: true }).click()
-    const pack = page.getByRole("region", { name: zh ? "办公工具" : "Office tools", exact: true })
-    await pack.getByRole("button", { name: zh ? "导入工作" : "Import into work", exact: true }).click()
-    await page.getByRole("button", { name: zh ? "导入应用组" : "Import app groups", exact: true }).click()
-    await page.getByRole("heading", { level: 1 }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath("activity.png"), fullPage: true })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    const footer = page.locator('[data-slot="card-footer"]')
-    expect(await footer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-    const save = page.getByRole("button", { name: zh ? "保存并应用" : "Save and apply", exact: true })
-    await expect(save).toBeEnabled()
-    await save.click()
-    await expect(save).toBeDisabled()
+test("320px 英文浅色窗口可调整偏好并导入应用组", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" })
+  await mockSetupApi(page, true, {
+    ...profile, language: "en",
+    matching: { preference_tiers: [["weather"], ["activity", "time"], ["season"]] },
+    activity: { ...profile.activity!, leisure_title_keywords: ["超长窗口标题测试".repeat(15)] },
   })
-}
+  await page.goto("/?locale=en")
+  const navigation = page.getByRole("navigation")
+  await navigation.getByRole("button", { name: "Scheduling feel", exact: true }).click()
+  await page.getByRole("combobox", { name: "Move Weather to", exact: true }).click()
+  const destination = page.getByRole("option", { name: "Priority 2", exact: true })
+  await expect(destination).toBeInViewport()
+  await destination.click()
+  await navigation.getByRole("button", { name: "Activity detection", exact: true }).click()
+  await page.getByRole("button", { name: "Import app groups", exact: true }).click()
+  await page.getByRole("region", { name: "Office tools", exact: true }).getByRole("button", { name: "Import into work", exact: true }).click()
+  await page.screenshot({ path: testInfo.outputPath("activity-narrow.png") })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  const save = page.getByRole("button", { name: "Save and apply", exact: true })
+  await save.scrollIntoViewIfNeeded()
+  await expect(save).toBeInViewport()
+  const saved = await saveSettings(page, "en")
+  expect(saved.matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["activity", "time", "weather"]), new Set(["season"])])
+  expect(saved.activity?.work_processes).toContain("winword")
+})

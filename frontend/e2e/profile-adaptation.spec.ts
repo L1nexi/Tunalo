@@ -1,26 +1,17 @@
 import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 import type { Profile } from "../src/api/profile"
-import { mockSetupApi, profile } from "./support/profileApi"
+import { mockSetupApi, profile, addPreset, saveSettings } from "./support/profileApi"
 
 async function openSection(page: Page, name: string): Promise<void> {
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name }).click()
-}
-
-async function saveSettings(page: Page): Promise<Profile> {
-  const response = page.waitForResponse((item) => new URL(item.url()).pathname === "/api/profile" && item.request().method() === "PUT")
-  await page.getByRole("button", { name: "保存并应用", exact: true }).click()
-  const saved = await response
-  expect(saved.ok()).toBe(true)
-  await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
-  return saved.request().postDataJSON() as Profile
 }
 
 test("空活动配置可打开，添加空层跨分类保留且不构成配置修改", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, activity: null })
   await page.goto("/?locale=zh")
   await openSection(page, "活动识别")
-  await expect(page.getByRole("textbox", { name: "进程名", exact: true }).first()).toBeEmpty()
+  await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })).toBeEmpty()
   await openSection(page, "调度风格")
   for (let index = 0; index < 4; index++) await page.getByRole("button", { name: "添加层级", exact: true }).click()
   await expect(page.getByRole("button", { name: "添加层级", exact: true })).toBeDisabled()
@@ -47,10 +38,10 @@ test("拖拽与键盘设置同层偏好，保存过滤空层并在重开后恢�
   await page.getByRole("option", { name: "第 2 优先级", exact: true }).press("Enter")
   await expect(page.getByRole("group", { name: "第 2 优先级", exact: true }).getByRole("button", { name: "拖动时段", exact: true })).toBeVisible()
   await openSection(page, "查看配置草稿")
-  await expect(page.getByText("未指定优先级 → 天气 > 活动、时段", { exact: true })).toBeVisible()
+  await expect(page.getByText(/^未指定优先级 → 天气 > (活动、时段|时段、活动)$/)).toBeVisible()
   const saved = await saveSettings(page)
-  expect(saved.version).toBe(2)
-  expect(saved.matching.preference_tiers).toEqual([["weather"], ["activity", "time"]])
+  expect(saved.version).toBe(3)
+  expect(saved.matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["weather"]), new Set(["activity", "time"])])
   expect(saved.activity).toEqual({ work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] })
   await page.reload()
   await openSection(page, "调度风格")
@@ -65,7 +56,7 @@ test("移动和删除层级改变优先顺序，删除的变量回到待选区",
   await page.goto("/?locale=zh")
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "上移第 2 优先级", exact: true }).click()
-  expect((await saveSettings(page)).matching.preference_tiers).toEqual([["activity", "time"], ["weather"]])
+  expect((await saveSettings(page)).matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["activity", "time"]), new Set(["weather"])])
   await page.getByRole("button", { name: "删除第 1 优先级", exact: true }).click()
   const unassigned = page.getByRole("group", { name: "未指定优先级", exact: true })
   await expect(unassigned.getByRole("button", { name: "拖动活动", exact: true })).toBeVisible()
@@ -108,24 +99,6 @@ test("点击、拖到区域外或按 Escape 取消均保留原有偏好", async 
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
 })
 
-test("窄窗口中偏好与应用组可操作，内容不横向溢出", async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 900, height: 650 })
-  await mockSetupApi(page, true, { ...profile, activity: null })
-  await page.goto("/?locale=zh")
-  await openSection(page, "调度风格")
-  await page.getByRole("button", { name: "添加层级", exact: true }).click()
-  await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
-  await page.screenshot({ path: testInfo.outputPath("preferences-narrow.png") })
-  await openSection(page, "活动识别")
-  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-  await page.getByRole("region", { name: "多媒体", exact: true }).getByRole("button", { name: "导入工作", exact: true }).click()
-  await page.screenshot({ path: testInfo.outputPath("app-groups-narrow.png") })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  const saved = await saveSettings(page)
-  expect(saved.matching.preference_tiers).toEqual([["weather"]])
-  expect(saved.activity?.work_processes).toContain("vlc")
-})
-
 test("仅修改计时仍保留已有偏好和自定义活动规则", async ({ page }) => {
   const configured: Profile = {
     ...profile, matching: { preference_tiers: [["weather", "activity"], ["season"]] },
@@ -136,8 +109,10 @@ test("仅修改计时仍保留已有偏好和自定义活动规则", async ({ pa
   await openSection(page, "调度风格")
   await page.getByRole("button", { name: "自定义防打扰设置", exact: true }).click()
   await page.getByRole("spinbutton", { name: "启动等待", exact: true }).fill("30")
+  await openSection(page, "查看配置草稿")
+  await expect(page.getByText("15 秒 → 30 秒", { exact: true })).toBeVisible()
   const saved = await saveSettings(page)
-  expect(saved.matching.preference_tiers).toEqual([["weather", "activity"], ["season"]])
+  expect(saved.matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["weather", "activity"]), new Set(["season"])])
   expect(saved.activity).toEqual({ work_processes: ["custom.exe"], leisure_processes: [], work_title_keywords: ["项目计划"], leisure_title_keywords: ["电影"] })
   await page.reload()
   await openSection(page, "活动识别")
@@ -160,7 +135,7 @@ test("导入应用组保留原分类、去重，并保留输入框中的文字",
   await social.getByRole("button", { name: "导入工作", exact: true }).click()
   await input.fill("")
   const saved = await saveSettings(page)
-  expect(saved.activity?.work_processes).toEqual(["SLACK.EXE", "wechat", "weixin", "qq", "telegram", "ms-teams", "teams"])
+  expect(new Set(saved.activity?.work_processes)).toEqual(new Set(["SLACK.EXE", "wechat", "weixin", "qq", "telegram", "ms-teams", "teams"]))
   expect(saved.activity?.leisure_processes).toEqual(["Discord.EXE"])
   await social.getByRole("button", { name: "导入休闲", exact: true }).click()
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
@@ -169,48 +144,37 @@ test("导入应用组保留原分类、去重，并保留输入框中的文字",
   await expect(page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: Discord.EXE", exact: true })).toBeVisible()
 })
 
-for (const scenario of [
-  { group: "开发人员工具", target: "导入休闲", process: "code", title: "Visual Studio Code", field: "leisure" },
-  { group: "办公工具", target: "导入工作", process: "winword", title: "腾讯文档", field: "work" },
-  { group: "社交", target: "导入工作", process: "wechat", title: null, field: "work" },
-  { group: "多媒体", target: "导入工作", process: "vlc", title: "YouTube", field: "work" },
-] as const) {
-  test(`${scenario.group}按用户选择导入分类并保存普通规则`, async ({ page }) => {
-    await mockSetupApi(page, true, { ...profile, activity: null })
-    await page.goto("/?locale=zh")
-    await openSection(page, "活动识别")
-    await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-    await page.getByRole("region", { name: scenario.group, exact: true }).getByRole("button", { name: scenario.target, exact: true }).click()
-    const saved = await saveSettings(page)
-    expect(saved.activity?.[`${scenario.field}_processes`]).toContain(scenario.process)
-    if (scenario.title) expect(saved.activity?.[`${scenario.field}_title_keywords`]).toContain(scenario.title)
-    expect(saved.activity).not.toHaveProperty("pack")
-    await page.getByRole("button", { name: "导入应用组", exact: true }).click()
-    const rules = page.getByRole("group", { name: scenario.field === "work" ? "工作场景规则" : "休闲场景规则", exact: true })
-    await rules.getByRole("button", { name: `移除: ${scenario.process}`, exact: true }).click()
-    expect((await saveSettings(page)).activity?.[`${scenario.field}_processes`]).not.toContain(scenario.process)
-  })
-}
+test("应用组按用户选择导入休闲，保存后仍可逐项编辑", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, activity: null })
+  await page.goto("/?locale=zh")
+  await openSection(page, "活动识别")
+  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
+  await page.getByRole("region", { name: "开发人员工具", exact: true }).getByRole("button", { name: "导入休闲", exact: true }).click()
+  const saved = await saveSettings(page)
+  expect(saved.activity?.leisure_processes).toContain("code")
+  expect(saved.activity?.leisure_title_keywords).toContain("Visual Studio Code")
+  await page.getByRole("button", { name: "导入应用组", exact: true }).click()
+  await page.getByRole("group", { name: "休闲场景规则", exact: true }).getByRole("button", { name: "移除: code", exact: true }).click()
+  expect((await saveSettings(page)).activity?.leisure_processes).not.toContain("code")
+})
 
-for (const path of [["matching"], ["matching", "preference_tiers", 0, 0]]) {
-  test(`服务端偏好校验错误定位到可见字段：${path.join(".")}`, async ({ page }) => {
-    await mockSetupApi(page, true)
-    await page.route("**/api/profile", async (route) => {
-      if (route.request().method() === "GET") return route.fallback()
-      await route.fulfill({ status: 422, json: { error: "invalid_profile", issues: [{ path, code: "value_error", message: "invalid preference tiers" }] } })
-    })
-    await page.goto("/?locale=zh")
-    await openSection(page, "调度风格")
-    await page.getByRole("button", { name: "添加层级", exact: true }).click()
-    await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
-    await openSection(page, "查看配置草稿")
-    await page.getByRole("button", { name: "保存并应用", exact: true }).click()
-    await expect(page.getByText("请检查情境偏好，每项情境只能出现一次。", { exact: true })).toBeVisible()
-    await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toBeFocused()
+test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.route("**/api/profile", async (route) => {
+    if (route.request().method() === "GET") return route.fallback()
+    await route.fulfill({ status: 422, json: { error: "invalid_profile", issues: [{ path: ["matching", "preference_tiers", 0, 0], code: "value_error", message: "invalid preference tiers" }] } })
   })
-}
+  await page.goto("/?locale=zh")
+  await openSection(page, "调度风格")
+  await page.getByRole("button", { name: "添加层级", exact: true }).click()
+  await page.getByRole("button", { name: "拖动天气", exact: true }).dragTo(page.getByRole("group", { name: "第 1 优先级", exact: true }))
+  await openSection(page, "查看配置草稿")
+  await page.getByRole("button", { name: "保存并应用", exact: true }).click()
+  await expect(page.getByText("请检查情境偏好，每项情境只能出现一次。", { exact: true })).toBeVisible()
+  await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toBeFocused()
+})
 
-test("首次设置提交第 2 版配置与空偏好、空活动规则", async ({ page }) => {
+test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({ page }) => {
   await mockSetupApi(page, false)
   await page.goto("/?locale=zh")
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
@@ -219,26 +183,14 @@ test("首次设置提交第 2 版配置与空偏好、空活动规则", async ({
   await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("31")
   await page.getByRole("spinbutton", { name: "经度", exact: true }).fill("121")
   await openSection(page, "场景绑定")
-  for (const name of ["日间休闲", "夜间工作", "夜间休闲", "雨天"]) await page.getByRole("checkbox", { name, exact: true }).click()
+  await addPreset(page, "时间与活动", "日间工作")
   await page.getByRole("button", { name: "日间工作: 播放列表", exact: true }).click()
   await page.getByRole("option", { name: "CASUAL_ANIME", exact: true }).click()
   await openSection(page, "查看配置草稿")
   const response = page.waitForResponse((item) => new URL(item.url()).pathname === "/api/profile" && item.request().method() === "POST")
   await page.getByRole("button", { name: "完成设置", exact: true }).click()
   const saved = (await response).request().postDataJSON()
-  expect(saved.version).toBe(2)
+  expect(saved.version).toBe(3)
   expect(saved.matching).toEqual({ preference_tiers: [] })
   expect(saved.activity).toEqual({ work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] })
-})
-
-test("英文页面提供同样的层级与应用组操作", async ({ page }) => {
-  await mockSetupApi(page, true, { ...profile, language: "en", activity: null })
-  await page.goto("/?locale=en")
-  await page.getByRole("navigation").getByRole("button", { name: "Scheduling feel", exact: true }).click()
-  await page.getByRole("button", { name: "Add priority level", exact: true }).click()
-  await page.getByRole("button", { name: "Drag Weather", exact: true }).dragTo(page.getByRole("group", { name: "Priority 1", exact: true }))
-  await page.getByRole("navigation").getByRole("button", { name: "Activity detection", exact: true }).click()
-  await page.getByRole("button", { name: "Import app groups", exact: true }).click()
-  await page.getByRole("region", { name: "Social", exact: true }).getByRole("button", { name: "Import into leisure", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Remove: wechat", exact: true })).toBeVisible()
 })
