@@ -12,7 +12,7 @@ from PIL import Image
 
 def _run_scan(directory: Path, suite: str, mode: str | None = None) -> tuple[Path, dict[str, Any]]:
     """运行公开扫描命令；命令失败时抛出 subprocess.CalledProcessError。"""
-    script = Path(__file__).resolve().parents[1] / "tools/tuning/scan.py"
+    script = Path(__file__).resolve().parents[2] / "tools/tuning/scan.py"
     command = [sys.executable, str(script), "--suite", suite, "--out", str(directory)]
     if mode is not None:
         command.extend(["--mode", mode])

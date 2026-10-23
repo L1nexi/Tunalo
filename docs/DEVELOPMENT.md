@@ -34,6 +34,13 @@ npm run dev
 .\.venv\Scripts\python.exe -m ruff format . --check
 ```
 
+后端测试按源码模块分在 `tests/app/`、`tests/configurations/`、`tests/core/`、`tests/server/`、`tests/tools/` 和 `tests/ui/`，共用配置保留在 `tests/conftest.py`。可按目录或文件运行：
+
+```powershell
+.\scripts\test.ps1 tests/core -q
+.\scripts\test.ps1 tests/core/test_selection_model.py -q
+```
+
 在 `frontend/` 中运行：
 
 ```powershell
@@ -65,7 +72,7 @@ npm run build-only
 
 正常窗口默认通过 pywebview 桥接，在挂载前读取 `data/appearance.json`。该文件独立于 Profile，保存 `auto`（跟随系统）、`light`（浅色）或 `dark`（深色）；首次使用时跟随系统。切换后立即生效并依次保存，窗口关闭前等待全部保存完成。外观变化不会将 Profile 草稿标记为已修改，放弃草稿也会保留外观选择。读取失败时暂用系统外观；保存失败时显示错误提示，用户可重新选择外观。
 
-外观存储和聚焦行为分别由 [test_appearance.py](../tests/test_appearance.py)、[test_settings_window.py](../tests/test_settings_window.py) 验证；页面交互由 [appearance.spec.ts](../frontend/e2e/appearance.spec.ts) 和 [workspace.spec.ts](../frontend/e2e/workspace.spec.ts) 覆盖。测试只替代原生桥接、操作系统和本地接口等外部交互，使用页面操作和公共接口验证结果。
+外观存储和聚焦行为分别由 [test_appearance.py](../tests/ui/test_appearance.py)、[test_settings_window.py](../tests/ui/test_settings_window.py) 验证；页面交互由 [appearance.spec.ts](../frontend/e2e/appearance.spec.ts) 和 [workspace.spec.ts](../frontend/e2e/workspace.spec.ts) 覆盖。测试只替代原生桥接、操作系统和本地接口等外部交互，使用页面操作和公共接口验证结果。
 
 ## 场景选择模型
 
@@ -158,7 +165,7 @@ $$
 
 普通轮换与场景响应统一为 `APPLY`，不再根据候选集合是否相等区分动作，也不再超时绕过空闲。无候选、时序未到或防打扰阻挡统一返回 `NOOP`；具体原因由 Selection 和两份评估表达。执行时仍由 Actuator 按最新推荐分布抽取场景并应用播单。只有成功执行才推进成功时间和 Q；失败、阻挡和无候选均保留原参照。手动、恢复和暂停沿用原有特殊路径。配置替换保留成功时间、启动等待截止时间和缓存，参考尺度按新配置重算。
 
-Tick History 的 `controller.timing` 记录距离、参考尺度、阈值、已过时间和剩余等待，`controller.disturbance` 记录防打扰条件。成功事件统一为 `scenes_applied`。[时序行为测试](../tests/test_runtime_behavior.py) 从 Controller.decide_action 观察结果。
+Tick History 的 `controller.timing` 记录距离、参考尺度、阈值、已过时间和剩余等待，`controller.disturbance` 记录防打扰条件。成功事件统一为 `scenes_applied`。[时序行为测试](../tests/core/test_runtime_behavior.py) 从 Controller.decide_action 观察结果。
 
 ### 天气共同推导
 
@@ -184,13 +191,13 @@ Selector 的场景输入为 `Mapping[str, Association]`；共享概率入口使�
 
 | 行为证据                                                          | 入口                                                          |
 | ----------------------------------------------------------------- | ------------------------------------------------------------- |
-| 无偏好分布、简单与复合场景、显式预算、级联、排除、尽力选择与边界  | [test_selection_model.py](../tests/test_selection_model.py)   |
-| 完整支持轴、有限衰减终点、周期最短距离和峰值平台                  | [test_math_utils.py](../tests/test_math_utils.py)             |
-| 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系              | [test_semantic_model.py](../tests/test_semantic_model.py)     |
-| 偏好编译、播单名称与大小无关、自定义活动规则及保存回填            | [test_profile_compiler.py](../tests/test_profile_compiler.py) |
-| 分布变化时序、启动等待、防打扰和配置替换后的分布与计时保留        | [test_runtime_behavior.py](../tests/test_runtime_behavior.py) |
-| Profile 初始化、首次创建及应用时机                                | [test_profile_manager.py](../tests/test_profile_manager.py)   |
-| 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/test_tuning.py)                     |
+| 无偏好分布、简单与复合场景、显式预算、级联、排除、尽力选择与边界  | [test_selection_model.py](../tests/core/test_selection_model.py)   |
+| 完整支持轴、有限衰减终点、周期最短距离和峰值平台                  | [test_math_utils.py](../tests/core/test_math_utils.py)             |
+| 活动窗口、季节平台、真实昼夜锚点及天气支持与反向关系              | [test_semantic_model.py](../tests/core/test_semantic_model.py)     |
+| 偏好编译、播单名称与大小无关、自定义活动规则及保存回填            | [test_profile_compiler.py](../tests/configurations/test_profile_compiler.py) |
+| 分布变化时序、启动等待、防打扰和配置替换后的分布与计时保留        | [test_runtime_behavior.py](../tests/core/test_runtime_behavior.py) |
+| Profile 初始化、首次创建及应用时机                                | [test_profile_manager.py](../tests/core/test_profile_manager.py)   |
+| 单语义项 suite 的无偏好分布、二项复合竞争与排除、固定轴的标准组合 | [test_tuning.py](../tests/tools/test_tuning.py)                     |
 
 确定性测试与曲线验证不能代替真实 Windows、天气网络和 Wallpaper Engine 验收，也不代表长期主观体验校准完成。设置界面的创建、保存、回填和交互由浏览器测试覆盖；后续事项见 [TODO](TODO.md)。
 
