@@ -1,5 +1,5 @@
 import type { ContextVariable, Locale, SceneAssociations } from "@/api/profile";
-import { SCENE_ITEMS, SCENE_VARIABLES } from "../scenes";
+import { SCENE_ITEMS, SCENE_VARIABLES } from "@/setup/scenes/associations";
 import { CONTEXT_VARIABLE_LABELS } from "./context-labels";
 import { PREFERENCES_COPY } from "./preferences";
 import { SCENE_LABELS } from "./scene-labels";

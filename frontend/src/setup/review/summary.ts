@@ -1,7 +1,7 @@
 import type { Locale } from "@/api/profile"
 import { COPY, DISTURBANCE_LABELS, preferenceSummary } from "../copy"
-import { detectDisturbancePreset } from "../model"
-import type { ProfileDraft } from "../model"
+import { detectDisturbancePreset } from "@/setup/profile/model"
+import type { ProfileDraft } from "@/setup/profile/model"
 
 export type ReviewWeatherState = "untested" | "valid" | "invalid" | "quota"
 

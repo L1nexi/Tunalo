@@ -1,7 +1,7 @@
 import type { Locale } from "@/api/profile"
 import { COPY, associationSummary, preferenceSummary } from "../copy"
-import type { StepId } from "../flow"
-import type { ProfileDraft } from "../model"
+import type { StepId } from "@/setup/workflow/steps"
+import type { ProfileDraft } from "@/setup/profile/model"
 import { reviewLocation } from "./summary"
 
 interface ProfileChange {

@@ -1,5 +1,5 @@
 import type { Locale } from "@/api/profile";
-import type { DisturbancePreset } from "@/setup/model";
+import type { DisturbancePreset } from "@/setup/profile/model";
 
 const zh = {
   title: "调整调度风格",

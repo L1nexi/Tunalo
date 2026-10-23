@@ -1,0 +1,157 @@
+<script setup lang="ts">
+import { CheckIcon, CircleHelpIcon, SlidersHorizontalIcon } from "@lucide/vue"
+import { computed } from "vue"
+
+import type { Locale } from "@/api/profile"
+import PreferenceTiersEditor from "./PreferenceTiersEditor.vue"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { COPY, DISTURBANCE_LABELS, ZH_TIMING_HINTS } from "@/setup/copy"
+import { detectDisturbancePreset, DISTURBANCE_PRESETS, isNonNegativeInteger, parseNumberInput } from "@/setup/profile/model"
+import type { DisturbancePreset, PreferenceLayer, ProfileDraft } from "@/setup/profile/model"
+
+type Disturbance = ProfileDraft["disturbance"]
+type DisturbanceKey = keyof Disturbance
+
+const props = defineProps<{
+  locale: Locale
+  layers: PreferenceLayer[]
+  disturbance: Disturbance
+  timingOpen: boolean
+  errors: Record<string, string[]>
+}>()
+
+const emit = defineEmits<{
+  "update:layers": [value: PreferenceLayer[]]
+  addLayer: []
+  "update:disturbance": [value: Disturbance]
+  "update:timingOpen": [value: boolean]
+}>()
+
+const copy = computed(() => COPY[props.locale])
+const preset = computed(() => detectDisturbancePreset({ disturbance: props.disturbance }))
+const timingFields = computed(() => [
+  ["startup_grace_seconds", copy.value.preferences.startupGrace, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.startupGrace : ""],
+  ["idle_before_switch_seconds", copy.value.preferences.idleBeforeSwitch, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.idleBeforeSwitch : ""],
+  ["cycle_interval_minutes", copy.value.preferences.cycleInterval, copy.value.preferences.minutes, props.locale === "zh" ? ZH_TIMING_HINTS.cycleInterval : ""],
+] as const)
+
+function messages(...fields: string[]): string[] {
+  return fields.flatMap((field) => props.errors[field] ?? [])
+}
+
+function timingErrors(field: DisturbanceKey): string[] {
+  return [
+    ...(!isNonNegativeInteger(props.disturbance[field]) ? [copy.value.preferences.nonNegative] : []),
+    ...messages("disturbance", `disturbance.${field}`),
+  ]
+}
+
+function setPreset(value: unknown): void {
+  if (typeof value !== "string" || !(value in DISTURBANCE_PRESETS)) return
+  emit("update:disturbance", { ...DISTURBANCE_PRESETS[value as DisturbancePreset] })
+}
+
+function setTiming(field: DisturbanceKey, value: string | number): void {
+  emit("update:disturbance", { ...props.disturbance, [field]: parseNumberInput(value) })
+}
+</script>
+
+<template>
+  <section class="flex flex-col gap-8">
+    <PreferenceTiersEditor
+      :locale="locale" :layers="layers"
+      :errors="messages('matching', 'matching.preference_tiers')"
+      @update:layers="emit('update:layers', $event)" @add-layer="emit('addLayer')"
+    />
+
+    <FieldSet>
+      <FieldLegend>{{ copy.preferences.disturbanceTitle }}</FieldLegend>
+      <FieldDescription>{{ copy.preferences.disturbanceDescription }}</FieldDescription>
+      <Select :model-value="preset === 'custom' ? undefined : preset" @update:model-value="setPreset">
+        <SelectTrigger class="w-full lg:hidden" :aria-label="copy.preferences.disturbanceTitle">
+          <SelectValue :placeholder="copy.common.custom" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem v-for="choice in (Object.keys(DISTURBANCE_PRESETS) as DisturbancePreset[])" :key="choice" :value="choice">{{ DISTURBANCE_LABELS[locale][choice] }}</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        :spacing="2"
+        class="hidden w-full lg:flex"
+        :model-value="preset === 'custom' ? undefined : preset"
+        @update:model-value="setPreset"
+      >
+        <ToggleGroupItem
+          v-for="choice in (Object.keys(DISTURBANCE_PRESETS) as DisturbancePreset[])"
+          :key="choice"
+          :value="choice"
+          class="min-w-24 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
+        >
+          <CheckIcon v-if="preset === choice" class="text-primary" data-icon="inline-start" />
+          {{ DISTURBANCE_LABELS[locale][choice] }}
+        </ToggleGroupItem>
+      </ToggleGroup>
+      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.timingSummary(disturbance.startup_grace_seconds, disturbance.idle_before_switch_seconds, disturbance.cycle_interval_minutes) }}</p>
+      <Badge v-if="preset === 'custom'" variant="outline">{{ copy.common.custom }}</Badge>
+    </FieldSet>
+
+    <Collapsible :open="timingOpen" @update:open="(value: boolean) => emit('update:timingOpen', value)">
+      <CollapsibleTrigger as-child>
+        <Button variant="ghost">
+          <SlidersHorizontalIcon data-icon="inline-start" />
+          {{ copy.preferences.fineTune }}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent class="pt-4">
+        <FieldGroup>
+          <TooltipProvider>
+            <div class="grid gap-5 sm:grid-cols-2">
+            <Field
+              v-for="field in timingFields"
+              :key="field[0]"
+              :data-invalid="timingErrors(field[0]).length > 0"
+            >
+              <div class="flex items-center gap-1">
+                <FieldLabel :for="field[0]">{{ field[1] }}</FieldLabel>
+                <Tooltip v-if="field[3]">
+                  <TooltipTrigger as-child>
+                    <Button type="button" variant="ghost" size="icon-xs" :aria-label="`${field[1]}说明`">
+                      <CircleHelpIcon />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" class="max-w-72 leading-relaxed">{{ field[3] }}</TooltipContent>
+                </Tooltip>
+              </div>
+              <InputGroup class="max-w-44">
+                <InputGroupInput
+                  :id="field[0]"
+                  :model-value="disturbance[field[0]] ?? ''"
+                  type="number"
+                  min="0"
+                  step="1"
+                  :aria-invalid="timingErrors(field[0]).length > 0"
+                  :aria-describedby="timingErrors(field[0]).length ? `timing-error-${field[0]}` : undefined"
+                  @update:model-value="(value: string | number) => setTiming(field[0], value)"
+                />
+                <InputGroupAddon align="inline-end">{{ field[2] }}</InputGroupAddon>
+              </InputGroup>
+              <FieldError v-if="timingErrors(field[0]).length" :id="`timing-error-${field[0]}`" :errors="timingErrors(field[0])" />
+            </Field>
+            </div>
+          </TooltipProvider>
+        </FieldGroup>
+      </CollapsibleContent>
+    </Collapsible>
+  </section>
+</template>

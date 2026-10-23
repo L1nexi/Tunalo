@@ -4,13 +4,12 @@ import { onMounted, ref } from "vue"
 
 import type { Locale, Profile } from "@/api/profile"
 import { ApiError, getProfile } from "@/api/profile"
-import SetupWorkspace from "@/components/setup/SetupWorkspace.vue"
+import { COPY, SetupWorkspace } from "@/setup"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Toaster } from "@/components/ui/sonner"
-import { COPY } from "@/setup/copy"
 
 type AppState = "loading" | "ready" | "unavailable"
 

@@ -95,13 +95,13 @@ Profile 使用版本 3，`scenes` 按稳定标识保存场景名称、分组语�
 
 天气、活动、时段显式同层时，变量温度需满足 `T_V < 1/ln(2)`，使雨显著度为 2、白天和工作各为 1、候选仅雨天与日间工作时，雨天概率更高。当前温度下约为 50.5284%／49.4716%，只是指定参数的算例；后续校准不要求保持这组精确数值。当前降雨标尺中，大雨为 2、暴雨为 4。
 
-配置定义见 [runtime_models.py](../configurations/runtime_models.py)。预设由前端的 [scenePresets.ts](../frontend/src/setup/scenePresets.ts) 管理，按单变量和双变量编组。单变量包含季节四项、时间四项、活动两项、天气四项；双变量包含日间／夜间与工作／休闲的四种组合，以及冬日晴天、冬日雨雪、夏日晴朗、夏日雨天。添加预设会创建独立场景，之后可以修改名称和关联；后端编译 Profile 保存的场景定义。
+配置定义见 [runtime_models.py](../configurations/runtime_models.py)。预设由前端的 [presets.ts](../frontend/src/setup/scenes/presets.ts) 管理，按单变量和双变量编组。单变量包含季节四项、时间四项、活动两项、天气四项；双变量包含日间／夜间与工作／休闲的四种组合，以及冬日晴天、冬日雨雪、夏日晴朗、夏日雨天。添加预设会创建独立场景，之后可以修改名称和关联；后端编译 Profile 保存的场景定义。
 
 场景关联由 `Association(*items)` 表示，构造时按上下文变量归组、去重，支持同一变量内的多个语义项。它提供只读 Mapping 接口：`association[variable]` 读取备选，`len(association)` 返回关联变量数。`SceneConfig.associations` 接收该对象或按变量分组的非空映射；每组非空，语义项须属于对应变量。配置导出保留分组，JSON 形式如 `{"season": ["winter"], "weather": ["rain", "snow"]}`，调参报告采用相同结构。
 
 Selector 直接遍历 Association 各组取最大显著度，用于正向召回、负向排除和评分；同组备选全部明显违和才会排除场景。评分按各组最大值求和，再除以关联变量数的平方根；同组备选作为一个场景参与概率分配。每变量仅关联一项时还原原模型，现有预设沿用相同选择行为。公式见 [ADR-0003](adr/0003-scene-probability-budgets-and-preference-cascade.md)。
 
-应用组规则集中在 [activityRulePacks.ts](../frontend/src/setup/activityRulePacks.ts)，导入后成为普通用户规则。导入按匹配语义去重，冲突时保留用户原分类并跳过该项。天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
+应用组规则集中在 [rulePacks.ts](../frontend/src/setup/activity/rulePacks.ts)，导入后成为普通用户规则。导入按匹配语义去重，冲突时保留用户原分类并跳过该项。天气正向强度和主分类回退集中在 [WeatherPolicy](../core/policies/weather.py)；解释天气字段时参考 [OWM 开发参考](archived/reference/OPENWEATHER_CURRENT_API.md)。
 
 ### 运行时契约与历史记录
 

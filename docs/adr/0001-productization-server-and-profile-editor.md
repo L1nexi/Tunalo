@@ -256,7 +256,7 @@ integrations/
 - Profile 创建失败后的测试不应通过直接调用 `ProfileStore.load()` 旁路验证；应继续通过 `GET /api/profile` 观察资源仍不存在并得到 `404`。
 - “天气未变化不重新校验”的测试不应只用 `pytest.fail` 证明某个内部函数没有被调用。更强的公开行为是：让天气提供方不可用，提交一个只修改 Playlist 等非天气字段的完整 `PUT /api/profile`，仍应成功。
 - `validationIssueField()`、`validationIssueStep()` 一类纯函数测试只能作为辅助，不能证明 GUI 会跳到正确步骤并在正确控件展示错误；公开行为稳定后应优先写组件级交互测试。
-- `parseNumberInput()`、`isNonNegativeInteger()` 只有在 `frontend/src/setup/model.ts` 被明确视为稳定公开接缝时才值得单测，否则由表单行为覆盖。
+- `parseNumberInput()`、`isNonNegativeInteger()` 只有在 `frontend/src/setup/profile/model/timing.ts` 被明确视为稳定公开接缝时才值得单测，否则由表单行为覆盖。
 - 设置窗口至少需要覆盖首次创建、活动进程聚焦、退出后重建，以及聚焦失败策略。
 
 ## 实施顺序
