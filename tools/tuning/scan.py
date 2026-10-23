@@ -36,7 +36,8 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_project_root = Path(__file__).resolve().parents[2]
+sys.path[:0] = [str(_project_root / "src"), str(_project_root)]
 
 from tools.tuning.harness import PAIR_SCENES, SceneSuite, suite_associations, synthetic_config
 from tools.tuning.heatmaps import MODE_AXES, HeatmapSampling, evaluate_cases, fixed_axis_points, render_mode_figures

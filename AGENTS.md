@@ -8,12 +8,12 @@
 
 本项目是面向 Wallpaper Engine 的调度增强用 Windows-only 桌面应用，含核心调度模块、系统托盘入口、本地 API 服务和前端界面。
 
-- `app/`：提供应用入口、初始化、日志和版本记录。
-- `configurations/` 提供用户配置、配置编译、配置持久化和 运行时配置
-- `core/` 提供调度器核心模块。
-- `server/` 提供本地 API 服务。
-- `integrations/` 含 OpenWeatherMap、IP 查询的外部集成
-- `ui/` 提供系统托盘包装、前端 WebView 窗口，附带国际化、图标资源和历史导出。
+- `src/app/`：提供应用入口、初始化、日志和版本记录。
+- `src/configurations/` 提供用户配置、配置编译、配置持久化和 运行时配置
+- `src/core/` 提供调度器核心模块。
+- `src/server/` 提供本地 API 服务。
+- `src/integrations/` 含 OpenWeatherMap、IP 查询的外部集成
+- `src/ui/` 提供系统托盘包装、前端 WebView 窗口，附带国际化、图标资源和历史导出。
 - `frontend/` 前端页面，现提供初始配置和运行时设置。
 - `config/` 是本机真实运行配置目录，其中的 `profile.json`，可用于真实运行。
 - `tests/` 放 pytest 测试。
@@ -29,11 +29,11 @@ Execute:  Actuator.act()               # 根据 Decision 执行 Controller 决�
 Commit:   SchedulerState.commit()      # 提交当前 tick。
 ```
 
-`Engine.schedule()` 提供完整的调度流程：sense、select、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
+`Engine.schedule()` 提供完整的调度流程：sense、select、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`src/app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
 
 ## 关键模块
 
-以下对部分关键模块的职责做简要说明。
+以下对 src 目录的关键模块的职责做简要说明。
 
 ### configurations/
 
@@ -105,7 +105,7 @@ python main.py # 运行 Tunalo
 pytest 配置以 `pytest.ini` 为准。测试命令须通过 `.\scripts\test.ps1` 运行。该脚本对 pytest 模块进行包装。它为每次运行分配独立唯一目录以支持多 `pytest` 并行测试，并在测试完毕后自动清理残留。使用方法与 pytest 相同。
 
 ```shell
-.\scripts\test.ps1 tests/test_foo.py -q # 运行单个测试文件
+.\scripts\test.ps1 tests/core/test_selection_model.py -q # 运行单个测试文件
 .\scripts\test.ps1 -q # 运行所有测试
 ```
 

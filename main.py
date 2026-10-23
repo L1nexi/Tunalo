@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-# DPI awareness — must be set before any window/UI object.
-try:
-    import ctypes
+import sys
+from pathlib import Path
 
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception:
-    pass
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from app.main import main
+from src.main import main
 
 if __name__ == "__main__":
     main()

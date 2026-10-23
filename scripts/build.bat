@@ -39,6 +39,7 @@ if exist dist rmdir /s /q dist
 echo [4/5] Running PyInstaller...
 "%PYTHON%" -m PyInstaller --noconsole --onefile --name "Tunalo" ^
     --icon "%CD%\packaging\AppIcon.ico" ^
+    --paths "%CD%\src" ^
     --add-data "%CD%\%FRONTEND_DIST_DIR%;%FRONTEND_DIST_DIR%" ^
     --add-data "%CD%\packaging\AppIcon.ico;." ^
     --add-data "%CD%\packaging\PausedIcon.ico;." ^
