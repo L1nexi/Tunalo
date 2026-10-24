@@ -23,6 +23,7 @@
 | ------------------------ | ------------------------------------------------ |
 | `DEVELOPMENT.md`         | 本地运行、检查、打包与实现入口。                 |
 | `PRODUCT_POSITIONING.md` | 长期产品定位、目标用户与开发阶段的体验判断准则。 |
+| [brainstorming.md](brainstorming.md) | 功能构思的判断原则与常见失误。 |
 
 ## Active Specs
 
