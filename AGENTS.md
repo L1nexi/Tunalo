@@ -4,6 +4,13 @@
 
 本项目大版本号为 0，即允许破坏性变更。若旧接口或旧心智影响新功能实现，以经过确认的目标和设计为主。旧产物是经过认真设计后的成果，在与新功能不冲突时应作为参考。
 
+## 协作流程
+
+1. 任务开始时理解用户需求，读取 [工作交接](agent/workspace/handoff.md)，并按 [文档索引](docs/index.md) 查阅相关规格和 ADR。以用户需求优先。
+2. 写代码前，向用户声明改动面和关键接口：涉及哪些模块、新增或调整哪些文件、接口签名及调用关系如何变化。
+3. 实施中范围或接口发生变化时，先更新改动声明和相关设计，再继续实现。文档按索引中的 [文档分工](docs/index.md#文档分工) 同步。
+4. 阶段结束、暂停或交接时，按 [Agent 工作区约定](agent/README.md) 更新任务状态和后续事项。
+
 ## 项目结构与模块组织
 
 本项目是面向 Wallpaper Engine 的调度增强用 Windows-only 桌面应用，含核心调度模块、系统托盘入口、本地 API 服务和前端界面。
@@ -18,6 +25,7 @@
 - `config/` 是本机真实运行配置目录，其中的 `profile.json`，可用于真实运行。
 - `tests/` 放 pytest 测试。
 - `docs/` 按规格生命周期管理，索引见 `docs/index.md`。
+- `agent/` 保存任务同步和交接信息，入口见 `agent/README.md`。
 
 ### 核心架构概述与阅读入口（`engine.schedule()`）
 
@@ -29,7 +37,7 @@ Execute:  Actuator.act()               # 根据 Decision 执行 Controller 决�
 Commit:   SchedulerState.commit()      # 提交当前 tick。
 ```
 
-`Engine.schedule()` 提供完整的调度流程：sense、select、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`src/app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
+`Engine.schedule()` 提供完整的调度流程：sense、select、decide、execute，并返回 `ScheduleResult`。`ProfileManager` 负责 Profile 加载、编译、持久化和应用队列；`src/app/main.py` 创建 `ProfileManager`，将同一实例交给 Bottle API、首次启动流程和 `Scheduler`。`Scheduler` 依赖注入的 `ProfileManager`，同时持有活动 `engine`，并编排生命周期、tick、暂停恢复、keep_alive、状态提交和 tick listener 通知。Profile 更新由 `ProfileManager` 入队，并且只由调度线程在两个 tick 之间应用到 Engine。`Actuator` 是纯执行器：接收 `Decision` 做 target selection + CLI 调用。
 
 ## 关键模块
 
@@ -72,7 +80,7 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 - `actuator.py`：将高层决策 Decision 转换为实际 WE CLI 调用
 - `executor.py`： WE CLI 封装，内置 keep_alive 保活
 - `engine.py`：持有上述子模块，编排为完整的单次调度流水线。提供原子化配置变更接口，提供 WE 保活的便利方法。
-- `scheduler.py`：持有 `Engine` 、 `ProfileManager` 和 `SchedulerState`。其中，`Engine` 管理具体调度逻辑，并提供初始化和配置变更接口；`ProfileManager` 用于管理 Profile；`SchedulerState` 用于管理调度器状态。`Scheduler` 协调三大组件，定义生命周期方法、运行时锁、主循环，暂停恢复、tick 结束时的 hook。
+- `scheduler.py`：持有 `Engine` 、 `ProfileManager` 和 `SchedulerState`。其中，`Engine` 管理具体调度逻辑，并提供初始化和配置变更接口；`ProfileManager` 用于管理 Profile；`SchedulerState` 用于管理调度器状态。`Scheduler` 协调三大组件，定义生命周期方法、运行时锁、主循环、暂停恢复，以及调度提交后的 tick listener 通知。
 
 1. `state/`
 
