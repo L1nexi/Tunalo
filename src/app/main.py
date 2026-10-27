@@ -112,18 +112,18 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
         requested_port=api_port,
     )
 
-    try:
-        api_server.start()
-    except OSError as exc:
-        logger.critical("Failed to start local API server: %s", exc, exc_info=True)
-        TrayIcon.show_startup_error(exc)
-        sys.exit(1)
-
     def launch_setup() -> subprocess.Popen[bytes]:
         logger.info("No Profile found; opening first-run setup.")
         return _spawn_window_subprocess(api_server.port, setup=True)
 
     try:
+        try:
+            api_server.start()
+        except OSError as exc:
+            logger.critical("Failed to start local API server: %s", exc, exc_info=True)
+            TrayIcon.show_startup_error(exc)
+            sys.exit(1)
+
         profile_ready = ensure_initial_profile(profile_manager, launch_setup)
         if not profile_ready:
             logger.info("First-run setup closed before completion.")
@@ -131,7 +131,6 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
         scheduler.initialize()
         scheduler.add_tick_listener(tick_history.update)
-        scheduler.start()
 
         tray = TrayIcon(scheduler)
         settings_window = SettingsWindowController(
@@ -143,6 +142,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
             tick_history,
             os.path.join(data_dir, "tick-history"),
         )
+        scheduler.start()
         tray.run()
     except Exception as exc:
         logger.critical("Failed to start application: %s", exc, exc_info=True)

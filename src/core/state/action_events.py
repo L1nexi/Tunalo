@@ -6,7 +6,7 @@ from core.models.trace import TickTrace
 
 
 class ActionEventWriter:
-    def __init__(self, event_logger: EventLogger):
+    def __init__(self, event_logger: EventLogger) -> None:
         self._events = event_logger
 
     def on_tick(self, trace: TickTrace) -> None:
@@ -25,6 +25,7 @@ class ActionEventWriter:
                     "probabilities": {scene_id: round(value, 4) for scene_id, value in selection.probabilities.items()},
                     "selected_scene": result.selected_scene,
                 },
+                ts=trace.ts,
             )
         elif decision.action == Action.APPLY and not result.executed:
             self._events.write(
@@ -34,4 +35,5 @@ class ActionEventWriter:
                     "matched_scenes": [scene_id for scene_id in decision.target.ids()],
                     "active_scenes": [scene_id for scene_id in decision.timing.active_scenes.ids()],
                 },
+                ts=trace.ts,
             )

@@ -20,9 +20,10 @@ class SchedulerState:
     _manual_apply_pending: bool = False
 
     def pause(self, seconds: int | None = None) -> None:
+        ts = time.time()
         self.paused = True
         if seconds is not None:
-            self.pause_until = time.time() + seconds
+            self.pause_until = ts + seconds
             logger.info(
                 "Scheduler paused for %ss (until %s).",
                 seconds,
@@ -31,11 +32,16 @@ class SchedulerState:
         else:
             self.pause_until = 0.0
             logger.info("Scheduler paused indefinitely.")
+        self.save()
 
-    def resume(self) -> None:
+    def resume(self) -> bool:
+        if not self.paused:
+            return False
         self.paused = False
         self.pause_until = 0.0
         logger.info("Scheduler resumed.")
+        self.save()
+        return True
 
     def get_pause_remaining(self) -> float | None:
         if not self.paused or self.pause_until == 0:
@@ -51,8 +57,7 @@ class SchedulerState:
             return False
 
         logger.info("Timed pause expired.")
-        self.resume()
-        return True
+        return self.resume()
 
     def request_manual_apply(self) -> None:
         self._manual_apply_pending = True
@@ -63,9 +68,9 @@ class SchedulerState:
         self._manual_apply_pending = False
         return True
 
-    def attach_metadata(self, schedule: ScheduleResult) -> TickTrace:
+    def commit(self, schedule: ScheduleResult) -> TickTrace:
         self.tick_id += 1
-        return TickTrace(
+        trace = TickTrace(
             tick_id=self.tick_id,
             ts=time.time(),
             paused=self.paused,
@@ -73,8 +78,8 @@ class SchedulerState:
             schedule=schedule,
         )
 
-    def commit(self, trace: TickTrace) -> None:
         self.last_tick_trace = trace
+        return trace
 
     def save(self) -> None:
         PersistedState(paused=self.paused, pause_until=self.pause_until).save()

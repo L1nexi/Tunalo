@@ -18,9 +18,11 @@ class JsonlEventLogger:
         self._current_month: str = ""
         self._filepath: str = ""
 
-    def write(self, event_type: str, data: dict) -> int:
+    def write(self, event_type: str, data: dict[str, object], *, ts: float | None = None) -> int:
+        """Raise ValueError, OverflowError or OSError for an unsupported timestamp."""
+        occurred_at = datetime.now(UTC) if ts is None else datetime.fromtimestamp(ts, UTC)
         record = {
-            "ts": datetime.now(UTC).isoformat(timespec="seconds"),
+            "ts": occurred_at.isoformat(timespec="seconds"),
             "type": event_type,
             "data": data,
         }
@@ -28,7 +30,7 @@ class JsonlEventLogger:
 
         with self._lock:
             self._event_id += 1
-            self._ensure_file()
+            self._ensure_file(occurred_at)
             try:
                 with open(self._filepath, "a", encoding="utf-8") as f:
                     f.write(line)
@@ -37,8 +39,8 @@ class JsonlEventLogger:
                 logger.warning("Failed to write event", exc_info=True)
             return self._event_id
 
-    def _ensure_file(self) -> None:
-        month_key = datetime.now(UTC).strftime("%Y-%m")
+    def _ensure_file(self, occurred_at: datetime) -> None:
+        month_key = occurred_at.strftime("%Y-%m")
         if month_key != self._current_month:
             self._current_month = month_key
             self._filepath = os.path.join(self._data_dir, f"events-{month_key}.jsonl")

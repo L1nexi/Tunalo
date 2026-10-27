@@ -129,14 +129,20 @@ class TrayIcon:
     - Via ``scheduler.on_auto_resume`` hook when a timed pause expires.
     """
 
-    def __init__(self, scheduler: Scheduler):
+    def __init__(self, scheduler: Scheduler) -> None:
         self.scheduler = scheduler
-        self.icon = None
-        self._last_paused_state: bool | None = None
+        self._last_paused_state = scheduler.paused
         self.on_show_settings: Callable[[], None] | None = None
         self.on_export_tick_history: Callable[[], str] | None = None
         # Let the scheduler notify us when a timed pause auto-expires.
         self.scheduler.on_auto_resume = self._sync_icon
+        self.icon = pystray.Icon(
+            "Tunalo",
+            load_tray_icon(paused=scheduler.paused),
+            "Tunalo",
+            menu=self._build_menu(),
+        )
+        self._patch_menu_refresh()
 
     @staticmethod
     def show_startup_error(error: Exception) -> None:
@@ -158,8 +164,6 @@ class TrayIcon:
             os.startfile(path)
 
     def _sync_icon(self):
-        if not self.icon:
-            return
         current = self.scheduler.paused
         if current != self._last_paused_state:
             self.icon.icon = load_tray_icon(paused=current)
@@ -365,17 +369,8 @@ class TrayIcon:
 
     # ── Entry point ──────────────────────────────────────────────
 
-    def run(self):
+    def run(self) -> None:
         """Starts the tray icon. Blocks the calling thread."""
-        self._last_paused_state = self.scheduler.paused
-
-        self.icon = pystray.Icon(
-            "Tunalo",
-            load_tray_icon(paused=self.scheduler.paused),
-            "Tunalo",
-            menu=self._build_menu(),
-        )
-        self._patch_menu_refresh()
         self.icon.run()
 
     def _patch_menu_refresh(self):
