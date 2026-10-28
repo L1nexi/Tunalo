@@ -144,6 +144,16 @@ class TrayIcon:
         )
         self._patch_menu_refresh()
 
+    def notify_weather_unavailable(self, elapsed_seconds: float) -> None:
+        """Show elapsed weather-update time through a system notification.
+
+        Raises:
+            Exception: If formatting or native notification delivery fails.
+        """
+        if self.scheduler.stop_event.is_set():
+            return
+        self.icon.notify(t("weather_update_overdue", hours=int(elapsed_seconds // 3600)), "Tunalo")
+
     @staticmethod
     def show_startup_error(error: Exception) -> None:
         try:

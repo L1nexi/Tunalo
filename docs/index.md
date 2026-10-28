@@ -43,7 +43,13 @@ ADR 记录已确定的架构选择及其理由。接口签名、执行步骤与�
 
 ## Active Specs
 
-当前暂无活跃规格，天气提醒的待实施范围见 [TODO](TODO.md)。
+当前暂无活跃规格。
+
+## 已完成规格
+
+| 文档 | 内容 |
+| --- | --- |
+| [天气更新超时提醒](archived/done/WEATHER_REMINDER_SPEC.md) | WeatherData 采集元数据、tick listener 提醒策略和托盘通知。 |
 
 ## Architecture Decisions
 

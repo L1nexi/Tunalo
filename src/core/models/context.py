@@ -25,6 +25,8 @@ class WeatherData:
     main: str = ""
     sunrise: int = 0  # UTC unix timestamp
     sunset: int = 0  # UTC unix timestamp
+    last_success_at: float | None = None
+    source_fingerprint: str = ""
 
 
 @dataclass

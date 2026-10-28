@@ -45,6 +45,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     commands: Queue[tuple[list[str], threading.Event]] = Queue()
     releases: list[threading.Event] = []
     weather_threads: list[threading.Thread] = []
+    release_weather = threading.Event()
 
     class Process:
         def __init__(self, args: list[str], **kwargs: object) -> None:
@@ -66,6 +67,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
 
     def request_weather(*args: object, **kwargs: object) -> WeatherResponse:
         weather_threads.append(threading.current_thread())
+        assert release_weather.wait(5)
         return WeatherResponse()
 
     def open_state(path: str, mode: str = "r", *, encoding: str | None = None) -> TextIO:
@@ -99,6 +101,10 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
             assert first_command[-1] == "WORK"
             assert scheduler.last_tick_trace is None
             assert history.read_window().traces == ()
+            release_weather.set()
+            for worker in weather_threads:
+                worker.join(timeout=1)
+                assert not worker.is_alive()
 
             replacement = profile.model_copy(deep=True)
             replacement.scenes["work"].playlist = "NEW"
@@ -110,6 +116,8 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
                 time.sleep(0.005)
             first_trace = scheduler.last_tick_trace
             assert first_trace is not None
+            assert first_trace.context.weather is not None
+            assert first_trace.context.weather.last_success_at is None
 
             second_command, release_second = commands.get(timeout=5)
             assert second_command[-1] == "NEW"
@@ -132,6 +140,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
             stopping.result(timeout=5)
         finally:
             scheduler.stop_event.set()
+            release_weather.set()
             for release in releases:
                 release.set()
             scheduler.stop()
@@ -146,6 +155,13 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     assert all(trace.action.executed == (returncode == 0) for trace in window.traces)
     assert [trace.tick_id for trace, _, _ in observed] == [1, 2]
     assert observed[1][1] == "NEW"
+    second_weather = observed[1][0].context.weather
+    assert second_weather is not None
+    assert second_weather.last_success_at is not None
+    assert second_weather.id == 800
+    assert second_weather.source_fingerprint == first_trace.context.weather.source_fingerprint
+    assert first_trace.context.weather.last_success_at is None
+    assert "test-key" not in repr(window.traces)
     assert scheduler.thread is not None
     assert {thread_id for _, _, thread_id in observed} == {scheduler.thread.ident}
     assert scheduler.thread.ident != threading.get_ident()

@@ -18,6 +18,7 @@ _ZH: dict[str, str] = {
     "tray_apply_match": "应用匹配: {scene}",
     "scene_removed": "已移除的场景",
     "tray_unavailable": "不可用",
+    "weather_update_overdue": "自上次成功获取天气信息已经过了 {hours} 小时。可能是网络或者代理问题？",
     "resume": "恢复",
     "pause": "暂停...",
     "pause_indefinitely": "保持暂停",
@@ -58,6 +59,9 @@ _EN: dict[str, str] = {
     "tray_apply_match": "Apply Match: {scene}",
     "scene_removed": "Removed scene",
     "tray_unavailable": "Unavailable",
+    "weather_update_overdue": (
+        "It has been {hours} hours since weather information was last retrieved successfully. Could it be a network or proxy issue?"
+    ),
     "resume": "Resume",
     "pause": "Pause...",
     "pause_indefinitely": "Indefinitely",

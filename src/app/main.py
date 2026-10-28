@@ -90,6 +90,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
     from app.context import get_data_dir
     from app.event_logger import JsonlEventLogger
     from app.startup import ensure_initial_profile
+    from app.weather_reminder import WeatherReminder
     from core.runtime.profile_manager import ProfileManager
     from core.runtime.scheduler import Scheduler
     from core.state.tick_history import TickHistoryStore
@@ -133,6 +134,8 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
         scheduler.add_tick_listener(tick_history.update)
 
         tray = TrayIcon(scheduler)
+        reminder = WeatherReminder(tray.notify_weather_unavailable)
+        scheduler.add_tick_listener(reminder.on_tick)
         settings_window = SettingsWindowController(
             spawn=lambda: _spawn_window_subprocess(api_server.port),
             focus=focus_process_window,

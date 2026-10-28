@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import threading
 import time
@@ -24,10 +26,11 @@ class WeatherSensor(Sensor):
         self.timeout: float = config.request_timeout
 
         self._last_fetch: float = 0.0
-        self._cached: WeatherData | None = None
+        source = json.dumps([self.api_key, self.lat, self.lon], separators=(",", ":")).encode("utf-8")
+        self._cached = WeatherData(source_fingerprint=hashlib.sha256(source).hexdigest())
         self._fetching: bool = False  # guard: only one background thread at a time
 
-    def collect(self) -> WeatherData | None:
+    def collect(self) -> WeatherData:
         now = time.time()
 
         if self._last_fetch > 0 and (now - self._last_fetch) < self.interval:
@@ -69,6 +72,8 @@ class WeatherSensor(Sensor):
                 main=observation.main,
                 sunrise=observation.sunrise,
                 sunset=observation.sunset,
+                last_success_at=time.time(),
+                source_fingerprint=self._cached.source_fingerprint,
             )
             logger.info(
                 "Weather updated: id=%s main=%s sunrise=%s sunset=%s",
