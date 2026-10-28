@@ -1,7 +1,7 @@
 const zh = {
   title: "确认天气地点",
-  setupDescription: "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
-  settingsDescription: "天气和日出日落只依据经纬度计算，无需填写城市名称。坐标仅保存在本机。",
+  setupDescription: "经纬度用于查询天气，以及在本地计算日出日落，无需填写城市名称。",
+  settingsDescription: "经纬度用于查询天气，以及在本地计算日出日落，无需填写城市名称。",
   detect: "估算经纬度",
   detecting: "正在估算",
   detectHint: "根据公网 IP 估算城市级经纬度，结果可手动修正。",
@@ -24,9 +24,9 @@ const zh = {
 const en = {
   title: "Confirm weather location",
   setupDescription:
-    "Weather, sunrise, and sunset use only latitude and longitude. No city name is needed. Coordinates stay on this device.",
+    "Coordinates are used to request weather and calculate sunrise and sunset locally. No city name is needed.",
   settingsDescription:
-    "Weather, sunrise, and sunset use only latitude and longitude. No city name is needed. Coordinates stay on this device.",
+    "Coordinates are used to request weather and calculate sunrise and sunset locally. No city name is needed.",
   detect: "Estimate coordinates",
   detecting: "Estimating",
   detectHint: "Estimate city-level coordinates from your public IP. You can correct the result manually.",

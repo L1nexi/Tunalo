@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from core.models.context import WeatherData
+from core.models.context import SunTimesData, WeatherData
 from core.models.scene import Scenes
 from core.models.scheduling import Action, Blocker, DisturbanceEvaluation, TimingEvaluation
 from core.models.selection import ActivityEvaluation, PolicyEvaluation, SeasonEvaluation, TimeEvaluation, WeatherEvaluation
@@ -61,6 +61,10 @@ class WeatherSnapshotDto(ApiDto):
     available: bool
     id: int | None
     main: str | None
+
+
+class SunTimesSnapshotDto(ApiDto):
+    available: bool
     sunrise: int | None
     sunset: int | None
 
@@ -184,6 +188,7 @@ class SenseSnapshotDto(ApiDto):
     cpu: CpuSnapshotDto
     fullscreen: bool
     weather: WeatherSnapshotDto
+    sun_times: SunTimesSnapshotDto
     clock: ClockSnapshotDto
 
 
@@ -248,15 +253,19 @@ def _weather_snapshot(weather: WeatherData | None) -> WeatherSnapshotDto:
             available=False,
             id=None,
             main=None,
-            sunrise=None,
-            sunset=None,
         )
     return WeatherSnapshotDto(
         available=True,
         id=weather.id or None,
         main=weather.main or None,
-        sunrise=weather.sunrise or None,
-        sunset=weather.sunset or None,
+    )
+
+
+def _sun_times_snapshot(sun_times: SunTimesData | None) -> SunTimesSnapshotDto:
+    return SunTimesSnapshotDto(
+        available=sun_times is not None,
+        sunrise=sun_times.sunrise if sun_times is not None else None,
+        sunset=sun_times.sunset if sun_times is not None else None,
     )
 
 
@@ -376,6 +385,7 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
             cpu=CpuSnapshotDto(average_percent=_round_float(trace.context.cpu)),
             fullscreen=trace.context.fullscreen,
             weather=_weather_snapshot(trace.context.weather),
+            sun_times=_sun_times_snapshot(trace.context.sun_times),
             clock=_clock_snapshot(trace.context.time),
         ),
         think=ThinkSnapshotDto(

@@ -70,18 +70,10 @@ class WeatherSensor(Sensor):
             self._cached = WeatherData(
                 id=observation.id,
                 main=observation.main,
-                sunrise=observation.sunrise,
-                sunset=observation.sunset,
                 last_success_at=time.time(),
                 source_fingerprint=self._cached.source_fingerprint,
             )
-            logger.info(
-                "Weather updated: id=%s main=%s sunrise=%s sunset=%s",
-                observation.id,
-                observation.main,
-                observation.sunrise,
-                observation.sunset,
-            )
+            logger.info("Weather updated: id=%s main=%s", observation.id, observation.main)
         except WeatherRejected as exc:
             logger.warning("Weather fetch failed: reason=%s", exc.code)
         except WeatherUnavailable as exc:

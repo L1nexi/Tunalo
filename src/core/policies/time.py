@@ -57,11 +57,12 @@ class TimePolicy(Policy):
         self._peaks = self._compute_peaks(ds, ns)
 
     def _update_from_context(self, context: Context) -> None:
-        weather = context.weather
-        if weather is None or not weather.sunrise or not weather.sunset:
+        sun_times = context.sun_times
+        if sun_times is None:
+            self._peaks.clear()
             return
-        sunrise = time.localtime(weather.sunrise)
-        sunset = time.localtime(weather.sunset)
+        sunrise = time.localtime(sun_times.sunrise)
+        sunset = time.localtime(sun_times.sunset)
         ds = sunrise.tm_hour + sunrise.tm_min / 60.0
         ns = sunset.tm_hour + sunset.tm_min / 60.0
         if self._peaks and abs(ds - self._day_start) <= 1 / 60 and abs(ns - self._night_start) <= 1 / 60:

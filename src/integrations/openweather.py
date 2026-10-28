@@ -45,8 +45,6 @@ class WeatherUnavailable(RuntimeError):
 class WeatherObservation:
     id: int
     main: str
-    sunrise: int
-    sunset: int
 
 
 def fetch_weather(
@@ -86,14 +84,7 @@ def fetch_weather(
         main = condition.get("main")
         if isinstance(weather_id, bool) or not isinstance(weather_id, int) or not isinstance(main, str) or not main:
             raise WeatherUnavailable("weather service returned incomplete data", reason="invalid_response")
-        sun_times = payload.get("sys") or {}
-        if not isinstance(sun_times, dict):
-            raise WeatherUnavailable("weather service returned invalid data", reason="invalid_response")
-        sunrise = sun_times.get("sunrise", 0)
-        sunset = sun_times.get("sunset", 0)
-        if not isinstance(sunrise, int) or not isinstance(sunset, int):
-            raise WeatherUnavailable("weather service returned invalid data", reason="invalid_response")
-        return WeatherObservation(id=weather_id, main=main, sunrise=sunrise, sunset=sunset)
+        return WeatherObservation(id=weather_id, main=main)
     if response.status_code == 401:
         raise InvalidApiKey("weather API key is invalid")
     if response.status_code in {400, 404}:

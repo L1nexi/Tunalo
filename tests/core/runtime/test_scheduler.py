@@ -15,7 +15,11 @@ import pytest
 from app.event_logger import JsonlEventLogger
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
+from configurations.runtime_models import PoliciesConfig, SceneConfig, SchedulerConfig, WeatherPolicyConfig
+from core.models.association import Association
+from core.models.selection import SemanticItem
 from core.models.trace import TickTrace
+from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
 from core.runtime.scheduler import Scheduler
 from core.state.tick_history import TickHistoryStore
@@ -63,7 +67,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
         status_code = 200
 
         def json(self) -> dict[str, object]:
-            return {"weather": [{"id": 800, "main": "Clear"}], "sys": {"sunrise": 1, "sunset": 2}}
+            return {"weather": [{"id": 800, "main": "Clear"}]}
 
     def request_weather(*args: object, **kwargs: object) -> WeatherResponse:
         weather_threads.append(threading.current_thread())
@@ -118,6 +122,8 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
             assert first_trace is not None
             assert first_trace.context.weather is not None
             assert first_trace.context.weather.last_success_at is None
+            assert first_trace.context.sun_times is not None
+            assert any(first_trace.selection.salience[item] != 0 for item in ("dawn", "day", "sunset", "night"))
 
             second_command, release_second = commands.get(timeout=5)
             assert second_command[-1] == "NEW"
@@ -171,3 +177,41 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     records = [json.loads(line) for path in sorted(tmp_path.glob("events-*.jsonl")) for line in path.read_text(encoding="utf-8").splitlines()]
     action_type = "scenes_applied" if returncode == 0 else "actuation_failed"
     assert [record["type"] for record in records] == ["start", action_type, action_type, "stop"]
+
+
+def test_paused_engine_senses_local_sun_times_and_replaces_location_without_weather(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "wallpaper64.exe"
+    executable.touch()
+    config = SchedulerConfig(
+        wallpaper_engine_path=str(executable),
+        scenes={"day": SceneConfig(name="Day", playlist="DAY", associations=Association(SemanticItem.DAY))},
+        policies=PoliciesConfig(weather=WeatherPolicyConfig(lat=31.23, lon=121.47)),
+    )
+
+    def reject_external_call(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Paused local sun times must not request weather or execute Wallpaper Engine")
+
+    monkeypatch.setattr("requests.sessions.Session.request", reject_external_call)
+    monkeypatch.setattr("subprocess.Popen", reject_external_call)
+    monkeypatch.setattr("win32gui.GetForegroundWindow", lambda: 0)
+    monkeypatch.setattr("ctypes.windll.shell32.SHQueryUserNotificationState", lambda pointer: 0)
+    monkeypatch.setattr("psutil.cpu_percent", lambda: 0.0)
+
+    engine = Engine.from_config(config)
+    first = engine.schedule(paused=True, manual_requested=False)
+    assert first.context.weather is None
+    original = first.context.sun_times
+    assert original is not None
+    original_times = (original.sunrise, original.sunset)
+    assert any(first.selection.salience[item] != 0 for item in ("dawn", "day", "sunset", "night"))
+
+    updated = config.model_copy(deep=True)
+    updated.policies.weather.lon = 91.47
+    engine.install_replacement(engine.prepare_replacement(updated))
+    following = engine.schedule(paused=True, manual_requested=False)
+    assert following.context.weather is None
+    assert following.context.sun_times is not None
+    assert 3600 < following.context.sun_times.sunrise - original.sunrise < 10800
+    assert first.context.sun_times is not None
+    assert (first.context.sun_times.sunrise, first.context.sun_times.sunset) == original_times
+    assert not first.action.executed and not following.action.executed

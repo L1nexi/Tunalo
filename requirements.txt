@@ -1,6 +1,7 @@
 psutil
 pywin32
 requests
+astral
 python-dotenv
 pystray
 Pillow

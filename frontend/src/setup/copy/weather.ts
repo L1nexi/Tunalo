@@ -1,6 +1,6 @@
 const zh = {
   title: "连接天气服务",
-  description: "Tunalo 使用 OpenWeatherMap 获取天气以及日出和日落信息。密钥仅保存于本地。",
+  description: "Tunalo 使用 OpenWeatherMap 获取天气，日出日落根据地点在本地计算。密钥仅保存于本地。",
   keyLabel: "OpenWeatherMap API Key",
   keyDescription: "保存天气设置时会联网校验 API Key 有效性。",
   keyPlaceholder: "粘贴 API Key",
@@ -40,7 +40,7 @@ const zh = {
 const en = {
   title: "Connect weather",
   description:
-    "Tunalo uses OpenWeatherMap for conditions, sunrise, and sunset. The key stays in the local Profile.",
+    "Tunalo uses OpenWeatherMap for weather conditions and calculates sunrise and sunset locally from your location. The key stays in the local Profile.",
   keyLabel: "OpenWeatherMap API key",
   keyDescription: "Enter a valid Current Weather API key. Weather changes are checked online before saving.",
   keyPlaceholder: "Paste API key",

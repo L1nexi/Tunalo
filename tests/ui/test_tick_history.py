@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from core.models.context import Context
+from core.models.context import Context, SunTimesData
 from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
@@ -48,7 +48,7 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
             paused=False,
             pause_until=0.0,
             schedule=ScheduleResult(
-                context=Context(),
+                context=Context(sun_times=SunTimesData(sunrise=1714800000, sunset=1714843200)),
                 selection=Selection(probabilities={}, salience={}, reason="no_safe_scenes"),
                 mode=DecisionMode.NORMAL,
                 decision=Decision(
@@ -79,3 +79,5 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
     payload = json.loads((tmp_path / "tick-history-20260905T010203.456789Z.json").read_text(encoding="utf-8"))
     assert payload["liveTickId"] == 7
     assert payload["ticks"][0]["summary"]["tickId"] == 7
+    assert payload["ticks"][0]["sense"]["sunTimes"] == {"available": True, "sunrise": 1714800000, "sunset": 1714843200}
+    assert payload["ticks"][0]["sense"]["weather"] == {"available": False, "id": None, "main": None}

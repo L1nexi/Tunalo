@@ -10,7 +10,7 @@ from configurations.profile import Profile, SceneProfile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import SchedulerConfig, SeasonPolicyConfig, TimePolicyConfig
 from core.models.association import Association
-from core.models.context import Context, WeatherData
+from core.models.context import Context, SunTimesData, WeatherData
 from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, SemanticItem
 
 WEATHER_PRESETS: dict[str, tuple[int, str]] = {
@@ -119,8 +119,9 @@ def build_context(hour: float, day_of_year: int, weather_name: str | None) -> Co
     date = datetime(2025, 1, 1) + timedelta(days=day_of_year - 1, minutes=round(hour * 60))
     weather_id, main = WEATHER_PRESETS[weather_name] if weather_name is not None else (0, "")
     return Context(
-        weather=WeatherData(
-            id=weather_id, main=main, sunrise=int(date.replace(hour=6, minute=0).timestamp()), sunset=int(date.replace(hour=18, minute=0).timestamp())
+        weather=WeatherData(id=weather_id, main=main),
+        sun_times=SunTimesData(
+            sunrise=int(date.replace(hour=6, minute=0).timestamp()), sunset=int(date.replace(hour=18, minute=0).timestamp())
         ),
         time=date.timetuple(),
     )

@@ -8,7 +8,7 @@ from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.runtime_models import ActivityPolicyConfig, MatchingConfig, SeasonPolicyConfig, TimePolicyConfig, WeatherPolicyConfig
 from core.models.association import Association
-from core.models.context import Context, WeatherData, WindowData
+from core.models.context import Context, SunTimesData, WeatherData, WindowData
 from core.models.selection import Selection, SemanticItem
 from core.policies import ActivityPolicy, SeasonPolicy, TimePolicy, WeatherPolicy
 from core.runtime.selector import Selector
@@ -20,9 +20,8 @@ def observation(process: str = "", title: str = "", *, day: int = 172, hour: flo
     return Context(
         window=WindowData(process=process, title=title),
         time=date.timetuple(),
-        weather=WeatherData(
-            id=800,
-            main="Clear",
+        weather=WeatherData(id=800, main="Clear"),
+        sun_times=SunTimesData(
             sunrise=int((midnight + timedelta(hours=sunrise)).timestamp()),
             sunset=int((midnight + timedelta(hours=sunset)).timestamp()),
         ),
@@ -207,7 +206,7 @@ def test_season_alpha_strengthens_partial_support_without_moving_peak() -> None:
         (8, 16, [(8, "dawn"), (12, "day"), (16, "sunset"), (0, "night")]),
     ],
 )
-def test_s09_time_anchors_follow_api_and_day_night_midpoints(sunrise: float, sunset: float, peaks: list[tuple[float, str]]) -> None:
+def test_s09_time_anchors_follow_sun_times_and_day_night_midpoints(sunrise: float, sunset: float, peaks: list[tuple[float, str]]) -> None:
     policy = TimePolicy(TimePolicyConfig())
     opposites = {"dawn": "sunset", "day": "night", "sunset": "dawn", "night": "day"}
     for hour, item in peaks:
@@ -219,13 +218,37 @@ def test_s09_time_anchors_follow_api_and_day_night_midpoints(sunrise: float, sun
         assert 0 < neighbor < 1
 
 
-def test_time_missing_initial_weather_is_neutral_and_later_missing_weather_retains_peaks() -> None:
+def test_time_uses_sun_times_even_when_weather_has_never_been_available() -> None:
     policy = TimePolicy(TimePolicyConfig())
     context = observation(hour=12)
-    missing = Context(time=context.time, weather=None)
-    assert policy.evaluate(missing).salience == {"dawn": 0, "day": 0, "sunset": 0, "night": 0}
-    established = policy.evaluate(context).salience
-    assert policy.evaluate(missing).salience == established
+    context.weather = None
+    assert policy.evaluate(context).salience == {"dawn": 0, "day": 1, "sunset": 0, "night": -1}
+
+
+def test_time_preference_can_select_a_day_scene_without_weather() -> None:
+    selector = Selector(
+        {"day": Association(SemanticItem.DAY), "night": Association(SemanticItem.NIGHT)},
+        [TimePolicy(TimePolicyConfig()), WeatherPolicy(WeatherPolicyConfig())],
+        MatchingConfig(preference_tiers=[["time"]]),
+    )
+    context = observation(hour=12)
+    context.weather = None
+    result = selector.select(context)
+    assert result.sources == ["time"]
+    assert result.probabilities == {"day": 1, "night": 0}
+
+
+def test_missing_sun_times_are_neutral_and_clear_previous_anchors() -> None:
+    policy = TimePolicy(TimePolicyConfig())
+    context = observation(hour=12)
+    missing = Context(time=context.time, weather=context.weather)
+    neutral = {"dawn": 0, "day": 0, "sunset": 0, "night": 0}
+    assert policy.evaluate(missing).salience == neutral
+    assert policy.evaluate(context).salience["day"] == 1
+    result = policy.evaluate(missing)
+    assert result.salience == neutral
+    assert result.details.peaks == {}
+    assert result.details.day_start_hour is None
 
 
 def test_time_broadens_day_and_narrows_sunset_with_mirror_phase_mapping() -> None:

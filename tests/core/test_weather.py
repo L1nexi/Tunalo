@@ -21,7 +21,6 @@ class _Response:
     def json() -> dict[str, object]:
         return {
             "weather": [{"id": 800, "main": "Clear"}],
-            "sys": {"sunrise": 1, "sunset": 2},
         }
 
 
@@ -172,7 +171,7 @@ def test_failed_weather_refresh_keeps_cached_semantic_evidence(monkeypatch: pyte
     class RainResponse(_Response):
         @staticmethod
         def json() -> dict[str, object]:
-            return {"weather": [{"id": 504, "main": "Rain"}], "sys": {"sunrise": 1, "sunset": 2}}
+            return {"weather": [{"id": 504, "main": "Rain"}]}
 
     sensor = WeatherSensor(_config())
     sensor.collect()

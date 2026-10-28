@@ -23,10 +23,16 @@ class WindowData:
 class WeatherData:
     id: int = 0
     main: str = ""
-    sunrise: int = 0  # UTC unix timestamp
-    sunset: int = 0  # UTC unix timestamp
     last_success_at: float | None = None
     source_fingerprint: str = ""
+
+
+@dataclass(frozen=True)
+class SunTimesData:
+    """Sunrise and sunset for the local date, expressed as UTC Unix seconds."""
+
+    sunrise: int
+    sunset: int
 
 
 @dataclass
@@ -43,6 +49,7 @@ class Context:
     cpu: float = 0.0
     fullscreen: bool = False
     weather: WeatherData | None = None
+    sun_times: SunTimesData | None = None
     time: time.struct_time = field(default_factory=time.localtime)
 
 

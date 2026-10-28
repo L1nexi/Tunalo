@@ -15,7 +15,7 @@ import requests
 from app.event_logger import JsonlEventLogger
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
-from core.models.context import Context, WeatherData, WindowData
+from core.models.context import Context, SunTimesData, WeatherData, WindowData
 from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
@@ -46,7 +46,6 @@ def weather_api(monkeypatch):
         def json():
             return {
                 "weather": [{"id": 800, "main": "Clear"}],
-                "sys": {"sunrise": 1, "sunset": 2},
             }
 
     monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
@@ -183,6 +182,7 @@ def _make_trace(
     action_kind: Action = Action.NOOP,
     disturbance: DisturbanceEvaluation | None = None,
     weather: WeatherData | None = None,
+    sun_times: SunTimesData | None = None,
     policy_evaluations: list | None = None,
 ) -> TickTrace:
     current_time = time.localtime(1714800000)
@@ -199,6 +199,7 @@ def _make_trace(
                 cpu=27.25,
                 fullscreen=False,
                 weather=weather,
+                sun_times=sun_times,
                 time=current_time,
             ),
             selection=Selection(
@@ -288,6 +289,20 @@ def test_api_tick_history_window_invalid_count(app):
     status, body = wsgi_request(app, "GET", "/api/tick-history", query="limit=0")
     assert "422" in status
     assert body["error"] == "invalid_count"
+
+
+@pytest.mark.parametrize("sun_times", [None, SunTimesData(sunrise=1714800000, sunset=1714843200)])
+def test_api_history_exposes_sun_times_independently_of_weather(app, tick_history: TickHistoryStore, sun_times: SunTimesData | None) -> None:
+    tick_history.update(_make_trace(sun_times=sun_times))
+    status, body = wsgi_get(app, "/api/tick-history")
+    assert status.startswith("200")
+    sense = body["ticks"][0]["sense"]
+    assert sense["weather"] == {"available": False, "id": None, "main": None}
+    assert sense["sunTimes"] == (
+        {"available": False, "sunrise": None, "sunset": None}
+        if sun_times is None
+        else {"available": True, "sunrise": 1714800000, "sunset": 1714843200}
+    )
 
 
 def test_custom_scene_identity_survives_history_and_event_export(app, tick_history, tmp_path):
