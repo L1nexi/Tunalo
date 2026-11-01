@@ -1,6 +1,6 @@
 # 本地昼夜计算
 
-状态：已实现，待用户验收，2026-10-29。架构选择见 [ADR-0004](adr/0004-context-salience-and-observation-boundaries.md#季节与时段平台和真实昼夜锚点)。
+状态：已实现，2026-10-29 用户审阅通过。架构选择见 [ADR-0004](../../adr/0004-context-salience-and-observation-boundaries.md#季节与时段平台和真实昼夜锚点)。
 
 ## 行为
 
@@ -37,4 +37,4 @@ Tick History 的 `sense.sunTimes` 包含 `available`、`sunrise`、`sunset`。�
 - 暂停时继续采集，运行时替换地点后采用新结果，旧快照保持原值。
 - API 和 JSON 导出分别记录天气与本地日出日落。
 
-本批按用户要求跳过与 OWM 的精度对照。检查使用项目测试脚本、Ruff、前端类型检查和构建，结果记录在[工作交接](../agent/workspace/handoff.md)。
+本批按用户要求跳过与 OWM 的精度对照。检查使用项目测试脚本、Ruff、前端类型检查和构建，结果记录在[工作交接](../../../agent/workspace/handoff.md)。
