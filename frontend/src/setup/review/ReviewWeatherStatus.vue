@@ -41,9 +41,6 @@ const status = computed(
         <TriangleAlertIcon class="mt-0.5 shrink-0" />
         <span class="min-w-0">{{ connectionError }}</span>
       </p>
-      <p v-if="copy.review.weatherNote" class="mt-1 text-xs text-muted-foreground">
-        {{ copy.review.weatherNote }}
-      </p>
       <p v-if="testedAtText" class="mt-1 text-xs text-muted-foreground">{{ testedAtText }}</p>
     </div>
     <Button size="sm" variant="outline" :disabled="validating || !hasApiKey" @click="emit('validate')">

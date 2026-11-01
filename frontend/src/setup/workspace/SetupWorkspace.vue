@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { Locale, Profile } from "@/api/profile"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { useSetupWorkspace } from "./useSetupWorkspace"
 import SetupConfirmations from "./SetupConfirmations.vue"
 import SetupFooter from "./SetupFooter.vue"
@@ -16,9 +14,9 @@ const { submitting } = submission
 </script>
 
 <template>
-  <main class="min-h-[100dvh] bg-muted/40 p-2 text-foreground sm:p-4 md:h-[100dvh] md:overflow-hidden">
+  <main class="min-h-[100dvh] bg-background text-foreground md:h-[100dvh] md:overflow-hidden">
     <div
-      class="mx-auto grid w-full max-w-[100rem] gap-4 md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]"
+      class="mx-auto grid w-full max-w-[100rem] md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]"
     >
       <SetupSidebar
         :locale="locale"
@@ -30,32 +28,27 @@ const { submitting } = submission
         @navigate="navigateTo"
         @update:locale="setLocale"
       />
-      <Card
-        class="min-w-0 min-h-[32rem] md:h-full md:min-h-0 [--card-spacing:--spacing(4)] sm:[--card-spacing:--spacing(7)]"
-      >
-        <CardHeader class="shrink-0">
-          <CardTitle
-            ><h1
-              id="setup-step-heading"
-              tabindex="-1"
-              class="text-2xl leading-8 font-semibold tracking-tight focus:outline-none"
-            >
-              {{ activeHeading.title }}
-            </h1></CardTitle
+      <section class="flex min-h-[32rem] min-w-0 flex-col md:h-full md:min-h-0" aria-labelledby="setup-step-heading">
+        <header class="flex shrink-0 flex-col gap-2 px-5 pt-8 pb-7 sm:px-8">
+          <h1
+            id="setup-step-heading"
+            tabindex="-1"
+            class="text-2xl leading-8 font-semibold tracking-tight focus:outline-none"
           >
-          <CardDescription v-if="activeHeading.description">{{ activeHeading.description }}</CardDescription>
-        </CardHeader>
-        <CardContent
+            {{ activeHeading.title }}
+          </h1>
+          <p v-if="activeHeading.description" class="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{{ activeHeading.description }}</p>
+        </header>
+        <div
           id="setup-step-content"
           :inert="submitting"
           :aria-busy="submitting"
-          class="min-h-0 flex-1 overflow-y-auto pt-0 pb-6"
+          class="min-h-0 flex-1 overflow-y-auto px-5 pb-8 sm:px-8"
         >
           <SetupStepContent />
-        </CardContent>
-        <Separator />
+        </div>
         <SetupFooter />
-      </Card>
+      </section>
     </div>
     <SetupConfirmations />
   </main>

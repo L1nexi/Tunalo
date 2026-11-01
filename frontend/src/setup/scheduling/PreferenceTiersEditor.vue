@@ -28,7 +28,6 @@ const dragOverZone = ref<string | null>(null)
 const dragPosition = ref({ x: 0, y: 0 })
 let pointerStart: { x: number; y: number; variable: ContextVariable } | null = null
 const announcement = ref("")
-const hasPriorities = computed(() => props.layers.some((layer) => layer.variables.length > 0))
 const zones = computed(() => [
   {
     id: "unassigned", label: copy.value.unassigned,
@@ -110,7 +109,7 @@ function dropVariable(): void {
 <template>
   <FieldSet class="gap-4" :data-invalid="errors.length > 0">
     <FieldLegend>{{ copy.responseTitle }}</FieldLegend>
-    <FieldDescription id="preference-instructions" class="max-w-[72ch]">{{ hasPriorities ? copy.cascadeHelp : copy.noPriorityHelp }}</FieldDescription>
+    <FieldDescription id="preference-instructions" class="max-w-[72ch]">{{ copy.responseDescription }}</FieldDescription>
     <div class="flex flex-col gap-2">
       <section
         v-for="(zone, zoneIndex) in zones"
@@ -122,17 +121,16 @@ function dropVariable(): void {
         :aria-describedby="errors.length ? 'preference-errors' : 'preference-instructions'"
         :aria-invalid="errors.length > 0"
         tabindex="-1"
-        :class="cn('min-w-0 rounded-lg border p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
-          zoneIndex === 0 ? 'border-dashed bg-muted/30' : 'border-l-2 border-l-primary/50',
-          draggedVariable !== null && dragOverZone === zone.id && 'border-primary bg-primary/8')"
+        :class="cn('min-w-0 rounded-md py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
+          draggedVariable !== null && dragOverZone === zone.id && 'bg-muted')"
       >
         <div class="flex min-w-0 flex-wrap items-center gap-2">
           <h3 class="mr-auto text-sm font-medium sm:mr-1 sm:w-28 sm:shrink-0">{{ zone.label }}</h3>
           <div class="order-last flex min-h-8 min-w-0 basis-full flex-wrap items-center gap-2 sm:order-none sm:flex-1 sm:basis-0">
-            <div v-for="variable in zone.variables" :key="variable" class="flex items-center gap-0.5">
+            <div v-for="variable in zone.variables" :key="variable" class="flex items-center rounded-md bg-muted/50">
               <Button
                 :id="`preference-variable-${variable}`"
-                type="button" variant="outline" size="sm"
+                type="button" variant="ghost" size="sm"
                 :aria-label="copy.dragVariable(labels[variable])"
                 class="touch-none select-none cursor-grab rounded-r-sm active:cursor-grabbing"
                 @pointerdown="startDrag($event, variable)" @pointermove="continueDrag"
@@ -142,14 +140,14 @@ function dropVariable(): void {
                 <GripVerticalIcon data-icon="inline-start" />{{ labels[variable] }}
               </Button>
               <Select :model-value="zone.id" @update:model-value="(value) => moveVariable(variable, String(value))">
-                <SelectTrigger :id="`preference-move-${variable}`" size="sm" class="w-8 justify-center rounded-l-sm px-0" :aria-label="copy.moveVariable(labels[variable])" :title="copy.moveVariable(labels[variable])" />
+                <SelectTrigger :id="`preference-move-${variable}`" size="sm" class="w-8 justify-center rounded-l-sm border-0 bg-transparent px-0" :aria-label="copy.moveVariable(labels[variable])" :title="copy.moveVariable(labels[variable])" />
                 <SelectContent position="popper" align="start"><SelectGroup>
                   <SelectItem v-for="destination in zones" :key="destination.id" :value="destination.id">{{ destination.label }}</SelectItem>
                   <SelectItem v-if="layers.length < 4" value="new">{{ copy.moveToNewLayer }}</SelectItem>
                 </SelectGroup></SelectContent>
               </Select>
             </div>
-            <p v-if="!zone.variables.length" class="self-center text-sm text-muted-foreground">{{ zoneIndex === 0 ? copy.allAssigned : copy.dropHere }}</p>
+            <p v-if="zoneIndex > 0 && !zone.variables.length" class="self-center text-sm text-muted-foreground">{{ copy.dropHere }}</p>
           </div>
           <div v-if="zoneIndex > 0" class="flex shrink-0 gap-1">
             <Button type="button" variant="ghost" size="icon-sm" :disabled="zoneIndex === 1" :aria-label="copy.moveLayerUp(zoneIndex)" :title="copy.moveLayerUp(zoneIndex)" @click="moveLayer(zoneIndex - 1, -1)"><ArrowUpIcon /></Button>
@@ -157,11 +155,9 @@ function dropVariable(): void {
             <Button type="button" variant="ghost" size="icon-sm" :aria-label="copy.removeLayer(zoneIndex)" :title="copy.removeLayer(zoneIndex)" @click="removeLayer(zone.id)"><XIcon /></Button>
           </div>
         </div>
-        <p v-if="zoneIndex === 0 && zone.variables.length" class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ copy.unassignedHelp }}</p>
       </section>
     </div>
-    <p class="text-xs leading-relaxed text-muted-foreground">{{ copy.responseDescription }}</p>
-    <Button id="add-preference-layer" type="button" variant="outline" class="self-start" :disabled="layers.length >= 4" @click="addLayer"><PlusIcon data-icon="inline-start" />{{ copy.addLayer }}</Button>
+    <Button id="add-preference-layer" type="button" variant="ghost" class="self-start" :disabled="layers.length >= 4" @click="addLayer"><PlusIcon data-icon="inline-start" />{{ copy.addLayer }}</Button>
     <p class="sr-only" role="status" aria-live="polite">{{ announcement }}</p>
     <FieldError v-if="errors.length" id="preference-errors" :errors="errors" />
     <Teleport to="body">

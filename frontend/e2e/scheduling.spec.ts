@@ -25,6 +25,7 @@ test("三个调度时间项通过问号说明，活动规则保留中立活动",
   }
 
   await navigation.getByRole("button", { name: "活动识别" }).click()
+  await page.getByRole("button", { name: "规则如何匹配", exact: true }).click()
   await expect(page.getByText("标题关键词优先于进程名。休闲指明确的娱乐活动；未命中规则时，本次活动不计为工作或休闲。")).toBeVisible()
 })
 

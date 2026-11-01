@@ -10,7 +10,7 @@ test("空活动配置可打开，添加空层跨分类保留且不构成配置�
   await mockSetupApi(page, true, { ...profile, activity: null })
   await page.goto("/?locale=zh&test=1")
   await openSection(page, "活动识别")
-  await expect(page.getByRole("group", { name: "工作场景规则", exact: true }).getByRole("textbox", { name: "进程名", exact: true })).toBeEmpty()
+  await expect(page.getByRole("group", { name: "工作", exact: true }).getByRole("textbox", { name: "进程名", exact: true })).toBeEmpty()
   await openSection(page, "调度风格")
   for (let index = 0; index < 4; index++) await page.getByRole("button", { name: "添加层级", exact: true }).click()
   await expect(page.getByRole("button", { name: "添加层级", exact: true })).toBeDisabled()
@@ -118,7 +118,7 @@ test("直接用键盘创建优先级，移动后保留焦点并保存顺序", as
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "调度风格", exact: true }).click()
-  await expect(page.getByText("不设置优先级时，Tunalo 会综合当前情境选择合适的场景。", { exact: true })).toBeVisible()
+  await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toHaveAccessibleDescription("从上到下依次尝试，同层并列。未指定的情境仍参与判断。")
 
   const menu = page.getByRole("combobox", { name: "移动天气到", exact: true })
   await menu.focus()

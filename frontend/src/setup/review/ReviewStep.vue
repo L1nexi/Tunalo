@@ -36,7 +36,7 @@ const groups = computed(() => reviewGroups(props.draft, props.locale, props.weat
 <template>
   <section class="flex flex-col gap-6">
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
-      <h2 id="changes-heading" class="mb-3 text-base font-semibold">{{ copy.review.changesTitle }}</h2>
+      <h2 id="changes-heading" class="mb-4 text-lg font-semibold">{{ copy.review.changesTitle }}</h2>
       <p
         v-if="changes.length === 0 && !hasPendingActivity"
         role="status"
@@ -44,11 +44,11 @@ const groups = computed(() => reviewGroups(props.draft, props.locale, props.weat
       >
         {{ copy.review.noChanges }}
       </p>
-      <ul v-else-if="changes.length > 0" class="divide-y rounded-lg border">
+      <ul v-else-if="changes.length > 0" class="flex flex-col gap-4">
         <li
           v-for="(change, index) in changes"
           :key="`${change.id}-${index}`"
-          class="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+          class="flex flex-wrap items-start justify-between gap-3"
         >
           <div class="min-w-0">
             <p class="text-sm font-medium">{{ change.label }}</p>
@@ -70,20 +70,21 @@ const groups = computed(() => reviewGroups(props.draft, props.locale, props.weat
       </p>
     </section>
 
-    <details :open="mode === 'setup' || undefined">
+    <component :is="mode === 'settings' ? 'details' : 'div'">
       <summary v-if="mode === 'settings'" class="cursor-pointer text-sm font-medium">
         {{ copy.review.currentDetails }}
       </summary>
-      <div class="mt-3 flex flex-col gap-6">
+      <div class="mt-4 flex flex-col gap-8">
         <section v-for="group in groups" :key="group.id" class="flex flex-col gap-3">
-          <h3 class="text-base font-semibold">{{ copy.steps[group.id].title }}</h3>
-          <dl class="rounded-lg border">
+          <h2 class="text-lg font-semibold">{{ copy.steps[group.id].title }}</h2>
+          <dl class="flex flex-col gap-4">
             <div
               v-for="row in group.rows"
               :key="row.id"
-              class="grid min-w-0 gap-1 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+              class="relative grid min-w-0 gap-1"
+              :class="{ 'sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4': group.rows.length > 1 }"
             >
-              <dt class="text-sm text-muted-foreground">{{ row.label }}</dt>
+              <dt class="text-sm text-muted-foreground" :class="{ 'sr-only': group.rows.length === 1 }">{{ row.label }}</dt>
               <dd class="min-w-0">
                 <ReviewWeatherStatus
                   v-if="row.id === 'weather'"
@@ -114,7 +115,7 @@ const groups = computed(() => reviewGroups(props.draft, props.locale, props.weat
           </dl>
         </section>
       </div>
-    </details>
+    </component>
 
     <Alert v-if="!valid" variant="destructive">
       <TriangleAlertIcon />

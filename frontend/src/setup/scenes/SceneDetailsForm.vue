@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { CheckIcon } from "@lucide/vue"
 import { computed, nextTick, ref } from "vue"
 import type { ContextVariable, Locale, PlaylistScanResult, SceneProfile, SemanticItem } from "@/api/profile"
 import { Button } from "@/components/ui/button"
 import { DialogFooter } from "@/components/ui/dialog"
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -14,7 +12,6 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, associationSummary } from "@/setup/copy"
 import { copyScene } from "@/setup/profile/model"
@@ -81,21 +78,16 @@ async function save(): Promise<void> {
           :errors="[copy.requiredName]"
         />
       </Field>
-      <FieldSet class="block" :data-invalid="(attempted && !summary) || undefined">
-        <FieldLegend>{{ copy.association }}</FieldLegend>
+      <FieldSet class="relative block" :data-invalid="(attempted && !summary) || undefined">
+        <FieldLegend class="sr-only">{{ copy.association }}</FieldLegend>
         <FieldGroup>
-          <FieldDescription>{{ copy.associationHelp }}</FieldDescription>
           <FieldGroup class="grid gap-5 sm:grid-cols-2">
             <Field v-for="variable in SCENE_VARIABLES" :key="variable">
               <div class="flex items-center justify-between gap-3">
                 <FieldLabel :id="`scene-${variable}-label`">{{ copy.groups[variable] }}</FieldLabel>
-                <span v-if="!draft.associations[variable]?.length" class="text-xs text-muted-foreground">
-                  {{ copy.unassociated }}
-                </span>
               </div>
               <ToggleGroup
                 type="multiple"
-                variant="outline"
                 :spacing="2"
                 class="flex-wrap"
                 :aria-labelledby="`scene-${variable}-label`"
@@ -104,7 +96,6 @@ async function save(): Promise<void> {
                 @update:model-value="setItems(variable, $event)"
               >
                 <ToggleGroupItem v-for="item in SCENE_ITEMS[variable]" :key="item" :value="item">
-                  <CheckIcon v-if="draft.associations[variable]?.includes(item)" data-icon="inline-start" />
                   {{ copy.semanticLabels[item] }}
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -116,10 +107,8 @@ async function save(): Promise<void> {
             tabindex="-1"
             :errors="[copy.requiredAssociation]"
           />
-          <FieldDescription v-if="summary" aria-live="polite">{{ summary }}</FieldDescription>
         </FieldGroup>
       </FieldSet>
-      <Separator />
       <ScenePlaylistField
         v-model="draft.playlist"
         :locale="locale"
@@ -128,7 +117,6 @@ async function save(): Promise<void> {
       />
     </FieldGroup>
   </form>
-  <Separator />
   <DialogFooter class="shrink-0 flex-row flex-wrap items-center gap-2 px-5 py-4 sm:px-6">
     <Button type="button" variant="outline" @click="emit('cancel')">{{ copy.cancel }}</Button>
     <Button type="submit" form="scene-editor-form">{{ scene !== null ? copy.done : copy.add }}</Button>

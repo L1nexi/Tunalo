@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { CheckIcon, CircleHelpIcon, SlidersHorizontalIcon } from "@lucide/vue"
+import { CircleHelpIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale } from "@/api/profile"
 import PreferenceTiersEditor from "./PreferenceTiersEditor.vue"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
+import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -73,7 +72,6 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
 
     <FieldSet>
       <FieldLegend>{{ copy.preferences.disturbanceTitle }}</FieldLegend>
-      <FieldDescription>{{ copy.preferences.disturbanceDescription }}</FieldDescription>
       <Select :model-value="preset === 'custom' ? undefined : preset" @update:model-value="setPreset">
         <SelectTrigger class="w-full lg:hidden" :aria-label="copy.preferences.disturbanceTitle">
           <SelectValue :placeholder="copy.common.custom" />
@@ -86,7 +84,6 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
       </Select>
       <ToggleGroup
         type="single"
-        variant="outline"
         :spacing="2"
         class="hidden w-full lg:flex"
         :model-value="preset === 'custom' ? undefined : preset"
@@ -96,20 +93,18 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
           v-for="choice in (Object.keys(DISTURBANCE_PRESETS) as DisturbancePreset[])"
           :key="choice"
           :value="choice"
-          class="min-w-24 flex-1 data-[state=on]:border-primary data-[state=on]:bg-primary/8 data-[state=on]:shadow-xs data-[state=on]:font-semibold"
+          class="min-w-24 flex-1"
         >
-          <CheckIcon v-if="preset === choice" class="text-primary" data-icon="inline-start" />
           {{ DISTURBANCE_LABELS[locale][choice] }}
         </ToggleGroupItem>
       </ToggleGroup>
-      <p class="text-sm text-muted-foreground" role="status">{{ copy.preferences.timingSummary(disturbance.startup_grace_seconds, disturbance.idle_before_switch_seconds, disturbance.cycle_interval_minutes) }}</p>
-      <Badge v-if="preset === 'custom'" variant="outline">{{ copy.common.custom }}</Badge>
+      <p v-if="!timingOpen" class="text-sm text-muted-foreground" role="status">{{ copy.preferences.timingSummary(disturbance.startup_grace_seconds, disturbance.idle_before_switch_seconds, disturbance.cycle_interval_minutes) }}</p>
+      <p v-if="!timingOpen && preset === 'custom'" class="text-sm text-muted-foreground">{{ copy.common.custom }}</p>
     </FieldSet>
 
     <Collapsible :open="timingOpen" @update:open="(value: boolean) => emit('update:timingOpen', value)">
       <CollapsibleTrigger as-child>
         <Button variant="ghost">
-          <SlidersHorizontalIcon data-icon="inline-start" />
           {{ copy.preferences.fineTune }}
         </Button>
       </CollapsibleTrigger>

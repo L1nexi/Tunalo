@@ -7,7 +7,6 @@ import SceneBatchBinding from "./SceneBatchBinding.vue"
 import SceneBindingRow from "./SceneBindingRow.vue"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FieldError } from "@/components/ui/field"
 import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/input-group"
@@ -16,7 +15,6 @@ import {
   EmptyHeader,
   EmptyTitle,
   EmptyDescription,
-  EmptyMedia,
   EmptyContent,
 } from "@/components/ui/empty"
 import { COPY, associationSummary } from "@/setup/copy"
@@ -106,22 +104,21 @@ async function removeScene(id: string): Promise<void> {
     </Alert>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2" aria-live="polite">
-        <h2 class="text-base font-semibold">{{ copy.count(entries.length) }}</h2>
-        <Badge v-if="pending" variant="outline">{{ copy.pending(pending) }}</Badge>
-        <span v-else-if="entries.length" class="text-xs text-muted-foreground">{{ copy.allBound }}</span>
+        <p class="text-sm text-muted-foreground">{{ copy.count(entries.length) }}</p>
+        <span v-if="pending" class="text-sm text-warning">{{ copy.pending(pending) }}</span>
       </div>
       <div class="flex flex-wrap gap-2">
-        <Button id="add-scene-presets" @click="editing = { kind: 'presets' }"
+        <Button id="add-scene-presets" variant="outline" @click="editing = { kind: 'presets' }"
           ><LayersIcon data-icon="inline-start" />{{ copy.addPresets }}</Button
         >
-        <Button variant="outline" @click="editing = { kind: 'create' }"
+        <Button variant="ghost" @click="editing = { kind: 'create' }"
           ><PlusIcon data-icon="inline-start" />{{ copy.create }}</Button
         >
       </div>
     </div>
-    <Empty v-if="!entries.length" class="border py-12">
+    <Empty v-if="!entries.length" class="py-12">
       <EmptyHeader
-        ><EmptyMedia variant="icon"><LayersIcon /></EmptyMedia><EmptyTitle>{{ copy.emptyTitle }}</EmptyTitle
+        ><EmptyTitle>{{ copy.emptyTitle }}</EmptyTitle
         ><EmptyDescription>{{ copy.emptyHelp }}</EmptyDescription></EmptyHeader
       >
     </Empty>
@@ -147,7 +144,7 @@ async function removeScene(id: string): Promise<void> {
         :playlists="playlists"
         @apply="bindSelected"
       />
-      <div v-if="visible.length" class="divide-y rounded-lg border px-4" :aria-label="copy.list">
+      <div v-if="visible.length" class="flex flex-col" :aria-label="copy.list">
         <SceneBindingRow
           v-for="[id, scene] in visible"
           :key="id"
@@ -171,9 +168,6 @@ async function removeScene(id: string): Promise<void> {
         ></Empty
       >
     </template>
-    <p v-if="entries.length" class="text-xs leading-relaxed text-muted-foreground">
-      {{ shared.scenes.matchExplanation }}
-    </p>
     <FieldError
       v-if="(attempted && !valid) || errors.length"
       :errors="[...(attempted && !valid ? [shared.scenes.required] : []), ...errors]"

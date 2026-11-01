@@ -72,7 +72,6 @@ test("保存期间禁用撤销，响应后仍可恢复并再次保存", async ({
   )
   releaseResponse()
   expect((await firstResponse).ok()).toBe(true)
-  await expect(page.getByText("所有修改已保存", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
   await expect(undo).toBeEnabled()
   await undo.click()

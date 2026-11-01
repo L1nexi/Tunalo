@@ -19,7 +19,7 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   await expect(page.getByText("请填写经度。", { exact: true })).toBeHidden()
   await navigation.getByRole("button", { name: /Wallpaper Engine/ }).click()
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
-  await expect(page.getByText("Wallpaper Engine 中的播放列表名称")).toBeVisible()
+  await expect(page.getByRole("columnheader", { name: "播放列表", exact: true })).toBeVisible()
   await expect(page.getByText("CASUAL_ANIME")).toBeVisible()
   await expect(page.getByText("60 张")).toBeVisible()
   await expect(page.getByText(/英文字母与数字/)).toBeVisible()
@@ -65,7 +65,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /查看配置草稿/ }).click()
   await page.getByText("查看当前草稿全部设置").click()
 
-  await expect(page.getByText("Wallpaper Engine 路径")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Wallpaper Engine", exact: true })).toBeVisible()
   await expect(page.getByText(configuredProfile.wallpaper_engine_path)).toBeVisible()
   await expect(page.getByText("本次草稿的天气测试")).toBeVisible()
   await expect(page.getByText("当前草稿密钥尚未手动测试")).toBeVisible()

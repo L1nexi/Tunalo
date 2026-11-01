@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLinkIcon, MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
+import { MapPinIcon, MapPinSearchIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale } from "@/api/profile"
@@ -72,19 +72,17 @@ function setCoordinate(field: Coordinate, value: string | number): void {
 
 <template>
   <section class="flex flex-col gap-6">
-    <div class="flex flex-col items-start gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <Button variant="outline" :disabled="locating" @click="emit('detect')">
         <Spinner v-if="locating" data-icon="inline-start" />
         <MapPinSearchIcon v-else data-icon="inline-start" />
         {{ locating ? copy.location.detecting : copy.location.detect }}
       </Button>
-      <p class="text-sm text-muted-foreground">{{ copy.location.detectHint }}</p>
-      <p class="text-sm text-muted-foreground">{{ copy.location.manualHelp }}</p>
-      <Button type="button" variant="link" class="h-auto px-0" @click="emit('openMap')">
-        <ExternalLinkIcon data-icon="inline-start" />
+      <Button type="button" variant="link" @click="emit('openMap')">
         {{ copy.location.openMap }}
       </Button>
     </div>
+    <p class="text-sm text-muted-foreground">{{ copy.location.detectHint }}</p>
 
     <Alert v-if="detectionStatus === 'success'">
       <MapPinIcon />

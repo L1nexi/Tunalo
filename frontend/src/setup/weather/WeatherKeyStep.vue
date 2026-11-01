@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, CloudSunIcon, ExternalLinkIcon, EyeIcon, EyeOffIcon, GaugeIcon, TriangleAlertIcon } from "@lucide/vue"
+import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, EyeIcon, EyeOffIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed, ref } from "vue"
 
 import type { Locale } from "@/api/profile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { COPY } from "@/setup/copy"
@@ -61,19 +61,16 @@ const keyStateText = computed(() => {
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-        <FieldDescription>{{ copy.weather.keyDescription }}</FieldDescription>
         <FieldError v-if="invalid || errors.length" id="weather-api-key-error" :errors="[...(invalid ? [copy.weather.keyRequired] : []), ...errors]" />
       </Field>
     </FieldGroup>
 
     <div class="flex flex-wrap gap-2">
-      <Button :disabled="validating || !apiKey.trim()" @click="emit('validate')">
+      <Button variant="outline" :disabled="validating || !apiKey.trim()" @click="emit('validate')">
         <Spinner v-if="validating" data-icon="inline-start" />
-        <GaugeIcon v-else data-icon="inline-start" />
         {{ validating ? copy.weather.validating : copy.weather.validate }}
       </Button>
-      <Button variant="outline" @click="emit('openKeyPage')">
-        <ExternalLinkIcon data-icon="inline-start" />
+      <Button variant="link" @click="emit('openKeyPage')">
         {{ copy.weather.getKey }}
       </Button>
     </div>
@@ -85,7 +82,7 @@ const keyStateText = computed(() => {
 
     <div
       v-if="keyState !== 'untested' || connectionError"
-      class="flex flex-col gap-1.5 rounded-lg border bg-card p-3"
+      class="flex flex-col gap-1.5"
       role="status"
     >
       <p v-if="keyState === 'valid'" class="flex items-center gap-2 text-sm">
@@ -111,24 +108,16 @@ const keyStateText = computed(() => {
       </p>
     </div>
 
-    <details class="rounded-lg border bg-muted/30 p-4">
-      <summary class="cursor-pointer font-medium">{{ copy.weather.guideTitle }}</summary>
-      <ol class="mt-3 flex flex-col gap-4 text-sm leading-relaxed">
-        <li v-for="(step, index) in copy.weather.guideSteps" :key="step.title" class="flex gap-3">
-          <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">{{ index + 1 }}</span>
+    <details>
+      <summary class="cursor-pointer text-sm text-muted-foreground">{{ copy.weather.guideTitle }}</summary>
+      <ol class="mt-4 flex list-decimal flex-col gap-4 pl-5 text-sm leading-relaxed">
+        <li v-for="step in copy.weather.guideSteps" :key="step.title" class="pl-1">
           <div class="flex min-w-0 flex-col gap-1">
-            <p class="font-medium">{{ step.title }}</p>
             <p class="text-muted-foreground">{{ step.action }}</p>
-            <p class="text-muted-foreground">{{ step.expected }}</p>
-            <p v-if="step.fallback" class="text-muted-foreground">{{ step.fallback }}</p>
           </div>
         </li>
       </ol>
     </details>
 
-    <Alert v-if="copy.weather.validationOnSubmit">
-      <CloudSunIcon />
-      <AlertDescription>{{ copy.weather.validationOnSubmit }}</AlertDescription>
-    </Alert>
   </section>
 </template>

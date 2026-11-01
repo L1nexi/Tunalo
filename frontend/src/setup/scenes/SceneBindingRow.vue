@@ -60,9 +60,6 @@ const invalid = computed(() => props.attempted && !playlist.value)
         :describedby="invalid ? `binding-${id}` : undefined"
         @update:model-value="emit('playlist', $event)"
       />
-      <p v-if="playlist" class="text-xs text-muted-foreground">
-        {{ copy.playlistCount(playlist.item_count) }}
-      </p>
       <FieldError
         v-if="invalid"
         :id="`binding-${id}`"

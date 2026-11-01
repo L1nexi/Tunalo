@@ -11,7 +11,7 @@ import {
 import LocationStep from "./LocationStep.vue"
 import WeatherKeyStep from "./WeatherKeyStep.vue"
 
-const { locale, mode, draft, savedDraft } = useSetupEditor()
+const { locale, draft, savedDraft } = useSetupEditor()
 const { stepError, issuesByStep } = useSetupFlowContext()
 const { openExternal } = useSetupNativeWindow()
 const {
@@ -36,7 +36,7 @@ const locationEdited = computed(
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
+  <div class="flex flex-col gap-10">
     <WeatherKeyStep
       :locale="locale"
       :api-key="draft.weather.api_key"
@@ -51,13 +51,8 @@ const locationEdited = computed(
       @validate="testWeatherKey"
       @open-key-page="openExternal('https://home.openweathermap.org/api_keys')"
     />
-    <section class="flex flex-col gap-4 border-t pt-6" :aria-label="copy.location.title">
-      <div>
-        <h2 class="text-base font-semibold">{{ copy.location.title }}</h2>
-        <p class="text-sm text-muted-foreground">
-          {{ mode === "setup" ? copy.location.setupDescription : copy.location.settingsDescription }}
-        </p>
-      </div>
+    <section class="flex flex-col gap-5" :aria-label="copy.location.title">
+      <h2 class="text-lg font-semibold">{{ copy.location.title }}</h2>
       <LocationStep
         :locale="locale"
         :location="draft.weather.location"

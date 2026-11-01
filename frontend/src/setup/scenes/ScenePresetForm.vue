@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { Locale, PlaylistScanResult, SceneProfile } from "@/api/profile"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DialogFooter } from "@/components/ui/dialog"
@@ -15,7 +14,6 @@ import {
   FieldSet,
   FieldTitle,
 } from "@/components/ui/field"
-import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, associationSummary } from "@/setup/copy"
 import { copyScene } from "@/setup/profile/model"
@@ -86,34 +84,32 @@ function save(): void {
     @submit.prevent="save"
   >
     <FieldGroup>
-      <div class="grid gap-5 sm:grid-cols-2">
-        <FieldSet v-for="section in PRESET_SECTIONS" :key="section.id" class="gap-2">
-          <FieldLegend :id="`preset-section-${section.id}`" variant="label">{{
-            copy.sections[section.id]
-          }}</FieldLegend>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            :spacing="2"
-            class="flex-wrap"
-            :model-value="group"
-            :aria-labelledby="`preset-section-${section.id}`"
-            @update:model-value="setGroup"
-          >
-            <ToggleGroupItem v-for="id in section.groups" :key="id" :value="id">{{
-              copy.groups[id]
-            }}</ToggleGroupItem>
-          </ToggleGroup>
-        </FieldSet>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex min-w-0 flex-wrap gap-x-6 gap-y-2">
+          <FieldSet v-for="section in PRESET_SECTIONS" :key="section.id" class="relative min-w-0 gap-2">
+            <FieldLegend :id="`preset-section-${section.id}`" variant="label" class="sr-only">{{
+              copy.sections[section.id]
+            }}</FieldLegend>
+            <ToggleGroup
+              type="single"
+              :spacing="2"
+              class="flex-wrap"
+              :model-value="group"
+              :aria-labelledby="`preset-section-${section.id}`"
+              @update:model-value="setGroup"
+            >
+              <ToggleGroupItem v-for="id in section.groups" :key="id" :value="id">{{
+                copy.groups[id]
+              }}</ToggleGroupItem>
+            </ToggleGroup>
+          </FieldSet>
+        </div>
+        <Button type="button" variant="ghost" size="sm" class="shrink-0" :disabled="!selectable.length" @click="selectGroup">
+          {{ allSelected ? copy.deselectGroup : copy.selectGroup }}
+        </Button>
       </div>
       <FieldSet class="gap-3">
         <FieldLegend class="sr-only">{{ copy.groups[group] }}</FieldLegend>
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <FieldDescription>{{ copy.groupHelp[group] }}</FieldDescription>
-          <Button type="button" variant="ghost" size="sm" :disabled="!selectable.length" @click="selectGroup">
-            {{ allSelected ? copy.deselectGroup : copy.selectGroup }}
-          </Button>
-        </div>
         <FieldGroup class="grid gap-3 sm:grid-cols-2">
           <FieldLabel v-for="preset in presets" :key="preset.id" :for="`preset-${preset.id}`">
             <Field orientation="horizontal" :data-disabled="isAdded(preset) || undefined">
@@ -127,17 +123,16 @@ function save(): void {
               <FieldContent>
                 <FieldTitle>{{ copy.presetNames[preset.id] }}</FieldTitle>
                 <FieldDescription
-                  v-if="associationSummary(preset.associations, locale) !== copy.presetNames[preset.id]"
+                  v-if="Object.keys(preset.associations).length > 1 && associationSummary(preset.associations, locale) !== copy.presetNames[preset.id]"
                 >
                   {{ associationSummary(preset.associations, locale) }}
                 </FieldDescription>
-                <Badge v-if="isAdded(preset)" variant="secondary">{{ copy.alreadyAdded }}</Badge>
+                <span v-if="isAdded(preset)" class="text-sm text-muted-foreground">{{ copy.alreadyAdded }}</span>
               </FieldContent>
             </Field>
           </FieldLabel>
         </FieldGroup>
       </FieldSet>
-      <Separator />
       <ScenePlaylistField
         v-model="playlist"
         :locale="locale"
@@ -146,11 +141,7 @@ function save(): void {
       />
     </FieldGroup>
   </form>
-  <Separator />
   <DialogFooter class="shrink-0 flex-row flex-wrap items-center gap-2 px-5 py-4 sm:px-6">
-    <span class="mr-auto text-sm text-muted-foreground" aria-live="polite">{{
-      copy.selected(selected.length)
-    }}</span>
     <Button type="button" variant="outline" @click="emit('cancel')">{{ copy.cancel }}</Button>
     <Button type="submit" form="scene-editor-form" :disabled="!selected.length">{{
       copy.addSelected(selected.length)

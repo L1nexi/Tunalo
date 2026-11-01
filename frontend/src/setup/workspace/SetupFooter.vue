@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { CheckIcon, ChevronRightIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import { Button } from "@/components/ui/button"
-import { CardFooter } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { COPY } from "@/setup/copy"
 import {
@@ -23,7 +21,7 @@ const copy = computed(() => COPY[locale.value])
 </script>
 
 <template>
-  <CardFooter class="shrink-0 items-end justify-between gap-3">
+  <footer class="flex shrink-0 items-end justify-between gap-3 px-5 py-5 sm:px-8">
     <Button
       v-if="activeStep === 'review'"
       variant="outline"
@@ -43,7 +41,6 @@ const copy = computed(() => COPY[locale.value])
         @click="navigateToStep('review')"
       >
         {{ mode === "setup" ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
-        <ChevronRightIcon data-icon="inline-end" />
       </Button>
       <Button
         v-if="mode === 'settings' || activeStep === 'review'"
@@ -51,7 +48,6 @@ const copy = computed(() => COPY[locale.value])
         @click="submitProfile()"
       >
         <Spinner v-if="submitting" data-icon="inline-start" />
-        <CheckIcon v-else data-icon="inline-start" />
         {{
           submitting
             ? mode === "setup"
@@ -63,5 +59,5 @@ const copy = computed(() => COPY[locale.value])
         }}
       </Button>
     </div>
-  </CardFooter>
+  </footer>
 </template>

@@ -2,7 +2,6 @@
 import { computed } from "vue"
 import type { Locale, PlaylistScanResult, SceneProfile } from "@/api/profile"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
 import { COPY } from "@/setup/copy"
 import type { SceneEditorState } from "./editorState"
 import SceneDetailsForm from "./SceneDetailsForm.vue"
@@ -38,9 +37,8 @@ function restoreFocus(event: Event): void {
     >
       <DialogHeader class="shrink-0 px-5 py-4 sm:px-6">
         <DialogTitle>{{ title }}</DialogTitle>
-        <DialogDescription>{{ isPreset ? copy.presetsHelp : copy.editHint }}</DialogDescription>
+        <DialogDescription>{{ isPreset ? copy.presetsHelp : copy.associationHelp }}</DialogDescription>
       </DialogHeader>
-      <Separator />
       <ScenePresetForm
         v-if="isPreset"
         :locale="locale"

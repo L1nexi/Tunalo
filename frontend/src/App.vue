@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { TriangleAlertIcon } from "@lucide/vue"
 import { onMounted, ref } from "vue"
 
 import type { Locale, Profile } from "@/api/profile"
 import { ApiError, getProfile } from "@/api/profile"
 import { COPY, SetupWorkspace } from "@/setup"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -43,33 +40,22 @@ onMounted(loadProfile)
     :initial-locale="initialLocale"
   />
 
-  <main v-else class="grid min-h-[100dvh] place-items-center bg-muted/40 p-6 text-foreground">
-    <Card v-if="state === 'loading'" class="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>{{ COPY[initialLocale].loading.title }}</CardTitle>
-        <CardDescription>{{ COPY[initialLocale].loading.description }}</CardDescription>
-      </CardHeader>
-      <CardContent class="flex flex-col gap-4">
+  <main v-else class="grid min-h-[100dvh] place-items-center bg-background p-6 text-foreground">
+    <section v-if="state === 'loading'" class="flex w-full max-w-lg flex-col gap-6" aria-busy="true">
+      <h1 class="text-2xl font-semibold">{{ COPY[initialLocale].loading.title }}</h1>
+      <div class="flex flex-col gap-4">
         <Skeleton class="h-10 w-full" />
         <Skeleton class="h-24 w-full" />
         <Skeleton class="h-10 w-2/3" />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
 
-    <Card v-else class="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>{{ COPY[initialLocale].unavailable.title }}</CardTitle>
-        <CardDescription>{{ COPY[initialLocale].unavailable.description }}</CardDescription>
-      </CardHeader>
-      <CardContent class="flex flex-col gap-4">
-        <Alert variant="destructive">
-          <TriangleAlertIcon />
-          <AlertTitle>{{ COPY[initialLocale].unavailable.title }}</AlertTitle>
-          <AlertDescription>{{ detail }}</AlertDescription>
-        </Alert>
-        <Button class="self-start" @click="loadProfile">{{ COPY[initialLocale].unavailable.retry }}</Button>
-      </CardContent>
-    </Card>
+    <section v-else class="flex w-full max-w-lg flex-col gap-4">
+      <h1 class="text-2xl font-semibold">{{ COPY[initialLocale].unavailable.title }}</h1>
+      <p class="text-sm text-muted-foreground">{{ COPY[initialLocale].unavailable.description }}</p>
+      <p class="text-sm text-destructive" role="alert">{{ detail }}</p>
+      <Button class="self-start" @click="loadProfile">{{ COPY[initialLocale].unavailable.retry }}</Button>
+    </section>
   </main>
 
   <Toaster position="top-center" />

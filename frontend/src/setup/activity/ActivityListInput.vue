@@ -2,7 +2,6 @@
 import { PlusIcon, XIcon } from "@lucide/vue"
 import { nextTick } from "vue"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   InputGroup,
@@ -16,10 +15,8 @@ const props = defineProps<{
   placeholder: string
   addLabel: string
   removeLabel: string
-  emptyLabel: string
   invalid?: boolean
   errorId?: string
-  descriptionId?: string
 }>()
 
 const values = defineModel<string[]>({ required: true })
@@ -49,7 +46,7 @@ async function removeValue(value: string): Promise<void> {
         v-model="input"
         :placeholder="props.placeholder"
         :aria-invalid="props.invalid || undefined"
-        :aria-describedby="[props.descriptionId, props.invalid ? props.errorId : undefined].filter(Boolean).join(' ') || undefined"
+        :aria-describedby="props.invalid ? props.errorId : undefined"
         @keydown.enter="(event: KeyboardEvent) => { if (!event.isComposing) { event.preventDefault(); addValue() } }"
       />
       <InputGroupAddon align="inline-end">
@@ -60,19 +57,17 @@ async function removeValue(value: string): Promise<void> {
       </InputGroupAddon>
     </InputGroup>
 
-    <div v-if="values.length" class="flex flex-wrap gap-2">
-      <Badge
+    <ul v-if="values.length" class="flex flex-col gap-1">
+      <li
         v-for="value in values"
         :key="value"
-        variant="secondary"
-        class="h-auto min-h-8 max-w-full gap-1 pr-1"
+        class="flex min-w-0 items-center justify-between gap-2 text-sm"
       >
         <span class="min-w-0 whitespace-normal break-all">{{ value }}</span>
         <Button type="button" variant="ghost" size="icon-xs" class="shrink-0" :aria-label="`${props.removeLabel}: ${value}`" :title="`${props.removeLabel}: ${value}`" @click="removeValue(value)">
           <XIcon />
         </Button>
-      </Badge>
-    </div>
-    <p v-else class="text-sm text-muted-foreground">{{ props.emptyLabel }}</p>
+      </li>
+    </ul>
   </div>
 </template>

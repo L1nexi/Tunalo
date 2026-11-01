@@ -18,7 +18,7 @@ const copy = computed(() => COPY[props.locale].scenes)
 <template>
   <Field>
     <FieldLabel>
-      {{ label }} <span class="text-muted-foreground">{{ copy.optional }}</span>
+      {{ label }}
     </FieldLabel>
     <PlaylistPicker
       v-model="playlist"

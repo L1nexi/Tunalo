@@ -11,7 +11,6 @@ const zh = {
   disturbance: "防打扰程度",
   activity: "活动识别规则",
   weatherUntested: "当前草稿密钥尚未手动测试",
-  weatherNote: "此结果仅针对当前草稿密钥的联网测试，不代表已运行配置的实时健康状态。",
   testedAt: (date: string) => `测试时间：${date}`,
   sceneCount: (bound: number, pending: number) => `已绑定 ${bound} 个，待绑定 ${pending} 个`,
   changesTitle: "本次修改",
@@ -35,7 +34,7 @@ const zh = {
 
 const en = {
   title: "Review and save",
-  description: "These settings remain a draft until you confirm and save the Profile.",
+  description: "",
   missingTitle: "Needed before saving",
   missingDescription: "Complete these settings in any order.",
   wallpaper: "Wallpaper Engine path",
@@ -46,8 +45,6 @@ const en = {
   disturbance: "Interruption level",
   activity: "Activity rules",
   weatherUntested: "This draft key has not been tested manually",
-  weatherNote:
-    "This online test checks the current draft key. It is not the live health of the running configuration; saving also validates the location.",
   testedAt: (date: string) => `Tested: ${date}`,
   sceneCount: (bound: number, pending: number) => `${bound} assigned, ${pending} awaiting playlists`,
   changesTitle: "Changes to apply",
