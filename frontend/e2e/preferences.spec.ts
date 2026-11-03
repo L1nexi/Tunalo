@@ -50,6 +50,20 @@ test("拖拽与键盘设置同层偏好，保存过滤空层并在重开后恢�
   await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
 })
 
+test("未指定情境与排序区分开，上下移动仍保存正确的优先级", async ({ page }) => {
+  await mockSetupApi(page, true, { ...profile, matching: { preference_tiers: [["weather"], ["activity"], ["season"]] } })
+  await page.goto("/?locale=zh&test=1")
+  await openSection(page, "调度风格")
+  const lastPriority = await page.getByRole("group", { name: "第 3 优先级", exact: true }).boundingBox()
+  const unassigned = page.getByRole("group", { name: "未指定优先级", exact: true })
+  const unassignedBox = await unassigned.boundingBox()
+  expect(lastPriority!.y + lastPriority!.height).toBeLessThan(unassignedBox!.y)
+  await expect(unassigned).toHaveAccessibleDescription("未指定的情境仍参与判断。")
+  await page.getByRole("button", { name: "下移第 1 优先级", exact: true }).click()
+  await page.getByRole("button", { name: "上移第 3 优先级", exact: true }).click()
+  expect((await saveSettings(page)).matching.preference_tiers).toEqual([["activity"], ["season"], ["weather"]])
+})
+
 test("移动和删除层级改变优先顺序，删除的变量回到待选区", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, matching: { preference_tiers: [["weather"], ["activity", "time"]] } })
   await page.goto("/?locale=zh&test=1")
@@ -111,14 +125,14 @@ test("服务端偏好校验错误定位到可见字段", async ({ page }) => {
   await openSection(page, "查看配置草稿")
   await page.getByRole("button", { name: "保存并应用", exact: true }).click()
   await expect(page.getByText("请检查情境偏好，每项情境只能出现一次。", { exact: true })).toBeVisible()
-  await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toBeFocused()
+  await expect(page.getByRole("group", { name: "第 1 优先级", exact: true })).toBeFocused()
 })
 
 test("直接用键盘创建优先级，移动后保留焦点并保存顺序", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "调度风格", exact: true }).click()
-  await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toHaveAccessibleDescription("从上到下依次尝试，同层并列。未指定的情境仍参与判断。")
+  await expect(page.getByRole("group", { name: "未指定优先级", exact: true })).toHaveAccessibleDescription("未指定的情境仍参与判断。")
 
   const menu = page.getByRole("combobox", { name: "移动天气到", exact: true })
   await menu.focus()

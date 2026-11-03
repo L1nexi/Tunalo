@@ -1,75 +1,52 @@
 # 工作交接
 
-更新时间：2026-11-03。
-分支：`codex/frontend-adjustments`。
-修复起点：`ab29206`（时间提示补全英文）。第 1 项已提交为 `7c0c3a5`。用户已授权按问题分批提交后续修复。
+更新时间：2026-11-03。分支：`codex/frontend-adjustments`。修复起点：`ab29206`（时间提示补全英文）。
 
-## 当前任务
+## 当前状态
 
-按[外部 UI/UX 验收记录](../../docs/UI-UX-验收记录-2026-11-02.md)分批修复前六项问题。第 1 项场景弹窗草稿保护已通过验证和用户审阅。第 2 项已提交为 `eddedfb`，第 3 项为 `6cfa5ec`，第 4 项为 `b14b436`，第 5 项必填字段就近反馈随本次提交完成，第 6 项保持待修。
+[外部 UI/UX 验收记录](../../docs/UI-UX-验收记录-2026-11-02.md)中的六项问题均已修复。用户已审阅第 1 项，并授权自行按问题分批提交后续修复。
 
-三项时间说明和帮助按钮名称的英文补全已进入基线。用户明确要求导航保持简洁，不显示“可跳过／沿用默认”；确有必要时，用 `*` 标明必选项。
+| 项目 | 提交 |
+| --- | --- |
+| 1. 场景草稿关闭保护 | `7c0c3a5` |
+| 2. 选中状态辨识 | `eddedfb` |
+| 3. 失效播单计数与定位 | `6cfa5ec` |
+| 4. 检查页待处理事项前置 | `b14b436` |
+| 5. 密钥必填字段就近反馈 | `620e984` |
+| 6. 优先级与未分配区分开 | 本次提交 |
 
-## 第 5 项：密钥必填反馈
+三项时间说明和帮助按钮名称的英文补全已进入基线。导航继续保持简洁，不显示“可跳过／沿用默认”；确有必要时，用 `*` 标明必选项。
 
-天气编辑会话记录密钥是否实际编辑过，并在输入框失焦后启用必填提示。首次空白表单及未经编辑的聚焦、离开保持安静。切换设置项保留反馈，补全密钥后即时清除；已有联网测试反馈继续独立处理。
+## 行为和源码入口
 
-`WeatherKeyStep.vue` 增加 `blur` 事件，`useWeatherServices.ts` 提供 `apiKeyTouched` 与 `touchApiKey()`，由 `SetupWeatherContent.vue` 连接。类型检查、生产构建及 11 项天气和位置测试通过，其中新增 2 项输入交互回归。已检查中英文就近提示，截图为 `tunalo-audit-fixes/api-key-required-zh.png`、`api-key-required-en.png`。
+- 场景临时修改计入窗口关闭判断；Esc 对修改过的弹窗先确认，继续编辑保留内容和焦点，显式取消直接清除本次编辑。放弃弹窗编辑保留主页面修改。窗口确认框显示在场景弹窗之上，并正确恢复焦点。入口为 `frontend/src/setup/scenes/SceneEditor.vue`、两种场景表单、`profile/useProfileDraft.ts`、`workspace/SetupConfirmations.vue`。
+- 场景关联、预设分类、防打扰档位和语言选择统一使用主色实底表示选中，悬停保持浅灰底。入口为 `frontend/src/components/ui/toggle/index.ts`、`toggle-group/ToggleGroupItem.vue`、`frontend/src/setup/workspace/SetupSidebar.vue`。
+- 摘要、场景页和提交校验共用 `playlistBindingStatus(playlist, available)`，区分有效、未绑定和失效绑定。检查页接收当前可用播单，显示失效数量；零场景显示“尚未添加场景”。问题入口跳到对应场景并聚焦播单选择器。入口为 `frontend/src/setup/profile/model/scenes.ts`、`review/summary.ts`、`ReviewStep.vue`、`workspace/SetupStepContent.vue` 和场景播单选择器。
+- 已有问题列表移到检查页标题下，修正入口沿用原有校验和焦点行为，底部保持原有按钮布局。
+- 密钥实际编辑并离开输入框后启用必填提示。首次空白表单及未经编辑的聚焦、离开保持安静。切换设置项保留反馈，补全密钥后即时清除。`WeatherKeyStep.vue` 增加 `blur` 事件，`useWeatherServices.ts` 提供 `apiKeyTouched` 与 `touchApiKey()`，由 `SetupWeatherContent.vue` 连接；联网测试反馈继续独立处理。
+- 编号优先级连续排在上方，“添加层级”紧随其后；未指定情境独立放在下方，用留白及原有说明区分。层级重排使用调整后的索引，拖动、菜单、键盘操作和 Profile 中的偏好语义保持原状。入口为 `frontend/src/setup/scheduling/PreferenceTiersEditor.vue` 和 `copy/preferences.ts`。
 
-## 第 4 项：检查页优先显示待处理项（已提交）
-
-把已有问题列表移到检查页标题下，修正入口保留原有校验和焦点行为；底部继续保持原有按钮布局。类型检查、生产构建和 6 项检查页回归通过，包含新增的 900×600 首屏可见性用例。另以生产构建核对 800×520 窗口，完整问题列表位于首屏，截图为 `tunalo-audit-fixes/review-issues-first-800.png`。
-
-## 第 3 项：失效播单计数（已提交）
-
-摘要、场景页和提交校验共用 `playlistBindingStatus(playlist, available)`，区分有效、未绑定和失效绑定。检查页接收当前可用播单，显示失效数量；零场景显示“尚未添加场景”。问题入口可跳到对应场景并聚焦播单选择器。
-
-类型检查、生产构建和 8 项检查页及首次设置回归通过。其中新增 5 项，覆盖播单改名、删除、内容清空、零场景和英文提示。已在生产界面核对失效摘要及焦点定位，截图为 `tunalo-audit-fixes/unavailable-binding.png`。
-
-## 第 2 项：选中状态辨识（已提交）
-
-场景关联、预设分类、防打扰档位和语言选择统一使用主色实底表示选中，悬停继续使用浅灰底。移除语言控件覆盖选中底色的例外。组件参数、事件和交互逻辑保持原状。
-
-修改 `frontend/src/components/ui/toggle/index.ts`、`toggle-group/ToggleGroupItem.vue` 及 `frontend/src/setup/workspace/SetupSidebar.vue`。类型检查、生产构建和 23 项相关浏览器测试通过。浅色选中态与弹窗背景对比度约 5.09:1，深色约 7.82:1；选中文字分别约 4.87:1、8.63:1。已检查悬停区别和键盘切换。截图见本次会话 `tunalo-audit-fixes/selection-light.png`、`selection-dark.png`。
-
-## 第 1 项：场景关闭保护（已提交）
-
-- 新建、编辑场景以及预设选择产生的临时修改，都参与窗口关闭判断。只修改弹窗时，原生关闭请求也先询问是否放弃。
-- 按 Esc 时，有修改则确认放弃；选择“继续编辑”保留内容和焦点，选择“放弃修改”只清除弹窗编辑。显式“取消”直接清除本次编辑。
-- 未编辑或已还原为原内容时直接关闭。关联标签的排列顺序变化按既有规范化比较处理。
-- 主页面和弹窗同时修改时，窗口关闭使用同一个确认。放弃弹窗编辑仍保留主页面修改。
-- 窗口确认框在打开时挂载，显示在场景弹窗之上；确认框和场景弹窗分别恢复到正确的输入位置或原操作按钮。
-
-## 源码与接口
-
-- `frontend/src/setup/profile/useProfileDraft.ts`：增加 `pendingSceneChanges`，并计入 `isDirty`。
-- `frontend/src/setup/scenes/SceneDetailsForm.vue`、`ScenePresetForm.vue`：增加 `dirty(changed: boolean)` 事件，报告当前表单是否有临时修改。
-- `frontend/src/setup/scenes/SceneEditor.vue`：汇总表单修改状态，处理 Esc 确认、取消和焦点恢复；卸载时清除临时标记。
-- `frontend/src/setup/workspace/SetupConfirmations.vue`：修正窗口确认框的挂载顺序和焦点恢复。
-- `frontend/src/setup/copy/scenes.ts`：增加中英文场景放弃确认文案。
-- `frontend/e2e/scene-editor.spec.ts`：新增 7 项行为回归，包含真实浏览器关闭提示；原生关闭沿用现有桥接替身。
-
-本批沿用现有 Profile、API 和原生关闭事件，后端及真实运行配置保持原状。
+后端、Profile 格式、原生关闭事件和真实运行配置保持原状。
 
 ## 验证
 
 | 检查 | 结果 |
 | --- | --- |
-| 原问题回归 | 修复前复现只编辑弹窗时绕过确认；修复后通过 |
 | `npm run type-check` | 通过 |
 | `npm run build-only` | 通过 |
-| `npm run test:e2e -- --reporter=line --workers=2` | 54 项通过，约 1.7 分钟 |
-| 生产界面走查 | 1200×780 中文浅色、320×720 英文深色；确认框可操作、键盘焦点返回、窄窗口无横向溢出，无页面脚本错误 |
+| `npm run test:e2e -- --reporter=line --workers=2` | 63 项全部通过，59.7 秒 |
 | `git diff --check` | 通过 |
 
-默认 6 并发运行时，appearance、activity 各有一条原有用例超时。停止该次运行后，以 2 并发重跑，54 项全部通过。
+关闭保护、失效播单计数、首屏入口、密钥失焦反馈和优先级顺序均先用回归复现，再完成修复后的定向验证。新增回归共 16 项，覆盖弹窗和窗口关闭、浏览器关闭提示、播单改名及删除、内容清空、零场景、具体场景定位、检查页首屏入口、密钥失焦反馈、优先级顺序和层级重排。测试通过公开页面操作及外部 API、原生桥接替身观察行为。
 
-截图和走查结果保存在本次 Codex 会话的 `tunalo-scene-draft-fix` 可视化目录，文件包括 `native-close-light.png`、`scene-discard-light.png`、`scene-discard-dark-320-en.png` 和 `results.json`。本地预览和走查浏览器均已关闭。
+选中态与相邻背景的对比度：浅色约 5.09:1，深色约 7.82:1；选中文字分别约 4.87:1、8.63:1。界面验证覆盖中英文、深浅主题、1200×780、900×600、800×520 和 320px 窄窗口，包含生产构建走查；检查键盘焦点、修正入口、无横向溢出及悬停区别。
 
-## 后续事项
+验证使用 2 并发。此前默认 6 并发运行出现过原有用例超时，降低并发后全量通过。本地预览和走查浏览器均已关闭。
 
-真实 WebView2 标题栏关闭、Alt+F4 和 Windows DPI 缩放仍待实机联调；浏览器中的原生事件模拟覆盖前端处理器及桥接出口。
+截图保存在本次 Codex 会话的 `tunalo-audit-fixes` 可视化目录：`selection-light.png`、`selection-dark.png`、`unavailable-binding.png`、`review-issues-first-800.png`、`api-key-required-zh.png`、`api-key-required-en.png`、`priorities-zh.png`、`priorities-en.png`。关闭保护的截图与事件结果见上一批的 `tunalo-scene-draft-fix` 目录。
 
-继续处理报告第 6 项优先级分区。保持拖动、菜单、键盘和层级重排行为，并独立验证和提交。
+## 待联调
+
+真实 WebView2 标题栏关闭、Alt+F4 和 Windows DPI 缩放仍待实机联调；浏览器中的原生事件模拟已覆盖前端处理器及桥接出口。本轮验证使用模拟本地 API，未替代真实天气联网和实际壁纸切换验收。
 
 此前已验收的本地昼夜计算和天气提醒见[本地昼夜计算规格](../../docs/archived/done/LOCAL_SUN_TIMES_SPEC.md)、[天气提醒规格](../../docs/archived/done/WEATHER_REMINDER_SPEC.md)。
