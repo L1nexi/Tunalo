@@ -24,6 +24,14 @@ const zh = {
   timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
     `启动等待 ${startup ?? "—"} 秒，空闲等待 ${idle ?? "—"} 秒，基础轮换 ${cycle ?? "—"} 分钟。`,
   fineTune: "自定义防打扰设置",
+  timingHelpLabel: (name: string) => `${name}说明`,
+  timingHints: {
+    startupGrace: "调度器启动至能够尝试切换的最短等待时间，更高的启动等待时间通常可以增加壁纸选择的稳定性。",
+    idleBeforeSwitch:
+      "停止操作多久后，允许壁纸切换。更短的空闲等待时间通常可以带来更及时的壁纸响应，但也会增加切换次数。",
+    cycleInterval:
+      "从上次成功切换起计算。推荐变化很小时按此间隔轮换，变化较大时提前切换；切换仍需通过空闲、全屏和负载检查。",
+  },
   startupGrace: "启动等待",
   idleBeforeSwitch: "空闲等待",
   cycleInterval: "基础轮换间隔",
@@ -55,6 +63,15 @@ const en = {
   timingSummary: (startup: number | null, idle: number | null, cycle: number | null) =>
     `Startup wait ${startup ?? "—"} s, idle wait ${idle ?? "—"} s, baseline rotation ${cycle ?? "—"} min.`,
   fineTune: "Fine-tune timing",
+  timingHelpLabel: (name: string) => `${name} help`,
+  timingHints: {
+    startupGrace:
+      "Minimum wait after the scheduler starts before it can attempt a switch. A longer wait can help keep wallpaper selection stable during startup.",
+    idleBeforeSwitch:
+      "How long you must be inactive before a wallpaper switch is allowed. A shorter wait can make changes more responsive, but may lead to more frequent switches.",
+    cycleInterval:
+      "Measured from the last successful switch. When recommendations change little, wallpapers rotate at this interval; larger changes may trigger an earlier switch. Switching still requires the idle, fullscreen, and CPU load checks to pass.",
+  },
   startupGrace: "Startup wait",
   idleBeforeSwitch: "Idle wait",
   cycleInterval: "Baseline rotation interval",
@@ -64,14 +81,6 @@ const en = {
 };
 
 export const PREFERENCES_COPY = { zh, en };
-
-export const ZH_TIMING_HINTS = {
-  startupGrace: "调度器启动至能够尝试切换的最短等待时间，更高的启动等待时间通常可以增加壁纸选择的稳定性。",
-  idleBeforeSwitch:
-    "停止操作多久后，允许壁纸切换。更短的空闲等待时间通常可以带来更及时的壁纸响应，但也会增加切换次数。",
-  cycleInterval:
-    "从上次成功切换起计算。推荐变化很小时按此间隔轮换，变化较大时提前切换；切换仍需通过空闲、全屏和负载检查。",
-} as const;
 
 export const DISTURBANCE_LABELS: Record<Locale, Record<DisturbancePreset, string>> = {
   zh: {

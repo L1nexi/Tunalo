@@ -37,5 +37,5 @@ export const COPY = { zh, en } satisfies Record<Locale, typeof zh>;
 
 export { CONTEXT_VARIABLE_LABELS } from "./context-labels";
 export { associationSummary, preferenceSummary } from "./formatters";
-export { DISTURBANCE_LABELS, ZH_TIMING_HINTS } from "./preferences";
+export { DISTURBANCE_LABELS } from "./preferences";
 export { ZH_WEATHER_SAVE_PROMPT } from "./weather";

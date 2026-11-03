@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { COPY, DISTURBANCE_LABELS, ZH_TIMING_HINTS } from "@/setup/copy"
+import { COPY, DISTURBANCE_LABELS } from "@/setup/copy"
 import { detectDisturbancePreset, DISTURBANCE_PRESETS, isNonNegativeInteger, parseNumberInput } from "@/setup/profile/model"
 import type { DisturbancePreset, PreferenceLayer, ProfileDraft } from "@/setup/profile/model"
 
@@ -36,9 +36,9 @@ const emit = defineEmits<{
 const copy = computed(() => COPY[props.locale])
 const preset = computed(() => detectDisturbancePreset({ disturbance: props.disturbance }))
 const timingFields = computed(() => [
-  ["startup_grace_seconds", copy.value.preferences.startupGrace, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.startupGrace : ""],
-  ["idle_before_switch_seconds", copy.value.preferences.idleBeforeSwitch, copy.value.preferences.seconds, props.locale === "zh" ? ZH_TIMING_HINTS.idleBeforeSwitch : ""],
-  ["cycle_interval_minutes", copy.value.preferences.cycleInterval, copy.value.preferences.minutes, props.locale === "zh" ? ZH_TIMING_HINTS.cycleInterval : ""],
+  ["startup_grace_seconds", copy.value.preferences.startupGrace, copy.value.preferences.seconds, copy.value.preferences.timingHints.startupGrace],
+  ["idle_before_switch_seconds", copy.value.preferences.idleBeforeSwitch, copy.value.preferences.seconds, copy.value.preferences.timingHints.idleBeforeSwitch],
+  ["cycle_interval_minutes", copy.value.preferences.cycleInterval, copy.value.preferences.minutes, copy.value.preferences.timingHints.cycleInterval],
 ] as const)
 
 function messages(...fields: string[]): string[] {
@@ -121,7 +121,7 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
                 <FieldLabel :for="field[0]">{{ field[1] }}</FieldLabel>
                 <Tooltip v-if="field[3]">
                   <TooltipTrigger as-child>
-                    <Button type="button" variant="ghost" size="icon-xs" :aria-label="`${field[1]}说明`">
+                    <Button type="button" variant="ghost" size="icon-xs" :aria-label="copy.preferences.timingHelpLabel(field[1])">
                       <CircleHelpIcon />
                     </Button>
                   </TooltipTrigger>
