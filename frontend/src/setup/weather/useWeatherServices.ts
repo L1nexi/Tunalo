@@ -15,6 +15,8 @@ export function useWeatherServices(
 ) {
   const copy = computed(() => COPY[locale.value])
   const validatingWeather = ref(false)
+  const apiKeyTouched = ref(false)
+  let apiKeyEdited = false
   const weatherFailureKind = ref<null | "invalid" | "quota" | "connection">(null)
   const weatherTestedAt = ref<number | null>(null)
   const weatherValidationError = ref("")
@@ -43,12 +45,17 @@ export function useWeatherServices(
     copy.value.weather.testedAt(new Date(weatherTestedAt.value).toLocaleString(locale.value === "zh" ? "zh-CN" : "en-US")))
 
   function updateApiKey(value: string): void {
+    apiKeyEdited = true
     weather.value.api_key = value
     weatherFailureKind.value = null
     weatherValidationError.value = ""
     weatherValidationFailure.value = null
     if (value.trim() !== verifiedWeatherKey.value) weatherTestedAt.value = null
     onEdit("api_key")
+  }
+
+  function touchApiKey(): void {
+    if (apiKeyEdited) apiKeyTouched.value = true
   }
 
   function updateLocation(value: ProfileDraft["weather"]["location"]): void {
@@ -127,10 +134,10 @@ export function useWeatherServices(
   }
 
   return {
-    validatingWeather, weatherKeyState, weatherTestedAtText, weatherConnectionError, weatherValidationError,
+    validatingWeather, apiKeyTouched, weatherKeyState, weatherTestedAtText, weatherConnectionError, weatherValidationError,
     locating, locationDetectionStatus, locationDetectionError, locationDetectionCity,
     weatherSaveDialogOpen, weatherSaveFailure, hasVerifiedKey,
-    updateApiKey, updateLocation, testWeatherKey, detectCity, offerUnverifiedSave, clearSaveFeedback,
+    updateApiKey, touchApiKey, updateLocation, testWeatherKey, detectCity, offerUnverifiedSave, clearSaveFeedback,
   }
 }
 

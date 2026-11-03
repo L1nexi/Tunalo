@@ -24,6 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:apiKey": [value: string]
+  blur: []
   openKeyPage: []
   validate: []
 }>()
@@ -53,6 +54,7 @@ const keyStateText = computed(() => {
             :aria-invalid="invalid || errors.length > 0"
             :aria-describedby="invalid || errors.length ? 'weather-api-key-error' : undefined"
             @update:model-value="(value: string | number) => emit('update:apiKey', String(value))"
+            @blur="emit('blur')"
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton :aria-label="showApiKey ? copy.common.hide : copy.common.show" @click="showApiKey = !showApiKey">

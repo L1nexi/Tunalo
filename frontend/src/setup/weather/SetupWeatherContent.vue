@@ -20,11 +20,13 @@ const {
   weatherTestedAtText,
   weatherConnectionError,
   weatherValidationError,
+  apiKeyTouched,
   locating,
   locationDetectionStatus,
   locationDetectionError,
   locationDetectionCity,
   updateApiKey,
+  touchApiKey,
   updateLocation,
   testWeatherKey,
   detectCity,
@@ -40,7 +42,7 @@ const locationEdited = computed(
     <WeatherKeyStep
       :locale="locale"
       :api-key="draft.weather.api_key"
-      :invalid="Boolean(stepError) && !draft.weather.api_key.trim()"
+      :invalid="(Boolean(stepError) || apiKeyTouched) && !draft.weather.api_key.trim()"
       :errors="issuesByStep.weather['weather.api_key'] ?? []"
       :validating="validatingWeather"
       :key-state="weatherKeyState"
@@ -48,6 +50,7 @@ const locationEdited = computed(
       :connection-error="weatherConnectionError"
       :validation-error="weatherValidationError"
       @update:api-key="updateApiKey"
+      @blur="touchApiKey"
       @validate="testWeatherKey"
       @open-key-page="openExternal('https://home.openweathermap.org/api_keys')"
     />

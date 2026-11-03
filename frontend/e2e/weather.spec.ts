@@ -2,6 +2,43 @@ import { expect, test } from "@playwright/test"
 import type { Profile } from "../src/api/profile"
 import { mockSetupApi } from "./support/profileApi"
 
+test("清空密钥后失焦显示必填提示，切换页面保留反馈，补全后即时清除", async ({ page }) => {
+  await mockSetupApi(page, true)
+  await page.goto("/?locale=zh&test=1")
+  const navigation = page.getByRole("navigation")
+  await navigation.getByRole("button", { name: "天气服务", exact: true }).click()
+  const key = page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true })
+  const required = page.getByText("请先填写 API Key。", { exact: true })
+  await key.fill("")
+  await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeDisabled()
+  await expect(required).toHaveCount(0)
+  await key.press("Tab")
+  await expect(key).toHaveAccessibleDescription("请先填写 API Key。")
+  await navigation.getByRole("button", { name: "场景绑定", exact: true }).click()
+  await navigation.getByRole("button", { name: "天气服务", exact: true }).click()
+  await expect(required).toBeVisible()
+  await key.fill("another-key")
+  await expect(required).toHaveCount(0)
+  await expect(key).toHaveAttribute("aria-invalid", "false")
+  await expect(page.getByRole("button", { name: "保存并应用", exact: true })).toBeEnabled()
+})
+
+test("首次空白密钥保持安静，实际编辑并离开后才提示", async ({ page }) => {
+  await mockSetupApi(page, false)
+  await page.goto("/?locale=zh&test=1")
+  await page.getByRole("navigation").getByRole("button", { name: "天气服务", exact: true }).click()
+  const key = page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true })
+  const required = page.getByText("请先填写 API Key。", { exact: true })
+  await key.focus()
+  await key.press("Tab")
+  await expect(required).toHaveCount(0)
+  await key.fill("temporary-key")
+  await key.fill("")
+  await expect(required).toHaveCount(0)
+  await key.press("Tab")
+  await expect(required).toBeVisible()
+})
+
 test("天气页测试 Key 时说明代理失败原因", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/weather-key-validations", async (route) => {
