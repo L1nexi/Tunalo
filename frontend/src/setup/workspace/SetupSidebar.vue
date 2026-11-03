@@ -96,8 +96,8 @@ function setLocale(value: unknown): void {
 
     <div :inert="submitting" class="mt-auto flex items-center justify-between">
       <ToggleGroup type="single" size="sm" :spacing="1" class="shrink-0" :model-value="locale" :aria-label="copy.nav.languageLabel" @update:model-value="setLocale">
-        <ToggleGroupItem value="zh" class="rounded-sm data-[state=on]:bg-background" aria-label="中文">中</ToggleGroupItem>
-        <ToggleGroupItem value="en" class="rounded-sm data-[state=on]:bg-background" aria-label="English">EN</ToggleGroupItem>
+        <ToggleGroupItem value="zh" class="rounded-sm" aria-label="中文">中</ToggleGroupItem>
+        <ToggleGroupItem value="en" class="rounded-sm" aria-label="English">EN</ToggleGroupItem>
       </ToggleGroup>
       <Select :model-value="themeMode" @update:model-value="setTheme">
         <SelectTrigger class="size-9 justify-center gap-0 border-0 bg-transparent p-0 hover:bg-sidebar-accent [&_svg:last-child]:hidden" :aria-label="`${copy.nav.themeLabel}: ${themeLabel}`" :title="`${copy.nav.themeLabel}: ${themeLabel}`">
