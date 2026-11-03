@@ -41,6 +41,23 @@ const sceneStatuses = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
+    <Alert v-if="!valid" variant="destructive">
+      <TriangleAlertIcon />
+      <AlertTitle>{{ copy.review.missingTitle }}</AlertTitle>
+      <AlertDescription class="flex flex-col gap-3">
+        <span>{{ copy.review.missingDescription }}</span>
+        <span class="flex flex-wrap gap-2">
+          <Button
+            v-for="step in missingSteps"
+            :key="step.id"
+            size="sm"
+            variant="outline"
+            @click="emit('openStep', step.id)"
+            >{{ step.title }}</Button
+          >
+        </span>
+      </AlertDescription>
+    </Alert>
     <section v-if="mode === 'settings'" aria-labelledby="changes-heading">
       <h2 id="changes-heading" class="mb-4 text-lg font-semibold">{{ copy.review.changesTitle }}</h2>
       <p
@@ -131,23 +148,5 @@ const sceneStatuses = computed(() => {
         </section>
       </div>
     </component>
-
-    <Alert v-if="!valid" variant="destructive">
-      <TriangleAlertIcon />
-      <AlertTitle>{{ copy.review.missingTitle }}</AlertTitle>
-      <AlertDescription class="flex flex-col gap-3">
-        <span>{{ copy.review.missingDescription }}</span>
-        <span class="flex flex-wrap gap-2">
-          <Button
-            v-for="step in missingSteps"
-            :key="step.id"
-            size="sm"
-            variant="outline"
-            @click="emit('openStep', step.id)"
-            >{{ step.title }}</Button
-          >
-        </span>
-      </AlertDescription>
-    </Alert>
   </section>
 </template>

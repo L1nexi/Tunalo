@@ -1,6 +1,21 @@
 import { expect, test } from "@playwright/test"
 import { mockSetupApi, profile } from "./support/profileApi"
 
+test("首次检查配置时待处理项和修正入口位于首屏", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 600 })
+  await mockSetupApi(page, false)
+  await page.goto("/?locale=zh&test=1")
+  await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
+  await page.getByRole("navigation").getByRole("button", { name: "查看配置草稿", exact: true }).click()
+  const issues = page.getByRole("alert")
+  await expect(issues).toContainText("配置项缺失")
+  await expect(issues).toBeInViewport({ ratio: 1 })
+  await expect(issues.getByRole("button", { name: "场景绑定", exact: true })).toBeInViewport()
+  await expect(page.getByRole("button", { name: "完成设置", exact: true })).toBeDisabled()
+  await issues.getByRole("button", { name: "天气服务", exact: true }).click()
+  await expect(page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true })).toBeFocused()
+})
+
 for (const scanChange of ["改名", "删除", "清空"] as const) {
   test(`播单${scanChange}后检查页区分失效绑定，并定位到对应场景`, async ({ page }) => {
     await mockSetupApi(page, true, {
