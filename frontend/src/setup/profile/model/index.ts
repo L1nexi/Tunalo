@@ -12,4 +12,4 @@ export {
   detectDisturbancePreset,
 } from "./timing"
 export type { DisturbancePreset } from "./timing"
-export { copyScene, copyScenes, sceneFingerprint } from "./scenes"
+export { copyScene, copyScenes, sceneFingerprint, playlistBindingStatus } from "./scenes"

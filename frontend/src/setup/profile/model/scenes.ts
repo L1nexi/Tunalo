@@ -1,6 +1,14 @@
 import { CONTEXT_VARIABLES, type SceneProfile } from "@/api/profile"
 import type { ProfileDraft } from "./draft"
 
+export function playlistBindingStatus(
+  playlist: string,
+  available: ReadonlySet<string>,
+): "bound" | "unbound" | "unavailable" {
+  if (!playlist) return "unbound"
+  return available.has(playlist) ? "bound" : "unavailable"
+}
+
 export function copyScene(scene: SceneProfile): SceneProfile {
   return {
     ...scene,

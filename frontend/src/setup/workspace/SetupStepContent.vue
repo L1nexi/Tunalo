@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TriangleAlertIcon } from "@lucide/vue"
-import { computed } from "vue"
+import { computed, nextTick } from "vue"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { COPY } from "@/setup/copy"
@@ -47,6 +47,12 @@ const { hasNativeBridge } = useSetupNativeWindow()
 const { weatherKeyState, weatherTestedAtText, weatherConnectionError, validatingWeather, testWeatherKey } =
   useSetupWeather()
 const copy = computed(() => COPY[locale.value])
+
+async function openScene(id: string): Promise<void> {
+  navigateToStep("scenes")
+  await nextTick()
+  document.getElementById(`scene-playlist-${id}`)?.focus()
+}
 </script>
 
 <template>
@@ -117,6 +123,7 @@ const copy = computed(() => COPY[locale.value])
       :locale="locale"
       :draft="draft"
       :saved-draft="savedDraft"
+      :playlists="scan.usablePlaylists.value"
       :mode="mode"
       :valid="allValid"
       :missing-steps="missingSteps"
@@ -127,6 +134,7 @@ const copy = computed(() => COPY[locale.value])
       :has-pending-activity="pendingActivityFields.length > 0"
       @validate-weather="testWeatherKey"
       @open-step="navigateToStep"
+      @open-scene="openScene"
     />
   </div>
 </template>

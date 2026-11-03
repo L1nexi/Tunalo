@@ -1,6 +1,6 @@
-import type { Locale } from "@/api/profile"
+import type { Locale, PlaylistScanResult } from "@/api/profile"
 import { COPY, DISTURBANCE_LABELS, preferenceSummary } from "../copy"
-import { detectDisturbancePreset } from "@/setup/profile/model"
+import { detectDisturbancePreset, playlistBindingStatus } from "@/setup/profile/model"
 import type { ProfileDraft } from "@/setup/profile/model"
 
 export type ReviewWeatherState = "untested" | "valid" | "invalid" | "quota"
@@ -28,10 +28,17 @@ export function reviewWeather(state: ReviewWeatherState, locale: Locale): string
 }
 
 /** 以设置步骤组织当前配置摘要，保留路径与主要选择的强调级别。 */
-export function reviewGroups(draft: ProfileDraft, locale: Locale, weatherState: ReviewWeatherState) {
+export function reviewGroups(
+  draft: ProfileDraft,
+  locale: Locale,
+  weatherState: ReviewWeatherState,
+  playlists: PlaylistScanResult["playlists"],
+) {
   const copy = COPY[locale]
   const preset = detectDisturbancePreset(draft)
   const scenes = Object.values(draft.scenes)
+  const available = new Set(playlists.map((playlist) => playlist.name))
+  const bindings = scenes.map((scene) => playlistBindingStatus(scene.playlist, available))
   return [
     {
       id: "wallpaper" as const,
@@ -58,8 +65,9 @@ export function reviewGroups(draft: ProfileDraft, locale: Locale, weatherState: 
           id: "scenes",
           label: copy.review.scenes,
           value: copy.review.sceneCount(
-            scenes.filter((scene) => scene.playlist).length,
-            scenes.filter((scene) => !scene.playlist).length,
+            bindings.filter((status) => status === "bound").length,
+            bindings.filter((status) => status === "unbound").length,
+            bindings.filter((status) => status === "unavailable").length,
           ),
         },
       ],

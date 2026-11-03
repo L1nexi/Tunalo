@@ -12,7 +12,11 @@ const zh = {
   activity: "活动识别规则",
   weatherUntested: "当前草稿密钥尚未手动测试",
   testedAt: (date: string) => `测试时间：${date}`,
-  sceneCount: (bound: number, pending: number) => `已绑定 ${bound} 个，待绑定 ${pending} 个`,
+  sceneCount: (bound: number, pending: number, unavailable: number) =>
+    bound + pending + unavailable === 0
+      ? "尚未添加场景"
+      : `已绑定 ${bound} 个，待绑定 ${pending} 个${unavailable ? `，${unavailable} 个绑定失效` : ""}`,
+  unavailableBinding: "绑定失效",
   changesTitle: "本次修改",
   noChanges: "所有修改已保存。",
   pendingInputNotice: "活动识别中有尚未添加的文字，处理后才会保存。",
@@ -46,7 +50,11 @@ const en = {
   activity: "Activity rules",
   weatherUntested: "This draft key has not been tested manually",
   testedAt: (date: string) => `Tested: ${date}`,
-  sceneCount: (bound: number, pending: number) => `${bound} assigned, ${pending} awaiting playlists`,
+  sceneCount: (bound: number, pending: number, unavailable: number) =>
+    bound + pending + unavailable === 0
+      ? "No scenes added"
+      : `${bound} assigned, ${pending} awaiting playlists${unavailable ? `, ${unavailable} unavailable ${unavailable === 1 ? "binding" : "bindings"}` : ""}`,
+  unavailableBinding: "Unavailable binding",
   changesTitle: "Changes to apply",
   noChanges: "All changes saved.",
   pendingInputNotice: "Activity rules still have text waiting to be added; handle it before saving.",

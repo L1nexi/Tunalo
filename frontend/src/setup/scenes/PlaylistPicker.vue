@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/combobox"
 import { COPY } from "@/setup/copy"
 const props = defineProps<{
+  id?: string
   modelValue: string
   locale: Locale
   playlists: PlaylistScanResult["playlists"]
@@ -35,6 +36,7 @@ function update(value: unknown): void {
     <ComboboxAnchor as-child
       ><ComboboxTrigger as-child>
         <Button
+          :id="id"
           variant="outline"
           class="w-full min-w-0 justify-between"
           :aria-label="label"

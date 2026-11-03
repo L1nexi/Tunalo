@@ -1,5 +1,5 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, hasValidPreferences, hasValidTiming, preferenceFingerprint, sceneFingerprint } from "@/setup/profile/model"
+import { activityConflicts, hasValidPreferences, hasValidTiming, playlistBindingStatus, preferenceFingerprint, sceneFingerprint } from "@/setup/profile/model"
 import type { ProfileDraft } from "@/setup/profile/model"
 
 export const STEP_ORDER = [
@@ -60,7 +60,7 @@ export function evaluateSteps(
   const available = new Set(playlists.map((playlist) => playlist.name))
   const assignments = Object.values(draft.scenes)
   const scenesValid =
-    assignments.length > 0 && assignments.every((scene) => scene.name.trim().length > 0 && Object.values(scene.associations).some((items) => items.length > 0) && available.has(scene.playlist))
+    assignments.length > 0 && assignments.every((scene) => scene.name.trim().length > 0 && Object.values(scene.associations).some((items) => items.length > 0) && playlistBindingStatus(scene.playlist, available) === "bound")
   const conflicts = activityConflicts(draft)
 
   return {

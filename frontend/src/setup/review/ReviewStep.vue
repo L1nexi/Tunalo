@@ -2,13 +2,14 @@
 import { TriangleAlertIcon } from "@lucide/vue"
 import { computed } from "vue"
 
-import type { Locale } from "@/api/profile"
+import type { Locale, PlaylistScanResult } from "@/api/profile"
 import ReviewWeatherStatus from "./ReviewWeatherStatus.vue"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { COPY, associationSummary } from "@/setup/copy"
 import type { StepId } from "@/setup/workflow/steps"
 import type { ProfileDraft } from "@/setup/profile/model"
+import { playlistBindingStatus } from "@/setup/profile/model"
 import { describeProfileChanges } from "./changes"
 import { reviewGroups } from "./summary"
 import type { ReviewWeatherState } from "./summary"
@@ -17,6 +18,7 @@ const props = defineProps<{
   locale: Locale
   draft: ProfileDraft
   savedDraft: ProfileDraft
+  playlists: PlaylistScanResult["playlists"]
   mode: "setup" | "settings"
   valid: boolean
   missingSteps: Array<{ id: StepId; title: string }>
@@ -26,11 +28,15 @@ const props = defineProps<{
   validatingWeather: boolean
   hasPendingActivity: boolean
 }>()
-const emit = defineEmits<{ validateWeather: []; openStep: [id: StepId] }>()
+const emit = defineEmits<{ validateWeather: []; openStep: [id: StepId]; openScene: [id: string] }>()
 const copy = computed(() => COPY[props.locale])
 const sceneIds = computed(() => Object.keys(props.draft.scenes))
 const changes = computed(() => describeProfileChanges(props.savedDraft, props.draft, props.locale))
-const groups = computed(() => reviewGroups(props.draft, props.locale, props.weatherKeyState))
+const groups = computed(() => reviewGroups(props.draft, props.locale, props.weatherKeyState, props.playlists))
+const sceneStatuses = computed(() => {
+  const available = new Set(props.playlists.map((playlist) => playlist.name))
+  return Object.fromEntries(Object.entries(props.draft.scenes).map(([id, scene]) => [id, playlistBindingStatus(scene.playlist, available)]))
+})
 </script>
 
 <template>
@@ -102,11 +108,20 @@ const groups = computed(() => reviewGroups(props.draft, props.locale, props.weat
                   :class="group.deEmphasized ? 'font-normal text-muted-foreground' : 'font-medium'"
                 >
                   {{ row.value }}
-                  <ul v-if="row.id === 'scenes'" class="mt-1 text-sm font-normal text-muted-foreground">
-                    <li v-for="id in sceneIds" :key="id">
-                      {{ draft.scenes[id]!.name }}（{{
+                  <ul v-if="row.id === 'scenes'" class="mt-1 flex flex-col gap-1 text-sm font-normal text-muted-foreground">
+                    <li v-for="id in sceneIds" :key="id" class="flex flex-wrap items-baseline gap-x-2">
+                      <span>{{ draft.scenes[id]!.name }}（{{
                         associationSummary(draft.scenes[id]!.associations, locale)
-                      }}）：{{ draft.scenes[id]!.playlist || copy.common.notSet }}
+                      }}）：{{ draft.scenes[id]!.playlist || copy.common.notSet }}</span>
+                      <Button
+                        v-if="sceneStatuses[id] !== 'bound'"
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        class="h-auto p-0"
+                        :aria-label="`${draft.scenes[id]!.name}: ${sceneStatuses[id] === 'unavailable' ? copy.review.unavailableBinding : copy.review.awaitingPlaylist}`"
+                        @click="emit('openScene', id)"
+                      >{{ sceneStatuses[id] === 'unavailable' ? copy.review.unavailableBinding : copy.review.awaitingPlaylist }}</Button>
                     </li>
                   </ul>
                 </div>

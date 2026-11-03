@@ -18,6 +18,7 @@ import {
   EmptyContent,
 } from "@/components/ui/empty"
 import { COPY, associationSummary } from "@/setup/copy"
+import { playlistBindingStatus } from "@/setup/profile/model"
 
 const SceneEditor = defineAsyncComponent(() => import("./SceneEditor.vue"))
 
@@ -42,7 +43,7 @@ const selected = ref<string[]>([])
 const entries = computed(() => Object.entries(props.scenes))
 const playlistNames = computed(() => new Set(props.playlists.map((playlist) => playlist.name)))
 const pending = computed(
-  () => entries.value.filter(([, scene]) => !playlistNames.value.has(scene.playlist)).length,
+  () => entries.value.filter(([, scene]) => playlistBindingStatus(scene.playlist, playlistNames.value) !== "bound").length,
 )
 const visible = computed(() => {
   const query = search.value.trim().toLocaleLowerCase()

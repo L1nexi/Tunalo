@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError } from "@/components/ui/field"
 import { COPY, associationSummary } from "@/setup/copy"
+import { playlistBindingStatus } from "@/setup/profile/model"
 import PlaylistPicker from "./PlaylistPicker.vue"
 
 const props = defineProps<{
@@ -23,8 +24,8 @@ const emit = defineEmits<{
   remove: []
 }>()
 const copy = computed(() => COPY[props.locale].scenes)
-const playlist = computed(() => props.playlists.find((entry) => entry.name === props.scene.playlist))
-const invalid = computed(() => props.attempted && !playlist.value)
+const available = computed(() => new Set(props.playlists.map((entry) => entry.name)))
+const invalid = computed(() => props.attempted && playlistBindingStatus(props.scene.playlist, available.value) !== "bound")
 </script>
 
 <template>
@@ -52,6 +53,7 @@ const invalid = computed(() => props.attempted && !playlist.value)
       :data-invalid="invalid || undefined"
     >
       <PlaylistPicker
+        :id="`scene-playlist-${id}`"
         :model-value="scene.playlist"
         :locale="locale"
         :playlists="playlists"
