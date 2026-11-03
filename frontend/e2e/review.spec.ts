@@ -53,6 +53,34 @@ for (const scanChange of ["改名", "删除", "清空"] as const) {
   })
 }
 
+for (const scanChange of ["删除", "清空"] as const) {
+  test(`全部播单${scanChange}后仍能定位到首屏外的失效场景`, async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 })
+    await mockSetupApi(page, true, {
+      ...profile,
+      scenes: Object.fromEntries(Array.from({ length: 12 }, (_, index) => [
+        `scene_${index}`,
+        { ...profile.scenes.day_work!, name: `测试场景${index}` },
+      ])),
+    })
+    await page.route("**/api/wallpaper-engine/playlist-scans", async (route) => {
+      await route.fulfill({ json: {
+        wallpaper_engine_path: profile.wallpaper_engine_path,
+        playlists: scanChange === "删除" ? [] : [{ name: "CASUAL_ANIME", item_count: 0 }],
+      } })
+    })
+    await page.goto("/?locale=zh&test=1")
+    await page.getByRole("navigation").getByRole("button", { name: "查看配置草稿", exact: true }).click()
+    await page.getByText("查看当前草稿全部设置", { exact: true }).click()
+    await page.getByRole("button", { name: "测试场景11: 绑定失效", exact: true }).click()
+
+    const scene = page.getByRole("group", { name: "测试场景11", exact: true })
+    await expect(scene.getByRole("button", { name: "测试场景11: 播放列表", exact: true })).toBeDisabled()
+    await expect(scene).toBeInViewport({ ratio: 1 })
+    await expect(scene.getByRole("button", { name: "编辑场景: 测试场景11", exact: true })).toBeFocused()
+  })
+}
+
 test("零场景时检查页明确提示尚未添加场景", async ({ page }) => {
   await mockSetupApi(page, true, { ...profile, scenes: {} })
   await page.goto("/?locale=zh&test=1")

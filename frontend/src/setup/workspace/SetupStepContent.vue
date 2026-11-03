@@ -51,7 +51,8 @@ const copy = computed(() => COPY[locale.value])
 async function openScene(id: string): Promise<void> {
   navigateToStep("scenes")
   await nextTick()
-  document.getElementById(`scene-playlist-${id}`)?.focus()
+  const targetId = scan.usablePlaylists.value.length ? `scene-playlist-${id}` : `edit-scene-${id}`
+  document.getElementById(targetId)?.focus()
 }
 </script>
 
