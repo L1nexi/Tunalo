@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
 import type { ContextVariable, Locale, PlaylistScanResult, SceneProfile, SemanticItem } from "@/api/profile"
 import { Button } from "@/components/ui/button"
 import { DialogFooter } from "@/components/ui/dialog"
@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, associationSummary } from "@/setup/copy"
-import { copyScene } from "@/setup/profile/model"
+import { copyScene, sceneFingerprint } from "@/setup/profile/model"
 import { SCENE_ITEMS, SCENE_VARIABLES } from "./associations"
 import ScenePlaylistField from "./ScenePlaylistField.vue"
 
@@ -23,7 +23,7 @@ const props = defineProps<{
   scene: SceneProfile | null
   playlists: PlaylistScanResult["playlists"]
 }>()
-const emit = defineEmits<{ cancel: []; save: [scene: SceneProfile] }>()
+const emit = defineEmits<{ cancel: []; save: [scene: SceneProfile]; dirty: [changed: boolean] }>()
 const copy = computed(() => COPY[props.locale].scenes)
 const draft = ref<SceneProfile>(
   props.scene === null ? { name: "", associations: {}, playlist: "" } : copyScene(props.scene),
@@ -31,6 +31,13 @@ const draft = ref<SceneProfile>(
 const nameEdited = ref(props.scene !== null)
 const attempted = ref(false)
 const summary = computed(() => associationSummary(draft.value.associations, props.locale))
+const baseline = sceneFingerprint({ scene: draft.value })
+
+watch(
+  () => sceneFingerprint({ scene: draft.value }) !== baseline,
+  (changed) => emit("dirty", changed),
+  { immediate: true },
+)
 
 function updateName(value: string | number): void {
   draft.value.name = String(value)

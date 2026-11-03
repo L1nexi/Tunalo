@@ -21,6 +21,7 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
   const savedDraft = ref<ProfileDraft>(createProfileDraft(initialProfile, locale.value))
   const baseline = ref(profileFingerprint(savedDraft.value))
   const pendingActivity = reactive(emptyPendingActivity())
+  const pendingSceneChanges = ref(false)
   const submitting = ref(false)
   const preferenceLayers = ref<PreferenceLayer[]>([])
   let nextLayerId = 0
@@ -74,7 +75,10 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
       ),
   )
   const isDirty = computed(
-    () => profileFingerprint(draft) !== baseline.value || pendingActivityFields.value.length > 0,
+    () =>
+      profileFingerprint(draft) !== baseline.value ||
+      pendingActivityFields.value.length > 0 ||
+      pendingSceneChanges.value,
   )
 
   watch(
@@ -119,6 +123,7 @@ export function useProfileDraft(initialProfile: Profile | null, initialLocale: L
     savedDraft,
     pendingActivity,
     pendingActivityFields,
+    pendingSceneChanges,
     preferenceLayers,
     changedSteps,
     isDirty,

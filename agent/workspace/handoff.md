@@ -1,53 +1,53 @@
 # 工作交接
 
-更新时间：2026-10-29。
+更新时间：2026-11-03。
 分支：`codex/frontend-adjustments`。
-当前基线：`cc09a17`（本地昼夜计算）；本轮验收归档文档改动保持未提交。
+当前基线：`ab29206`（时间提示补全英文）。用户已批准第 1 项修复，并授权按问题分批提交后续修复。
 
-## 当前任务与状态
+## 当前任务
 
-本地昼夜计算已于 2026-10-29 通过用户审阅。实现阶段的全量 377 项测试、Ruff、前端类型检查和构建通过。用户已确认文件、接口与测试范围，并要求跳过与 OWM 的精度对照。
+按[外部 UI/UX 验收记录](../../docs/UI-UX-验收记录-2026-11-02.md)分批修复前六项问题。第 1 项场景弹窗草稿保护已通过验证和用户审阅。下一批处理第 2 项选中状态辨识，第 3—6 项保持待修。
 
-行为和接口见[本地昼夜计算规格](../../docs/archived/done/LOCAL_SUN_TIMES_SPEC.md)，架构修订见 [ADR-0004](../../docs/adr/0004-context-salience-and-observation-boundaries.md#季节与时段平台和真实昼夜锚点)。TODO 已标记完成，规格已归档，索引和引用同步更新。
+三项时间说明和帮助按钮名称的英文补全已进入基线。用户明确要求导航保持简洁，不显示“可跳过／沿用默认”；确有必要时，用 `*` 标明必选项。
 
-天气不可用提醒已于 `5b38814` 实现，继续依据天气采集的成功时间和来源指纹运行。
+## 本批行为
 
-## 本轮实现
+- 新建、编辑场景以及预设选择产生的临时修改，都参与窗口关闭判断。只修改弹窗时，原生关闭请求也先询问是否放弃。
+- 按 Esc 时，有修改则确认放弃；选择“继续编辑”保留内容和焦点，选择“放弃修改”只清除弹窗编辑。显式“取消”直接清除本次编辑。
+- 未编辑或已还原为原内容时直接关闭。关联标签的排列顺序变化按既有规范化比较处理。
+- 主页面和弹窗同时修改时，窗口关闭使用同一个确认。放弃弹窗编辑仍保留主页面修改。
+- 窗口确认框在打开时挂载，显示在场景弹窗之上；确认框和场景弹窗分别恢复到正确的输入位置或原操作按钮。
 
-- 新增 `core/models/context.py` 中的不可变 `SunTimesData(sunrise, sunset)` 与 `Context.sun_times`，时间使用 UTC Unix 秒。
-- 新增 `core/sensors/sun_times.py` 的 `SunTimesSensor(latitude, longitude)`，提供 `collect() -> SunTimesData | None` 和 `create(config)`。地点复用运行时配置中的现有经纬度，计算独立于天气密钥和请求结果。
-- 按系统当地日期计算，缓存键为当地日期和 UTC 偏移；跨日、日期回拨或偏移变化时刷新。运行时配置替换创建新采集器，地点变更后重新计算。
-- 极昼极夜等缺少完整日出日落时返回 `None`，TimePolicy 清除旧锚点并输出中性时段；既有曲线、昼夜中点与分钟粒度保持原样。
-- 新采集器进入已有 Sensor 注册表，沿用 Engine 和 ContextManager 的组装、快照及配置替换流程。
-- WeatherObservation、WeatherData 和 WeatherSensor 移除日出日落字段。Tick History 的日出日落从 `sense.weather` 移到 `sense.sunTimes`，包含 `available`、`sunrise`、`sunset`。
-- 调参工具通过 `Context.sun_times` 提供固定锚点；前端天气和地点文案说明本地计算。Profile 格式和设置入口沿用现状。
-- `requirements.txt` 增加 Astral。本机虚拟环境已安装 Astral 3.2 及其依赖 tzdata。
+## 源码与接口
 
-## 源码与测试入口
+- `frontend/src/setup/profile/useProfileDraft.ts`：增加 `pendingSceneChanges`，并计入 `isDirty`。
+- `frontend/src/setup/scenes/SceneDetailsForm.vue`、`ScenePresetForm.vue`：增加 `dirty(changed: boolean)` 事件，报告当前表单是否有临时修改。
+- `frontend/src/setup/scenes/SceneEditor.vue`：汇总表单修改状态，处理 Esc 确认、取消和焦点恢复；卸载时清除临时标记。
+- `frontend/src/setup/workspace/SetupConfirmations.vue`：修正窗口确认框的挂载顺序和焦点恢复。
+- `frontend/src/setup/copy/scenes.ts`：增加中英文场景放弃确认文案。
+- `frontend/e2e/scene-editor.spec.ts`：新增 7 项行为回归，包含真实浏览器关闭提示；原生关闭沿用现有桥接替身。
 
-- 采集与数据：`src/core/sensors/sun_times.py`、`src/core/sensors/__init__.py`、`src/core/models/context.py`。
-- 消费与输出：`src/core/policies/time.py`、`src/ui/tick_history.py`、`tools/tuning/harness.py`。
-- 天气字段清理：`src/integrations/openweather.py`、`src/core/sensors/weather.py`。
-- 行为测试：`tests/core/test_sun_times.py`、`tests/core/test_semantic_model.py`、`tests/core/test_weather.py`。
-- 调度与导出测试：`tests/core/runtime/test_scheduler.py`、`tests/server/test_local_api.py`、`tests/ui/test_tick_history.py`。
+本批沿用现有 Profile、API 和原生关闭事件，后端及真实运行配置保持原状。
 
-测试使用公共接口，替换限于时间、网络、外部进程和操作系统出口。覆盖离线首次可用、当地日期边界、时区变化、地点替换、极昼极夜与恢复、天气缺失时的时段选择、暂停采集和历史输出；原时段曲线继续使用既有独立期望值。测试在后台运行。
-
-## 实现阶段验证
+## 验证
 
 | 检查 | 结果 |
 | --- | --- |
-| 采集、时段与天气定向测试 | 101 项通过，1.64 秒 |
-| 调度、API 与导出定向测试 | 41 项通过，8.48 秒 |
-| `.\scripts\test.ps1 -q` | 377 项通过，66.61 秒 |
-| 加强旧快照断言后的调度回归 | 3 项通过，6.94 秒 |
-| Ruff 自动修复、检查与格式化 | 通过，94 个 Python 文件格式一致 |
-| `npm run build` | `type-check` 与 `build-only` 均通过；构建仍提示主包超过 500 kB |
-| 文档引用 | 5 份文档的 23 个本地链接与锚点有效 |
+| 原问题回归 | 修复前复现只编辑弹窗时绕过确认；修复后通过 |
+| `npm run type-check` | 通过 |
+| `npm run build-only` | 通过 |
+| `npm run test:e2e -- --reporter=line --workers=2` | 54 项通过，约 1.7 分钟 |
+| 生产界面走查 | 1200×780 中文浅色、320×720 英文深色；确认框可操作、键盘焦点返回、窄窗口无横向溢出，无页面脚本错误 |
 | `git diff --check` | 通过 |
 
-## 验收归档
+默认 6 并发运行时，appearance、activity 各有一条原有用例超时。停止该次运行后，以 2 并发重跑，54 项全部通过。
 
-2026-10-29 用户审阅通过。本轮只更新完成状态、归档路径与相关引用，代码保持 `cc09a17` 的实现。天气结果落盘仍是后续独立方向。
+截图和走查结果保存在本次 Codex 会话的 `tunalo-scene-draft-fix` 可视化目录，文件包括 `native-close-light.png`、`scene-discard-light.png`、`scene-discard-dark-320-en.png` 和 `results.json`。本地预览和走查浏览器均已关闭。
 
-归档后检查：5 份文档的 23 个本地链接与锚点有效，`git diff --check` 通过。
+## 后续事项
+
+真实 WebView2 标题栏关闭、Alt+F4 和 Windows DPI 缩放仍待实机联调；浏览器中的原生事件模拟覆盖前端处理器及桥接出口。
+
+继续处理报告第 2 项选中状态辨识。第 3—6 项分别为失效播单计数、检查页问题位置、必填字段就近反馈、优先级分区。每项独立验证和提交。
+
+此前已验收的本地昼夜计算和天气提醒见[本地昼夜计算规格](../../docs/archived/done/LOCAL_SUN_TIMES_SPEC.md)、[天气提醒规格](../../docs/archived/done/WEATHER_REMINDER_SPEC.md)。

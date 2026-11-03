@@ -24,11 +24,25 @@ const { closeDialogOpen, closeWindow } = useSetupNativeWindow()
 const { submitting, submitProfile } = useSetupSubmission()
 const { weatherSaveDialogOpen, weatherSaveFailure } = useSetupWeather()
 const copy = computed(() => COPY[locale.value])
+let closeReturnFocus: HTMLElement | null = null
+
+function rememberCloseFocus(): void {
+  closeReturnFocus = document.activeElement as HTMLElement
+}
+
+function restoreCloseFocus(event: Event): void {
+  event.preventDefault()
+  closeReturnFocus?.focus()
+}
 </script>
 
 <template>
   <AlertDialog v-model:open="closeDialogOpen">
-    <AlertDialogContent>
+    <AlertDialogContent
+      v-if="closeDialogOpen"
+      @open-auto-focus="rememberCloseFocus"
+      @close-auto-focus="restoreCloseFocus"
+    >
       <AlertDialogHeader>
         <AlertDialogTitle>{{ copy.nav.discardTitle }}</AlertDialogTitle>
         <AlertDialogDescription>{{

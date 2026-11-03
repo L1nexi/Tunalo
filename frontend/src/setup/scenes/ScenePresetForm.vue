@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import type { Locale, PlaylistScanResult, SceneProfile } from "@/api/profile"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,11 +27,16 @@ const props = defineProps<{
   scenes: Record<string, SceneProfile>
   playlists: PlaylistScanResult["playlists"]
 }>()
-const emit = defineEmits<{ cancel: []; save: [scenes: SceneProfile[]] }>()
+const emit = defineEmits<{ cancel: []; save: [scenes: SceneProfile[]]; dirty: [changed: boolean] }>()
 const copy = computed(() => COPY[props.locale].scenes)
 const group = ref<ScenePresetGroup>("season")
 const selected = ref<ScenePresetId[]>([])
 const playlist = ref("")
+watch(
+  () => selected.value.length > 0 || Boolean(playlist.value),
+  (changed) => emit("dirty", changed),
+  { immediate: true },
+)
 const presets = computed(() => SCENE_PRESETS[group.value])
 const existing = computed(
   () => new Set(Object.values(props.scenes).map((scene) => associationKey(scene.associations))),
