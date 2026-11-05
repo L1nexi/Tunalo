@@ -1,10 +1,52 @@
 # 工作交接
 
-更新时间：2026-11-06。分支：`codex/frontend-adjustments`。本轮基线：`c81189e`。
+更新时间：2026-11-06。分支：`codex/frontend-adjustments`。本轮基线：`58b02b8`。
 
 ## 当前状态
 
-已完成用户指定的《Tunalo 前端 UI 风格审查交接》五项修复。改动留在工作区，待用户审阅。
+本轮按用户确认的五个开发阶段重写 CHANGELOG，并保留此前 UI 打磨和 README 写作之外的发布工程修复。改动留在工作区，待用户审阅。
+
+- `scripts/build.bat` 补齐 CHANGELOG，构建前检查发布附带文件；依赖安装、前端构建、清理、打包或文件复制失败时返回非零退出码。新增 `--no-pause`，便于命令行验证。
+- 打包时显式排除调参专用的 NumPy 和 Matplotlib。首轮产物实际收进 138 个 NumPy 模块；排除后 EXE 从 39,538,894 字节降至 28,838,875 字节，减少约 27%。
+- `CHANGELOG.md` 补记 `v0.9.0`、`v0.9.1`、`v0.10.0`、`v0.11.0` 四个阶段，分别记录配置产品化、Tunalo 品牌与交互收尾、调度模型重建、自定义场景。六文件 YAML 到 Profile 第 1 版、第 1 版到第 2 版、第 2 版到第 3 版的变化分别写入对应版本的 Breaking Changes。当前感知和发布收尾保留在 Unreleased，预留 `v0.12.0`。
+- 已重新生成 `dist/Tunalo.exe`。发布目录仅含 EXE、README、CHANGELOG 和 `.env.example`；内嵌前端和图标与当前构建逐文件一致，WebView2 及 Python.NET 的运行库齐全，未收进个人配置、运行数据或日志。README 沿用现有文件，待用户定稿后重新打包。
+
+已确认的 tag 落点如下；本轮仅写文档，应用版本仍为 `0.9.0`，历史 tag 待创建。
+
+| tag | 对应提交 | 阶段结束日期（作者日期） |
+| --- | --- | --- |
+| `v0.9.0` | `6210b12` | 2026-09-25 |
+| `v0.9.1` | `e135b31` | 2026-10-02 |
+| `v0.10.0` | `ef4322f` | 2026-10-19 |
+| `v0.11.0` | `867a2d7` | 2026-10-24 |
+| `v0.12.0` | UI、README 与打包收尾全部提交后的 commit；当前基线为 `58b02b8` | 待定 |
+
+CHANGELOG 的新版本比较链接使用对应提交范围，Unreleased 从 `867a2d7` 起计算。`v0.8.3` 及更早记录保持原样。
+
+本轮文档检查通过：五段比较范围连续覆盖 `v0.8.3` 后的 110 个提交，无遗漏或重叠；四个历史版本的日期与对应提交一致，旧版本正文和比较链接逐字保留。已同步 `dist/CHANGELOG.md`，发布目录内容检查与 `git diff --check` 通过。结果见 `.pytest_tmp/changelog-rewrite-check.json`。
+
+以下为此前发布工程阶段的验证结果：
+
+| 发布工程检查 | 结果 |
+| --- | --- |
+| `.\scripts\test.ps1 -q` | 377 项通过，250.69 秒 |
+| `npm run test:e2e -- --reporter=line --workers=2` | 65 项通过，2.9 分钟 |
+| `npm run type-check`、`npm run build-only` | 通过 |
+| Ruff 检查、格式检查、`pip check` | 通过 |
+| `.\scripts\build.bat --no-pause` | 完整构建通过，正常退出 |
+| EXE 内容检查 | 前端、图标、运行库和附带文件通过，NumPy／Matplotlib 均未打包 |
+| EXE 命令行启动 | 在含中文和空格的独立目录中，`--help` 返回 0，未知参数返回 2；未启动窗口 |
+| `git diff --check` | 通过 |
+
+临时验证脚本和结果在 `.pytest_tmp/verify_release.py`、`.pytest_tmp/release-artifact-check.json`、`.pytest_tmp/release-cli-smoke.json`、`.pytest_tmp/release-npm-audit.json` 和 `.pytest_tmp/release-bundle-check.json`。
+
+`npm audit --omit=dev` 报告 27 项依赖告警，其中 1 项严重、14 项高危、11 项中危、1 项低危，来源涉及组件生成器和构建工具等。通过附带源码映射的独立构建核对 345 个浏览器脚本源文件，未发现这些告警包进入产物；构建环境中的依赖升级仍待处理。本轮未修改依赖版本或锁文件。
+
+用户要求不使用 computer use，已停止原生窗口操作并清理该独立目录启动的测试进程。原生关闭保护、外观持久化、Windows DPI、真实天气联网和 Wallpaper Engine 切换仍待手动验收。测试未读取或修改本机正式 Profile，也未执行壁纸切换。
+
+## 上一轮 UI 调整（已提交 `58b02b8`）
+
+已完成用户指定的《Tunalo 前端 UI 风格审查交接》五项修复。
 
 - `SceneBindingRow.vue` 将同行布局起点从 1024px 提前到 768px，名称列上限为 18rem；行间增加细分隔线，更窄窗口收紧纵向间距。相同六场景下，1200×780 的名称至播单间距从 524px 降到 216px，900×600 的行高从 125.5px 降到 78.5px。
 - `SetupSidebar.vue` 用暮紫图标标出当前页，保留原灰底和悬停效果。
