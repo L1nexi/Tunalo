@@ -30,7 +30,7 @@ const invalid = computed(() => props.attempted && playlistBindingStatus(props.sc
 
 <template>
   <div
-    class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 py-4 lg:grid-cols-[minmax(0,1fr)_13rem_auto]"
+    class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 border-b py-3 last:border-b-0 md:grid-cols-[minmax(0,18rem)_13rem_auto] md:py-4"
     role="group"
     :aria-label="scene.name"
   >
@@ -49,7 +49,7 @@ const invalid = computed(() => props.attempted && playlistBindingStatus(props.sc
       </div>
     </div>
     <Field
-      class="col-span-2 row-start-2 gap-1.5 lg:col-span-1 lg:row-start-auto"
+      class="col-span-2 row-start-2 gap-1.5 md:col-span-1 md:row-start-auto"
       :data-invalid="invalid || undefined"
     >
       <PlaylistPicker
@@ -68,7 +68,7 @@ const invalid = computed(() => props.attempted && playlistBindingStatus(props.sc
         :errors="[scene.playlist ? copy.unavailablePlaylist : copy.bindingRequired]"
       />
     </Field>
-    <div class="col-start-2 row-start-1 flex gap-1 lg:col-start-3">
+    <div class="col-start-2 row-start-1 flex gap-1 md:col-start-3">
       <Button
         :id="`edit-scene-${id}`"
         variant="ghost"

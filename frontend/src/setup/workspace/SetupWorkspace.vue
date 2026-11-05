@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useResizeObserver } from "@vueuse/core"
+import { ref, useTemplateRef } from "vue"
+
 import type { Locale, Profile } from "@/api/profile"
 import { useSetupWorkspace } from "./useSetupWorkspace"
 import SetupConfirmations from "./SetupConfirmations.vue"
@@ -11,6 +14,14 @@ const { editor, flow, submission } = useSetupWorkspace(props.initialProfile, pro
 const { mode, locale, isDirty, setLocale } = editor
 const { activeStep, steps, activeHeading, navigateTo } = flow
 const { submitting } = submission
+const contentViewport = useTemplateRef<HTMLDivElement>("content-viewport")
+const contentBody = useTemplateRef<HTMLDivElement>("content-body")
+const contentScrollable = ref(false)
+
+useResizeObserver([contentViewport, contentBody], () => {
+  const viewport = contentViewport.value
+  contentScrollable.value = viewport !== null && viewport.scrollHeight > viewport.clientHeight
+})
 </script>
 
 <template>
@@ -41,13 +52,16 @@ const { submitting } = submission
         </header>
         <div
           id="setup-step-content"
+          ref="content-viewport"
           :inert="submitting"
           :aria-busy="submitting"
           class="min-h-0 flex-1 overflow-y-auto px-5 pb-8 sm:px-8"
         >
-          <SetupStepContent />
+          <div ref="content-body">
+            <SetupStepContent />
+          </div>
         </div>
-        <SetupFooter />
+        <SetupFooter :scrollable="contentScrollable" />
       </section>
     </div>
     <SetupConfirmations />

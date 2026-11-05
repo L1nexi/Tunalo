@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 import { COPY } from "@/setup/copy"
 import {
   useSetupEditor,
@@ -11,6 +12,8 @@ import {
   useSetupSubmission,
   useSetupWeather,
 } from "./useSetupWorkspace"
+
+defineProps<{ scrollable: boolean }>()
 
 const { locale, mode, isDirty } = useSetupEditor()
 const { activeStep, previousSection, allValid, navigateTo, navigateToStep } = useSetupFlowContext()
@@ -21,7 +24,7 @@ const copy = computed(() => COPY[locale.value])
 </script>
 
 <template>
-  <footer class="flex shrink-0 items-end justify-between gap-3 px-5 py-5 sm:px-8">
+  <footer :class="cn('flex shrink-0 items-end justify-between gap-3 border-t px-5 py-5 sm:px-8', scrollable ? 'border-border' : 'border-transparent')">
     <Button
       v-if="activeStep === 'review'"
       variant="outline"

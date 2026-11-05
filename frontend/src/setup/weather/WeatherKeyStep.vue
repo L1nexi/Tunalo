@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { CheckCircle2Icon, CircleDashedIcon, CircleXIcon, EyeIcon, EyeOffIcon, TriangleAlertIcon } from "@lucide/vue"
+import { CheckCircle2Icon, ChevronDownIcon, CircleDashedIcon, CircleXIcon, EyeIcon, EyeOffIcon, TriangleAlertIcon } from "@lucide/vue"
 import { computed, ref } from "vue"
 
 import type { Locale } from "@/api/profile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
@@ -110,16 +111,23 @@ const keyStateText = computed(() => {
       </p>
     </div>
 
-    <details>
-      <summary class="cursor-pointer text-sm text-muted-foreground">{{ copy.weather.guideTitle }}</summary>
-      <ol class="mt-4 flex list-decimal flex-col gap-4 pl-5 text-sm leading-relaxed">
-        <li v-for="step in copy.weather.guideSteps" :key="step.title" class="pl-1">
-          <div class="flex min-w-0 flex-col gap-1">
-            <p class="text-muted-foreground">{{ step.action }}</p>
-          </div>
-        </li>
-      </ol>
-    </details>
+    <Collapsible>
+      <CollapsibleTrigger as-child>
+        <Button type="button" variant="ghost" class="group">
+          <ChevronDownIcon data-icon="inline-start" class="transition-transform group-data-[state=open]:rotate-180" />
+          {{ copy.weather.guideTitle }}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent class="pt-3">
+        <ol class="flex list-decimal flex-col gap-4 pl-5 text-sm leading-relaxed">
+          <li v-for="step in copy.weather.guideSteps" :key="step.title" class="pl-1">
+            <div class="flex min-w-0 flex-col gap-1">
+              <p class="text-muted-foreground">{{ step.action }}</p>
+            </div>
+          </li>
+        </ol>
+      </CollapsibleContent>
+    </Collapsible>
 
   </section>
 </template>

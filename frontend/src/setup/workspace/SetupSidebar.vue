@@ -81,7 +81,7 @@ function setLocale(value: unknown): void {
             : 'hover:bg-sidebar-accent')"
         @click="emit('navigate', step.id)"
       >
-        <component :is="stepIcons[step.id]" data-icon="inline-start" />
+        <component :is="stepIcons[step.id]" data-icon="inline-start" :class="cn(activeStep === step.id && 'text-primary')" />
         <span class="min-w-0 flex-1 truncate font-medium">{{ step.title }}</span>
         <span v-if="step.nextRequired" :id="`setup-nav-status-${step.id}`" class="shrink-0 text-xs text-muted-foreground">{{ copy.nav.pending }}</span>
         <span v-else-if="step.status === copy.nav.changed" :id="`setup-nav-status-${step.id}`" class="relative size-1.5 shrink-0 rounded-full bg-foreground">

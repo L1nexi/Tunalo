@@ -95,6 +95,7 @@ async function save(): Promise<void> {
               </div>
               <ToggleGroup
                 type="multiple"
+                variant="outline"
                 :spacing="2"
                 class="flex-wrap"
                 :aria-labelledby="`scene-${variable}-label`"

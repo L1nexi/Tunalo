@@ -1,8 +1,37 @@
 # 工作交接
 
-更新时间：2026-11-04。分支：`codex/frontend-adjustments`。本轮基线：`210e2ee`。修复起点：`ab29206`（时间提示补全英文）。
+更新时间：2026-11-06。分支：`codex/frontend-adjustments`。本轮基线：`c81189e`。
 
 ## 当前状态
+
+已完成用户指定的《Tunalo 前端 UI 风格审查交接》五项修复。改动留在工作区，待用户审阅。
+
+- `SceneBindingRow.vue` 将同行布局起点从 1024px 提前到 768px，名称列上限为 18rem；行间增加细分隔线，更窄窗口收紧纵向间距。相同六场景下，1200×780 的名称至播单间距从 524px 降到 216px，900×600 的行高从 125.5px 降到 78.5px。
+- `SetupSidebar.vue` 用暮紫图标标出当前页，保留原灰底和悬停效果。
+- `SchedulingStep.vue` 将防打扰档位收成共用浅底的分段按钮，宽度从 760px 收至 504px。窄窗继续使用下拉框。`SceneDetailsForm.vue` 为多选项使用现有 `outline` 变体，保留选中实底。
+- `WeatherKeyStep.vue` 的帮助入口改用现有 Collapsible 与按钮；天气帮助和自定义防打扰设置均沿用活动页的箭头、展开旋转和图文间距。
+- `SetupWorkspace.vue` 通过现有 VueUse `useResizeObserver` 观察正文及视口尺寸，向 `SetupFooter.vue` 传入 `scrollable: boolean`。底栏仅在正文溢出时显示顶部分隔线，透明边框预留相同高度。已验证切换页面、搜索缩短列表、恢复列表和调整窗口大小。
+
+本轮仅修改上述七个前端组件及本交接。保持现有配色、字体、配置格式和保存流程。
+
+| 本轮检查 | 结果 |
+| --- | --- |
+| `npm run type-check` | 通过 |
+| `npm run build-only` | 通过 |
+| `npm run test:e2e -- --reporter=line --workers=2` | 65 项全部通过，2.1 分钟 |
+| `git diff --check` | 通过 |
+| 样式源码检查、Impeccable detector | 0 项发现 |
+| 生产构建页面走查 | Edge，1200×780、900×600，中文深浅主题；英文另查 900、390、320px；页面和控制台正常 |
+
+走查通过页面操作和外部 API 测试数据验证，检查展开按钮的键盘操作、多选状态、底栏分隔线及横向溢出。沿用现有行为测试，本轮未新增持久化测试。Browser 插件未提供，使用仓库现有 Playwright 和 Edge。
+
+截图、临时走查脚本和测量结果位于 `C:\Users\L1nex\.codex\visualizations\2026\11\05\01a1aca0-c2e2-7252-91bd-b46ca139e24a\ui-style-fixes\`，包含 `before/`、`after/`、`inspect-scenes/`。日期路径沿用会话目录，实际验证日期为 11 月 6 日。Inspector 在 1440、768、390px 检查得到 0 FAIL、1 WARN；WARN 为宽窗右侧留白，名称与播单集中排列符合本轮收窄要求。暮紫按项目既有品牌色保留。
+
+原生 WebView2 和 Windows DPI 缩放仍待实机复核。
+
+## 此前已验收的修复（截至 2026-11-04）
+
+前轮基线为 `210e2ee`，全部播单失效时的场景定位修复已提交为 `c81189e`。
 
 本轮补齐代码审查发现的 P2：全部播单不可用时，检查页的失效绑定入口改为聚焦目标场景的编辑按钮，使首屏外的场景进入视野。有可用播单时仍聚焦播单选择器。用户已审阅通过，本次提交包含修复及两项回归。
 
@@ -19,7 +48,7 @@
 
 三项时间说明和帮助按钮名称的英文补全已进入基线。导航继续保持简洁，不显示“可跳过／沿用默认”；确有必要时，用 `*` 标明必选项。
 
-## 行为和源码入口
+### 行为和源码入口
 
 - 场景临时修改计入窗口关闭判断；Esc 对修改过的弹窗先确认，继续编辑保留内容和焦点，显式取消直接清除本次编辑。放弃弹窗编辑保留主页面修改。窗口确认框显示在场景弹窗之上，并正确恢复焦点。入口为 `frontend/src/setup/scenes/SceneEditor.vue`、两种场景表单、`profile/useProfileDraft.ts`、`workspace/SetupConfirmations.vue`。
 - 场景关联、预设分类、防打扰档位和语言选择统一使用主色实底表示选中，悬停保持浅灰底。入口为 `frontend/src/components/ui/toggle/index.ts`、`toggle-group/ToggleGroupItem.vue`、`frontend/src/setup/workspace/SetupSidebar.vue`。
@@ -30,7 +59,7 @@
 
 后端、Profile 格式、原生关闭事件和真实运行配置保持原状。
 
-## 验证
+### 前轮验证
 
 | 检查 | 结果 |
 | --- | --- |
@@ -50,7 +79,7 @@
 
 截图保存在本次 Codex 会话的 `tunalo-audit-fixes` 可视化目录：`selection-light.png`、`selection-dark.png`、`unavailable-binding.png`、`review-issues-first-800.png`、`api-key-required-zh.png`、`api-key-required-en.png`、`priorities-zh.png`、`priorities-en.png`。关闭保护的截图与事件结果见上一批的 `tunalo-scene-draft-fix` 目录。
 
-## 待联调
+### 待联调
 
 真实 WebView2 标题栏关闭、Alt+F4 和 Windows DPI 缩放仍待实机联调；浏览器中的原生事件模拟已覆盖前端处理器及桥接出口。本轮验证使用模拟本地 API，未替代真实天气联网和实际壁纸切换验收。
 

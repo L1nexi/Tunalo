@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleHelpIcon } from "@lucide/vue"
+import { ChevronDownIcon, CircleHelpIcon } from "@lucide/vue"
 import { computed } from "vue"
 
 import type { Locale } from "@/api/profile"
@@ -84,16 +84,17 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
       </Select>
       <ToggleGroup
         type="single"
-        :spacing="2"
-        class="hidden w-full lg:flex"
+        :spacing="1"
+        class="hidden max-w-full rounded-lg bg-muted p-1 lg:flex"
         :model-value="preset === 'custom' ? undefined : preset"
+        :aria-label="copy.preferences.disturbanceTitle"
         @update:model-value="setPreset"
       >
         <ToggleGroupItem
           v-for="choice in (Object.keys(DISTURBANCE_PRESETS) as DisturbancePreset[])"
           :key="choice"
           :value="choice"
-          class="min-w-24 flex-1"
+          class="min-w-24"
         >
           {{ DISTURBANCE_LABELS[locale][choice] }}
         </ToggleGroupItem>
@@ -104,7 +105,8 @@ function setTiming(field: DisturbanceKey, value: string | number): void {
 
     <Collapsible :open="timingOpen" @update:open="(value: boolean) => emit('update:timingOpen', value)">
       <CollapsibleTrigger as-child>
-        <Button variant="ghost">
+        <Button type="button" variant="ghost" class="group">
+          <ChevronDownIcon data-icon="inline-start" class="transition-transform group-data-[state=open]:rotate-180" />
           {{ copy.preferences.fineTune }}
         </Button>
       </CollapsibleTrigger>
