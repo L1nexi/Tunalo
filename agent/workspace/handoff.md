@@ -1,10 +1,35 @@
 # 工作交接
 
-更新时间：2026-11-09。分支：`codex/frontend-adjustments`。本轮基线：`9e203ce`。
+更新时间：2026-11-09。分支：`codex/frontend-adjustments`。当前发布：`v0.12.0`，发布提交：`8ecc865`。
 
 ## 当前状态
 
-本轮完成用户截图中三处界面调整。用户已审阅并授权提交，界面修改、相关测试和本交接纳入本次提交。
+[`v0.12.0`](https://github.com/L1nexi/Tunalo/releases/tag/v0.12.0) 已正式发布并设为 Latest。应用版本更新为 `0.12.0`，CHANGELOG 按 2026-11-09 定稿，比较链接改用对应标签。发布提交已同步至 `main` 和 `codex/frontend-adjustments`。
+
+本轮补齐以下五个历史标签，并创建当前发布标签；CHANGELOG 中的 25 个已发布版本现均有远程标签。
+
+| tag | 对应提交 |
+| --- | --- |
+| `v0.5.1` | `824789a` |
+| `v0.9.0` | `6210b12` |
+| `v0.9.1` | `e135b31` |
+| `v0.10.0` | `ef4322f` |
+| `v0.11.0` | `867a2d7` |
+| `v0.12.0` | `8ecc865` |
+
+`v0.5.1` 落在 Dashboard R1 完成及入口整理之后，下一提交开始添加 `v0.6.0` 的播放列表显示名功能。其余四个历史版本沿用此前确认的落点。
+
+发布附件为 `Tunalo-v0.12.0-windows-x64.zip`（28,448,441 字节）和 `SHA256SUMS.txt`。压缩包只包含 `Tunalo.exe`、README、CHANGELOG 和 `.env.example`；未包含个人配置、数据或日志。发布说明补充了旧 YAML 与第 1、2 版 Profile 需要备份并重新配置的升级说明。
+
+本轮验证：后端 377 项通过（88.61 秒），Ruff 检查与格式检查通过，完整打包通过并重新执行前端类型检查和构建。前端 65 项页面测试沿用本会话界面调整阶段的通过结果，发布阶段未修改界面源码。
+
+EXE 内版本、Windows x64 架构、前端资源和图标逐项核对通过，NumPy／Matplotlib 未打入包。中文及空格目录下，`--help` 返回 0，未知参数返回 2。GitHub 发布状态、Latest 标记、说明正文、附件大小及 SHA-256 均已核对；登录下载和公开链接下载的压缩包都与本地产物一致。
+
+产物与发布验证记录位于 `.pytest_tmp/release-v0.12.0/`，其中 `package-check.json` 记录压缩包信息，`published-check.json` 记录远程附件及标签核对结果。原生 WebView2、Windows DPI、真实天气联网和 Wallpaper Engine 切换仍待后续实机验收。
+
+## 本轮界面调整（已提交 `a31df16`）
+
+用户已审阅并提交截图中的三处界面调整及相关测试。
 
 - `SetupFooter.vue`：取消／关闭按钮改用现有 `outline` 变体。
 - `ScenePresetForm.vue`：五个预设分类合为一个 `ToggleGroup`，同行间隔统一为 8px，窄窗口自动换行；保留跨组多选和键盘操作。
@@ -15,7 +40,7 @@
 
 生产构建在 Edge 中检查中英文、深浅主题及 320、390、768、900、1200px 窗口，分类间距、跨组选择、键盘切换和横向溢出检查通过。截图、测量数据和临时走查脚本位于 `C:\Users\L1nex\.codex\visualizations\2026\11\09\01a1c05a-ea44-7471-adf7-13b93ded0458\` 的 `before/`、`after/`。
 
-本轮只验证浏览器内的生产构建，未重新打包 EXE。原生 WebView2 与 Windows DPI 缩放仍待实机复核。
+该阶段验证浏览器内的生产构建，后续已随 `v0.12.0` 重新打包 EXE。
 
 ## 前轮发布工程与 CHANGELOG（2026-11-06）
 
