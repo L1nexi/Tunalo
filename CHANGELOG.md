@@ -9,7 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-计划版本：`v0.12.0`。感知补全与发布收尾。
+## [0.12.0] - 2026-11-09
+
+感知补全与发布收尾。
 
 ### Added
 
@@ -19,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - **设置页布局**：收紧场景绑定与防打扰选项的布局，统一展开控件和选中状态；底栏仅在正文溢出时显示分隔线，并补齐中英文帮助说明。
+- **预设分类与底栏按钮**：预设分类间距统一，“时间与活动”改为“时间 x 活动”；底部取消和关闭按钮改为描边样式。
 - **配置检查与优先级**：检查页优先显示待处理事项；优先级排序与未指定情境分区呈现，保留拖动、菜单和键盘调整方式。
 - **发布包构建**：附带 CHANGELOG，支持 `--no-pause` 免按键构建；依赖安装、前端构建、清理、打包或附带文件复制失败时返回非零退出码。打包时排除调参专用的 NumPy 和 Matplotlib。
 
@@ -28,6 +31,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 原生窗口关闭、Esc 和场景弹窗关闭共用草稿保护，正确处理主页面与弹窗同时修改的情况，并在继续编辑时恢复焦点。
 - 播单改名、删除或清空后，检查页准确标出失效绑定，并可定位对应场景；全部播单不可用时仍可定位。
 - 天气密钥实际编辑并离开输入框后提供必填提示；切换设置项保留反馈，补全密钥后即时清除。
+
+### Removed
+
+- 移除“季节与天气”分类及其四个预设。已经添加的场景仍可编辑和使用。
 
 ## [0.11.0] - 2026-10-24
 
@@ -538,11 +545,12 @@ Profile 配置与统一设置工作区。
 
 ---
 
-[Unreleased]: https://github.com/L1nexi/Wallpaper-Engine-Scheduler/compare/867a2d7...HEAD
-[0.11.0]: https://github.com/L1nexi/Wallpaper-Engine-Scheduler/compare/ef4322f...867a2d7
-[0.10.0]: https://github.com/L1nexi/Wallpaper-Engine-Scheduler/compare/e135b31...ef4322f
-[0.9.1]: https://github.com/L1nexi/Wallpaper-Engine-Scheduler/compare/6210b12...e135b31
-[0.9.0]: https://github.com/L1nexi/Wallpaper-Engine-Scheduler/compare/v0.8.3...6210b12
+[Unreleased]: https://github.com/L1nexi/Tunalo/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/L1nexi/Tunalo/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/L1nexi/Tunalo/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/L1nexi/Tunalo/compare/v0.9.1...v0.10.0
+[0.9.1]: https://github.com/L1nexi/Tunalo/compare/v0.9.0...v0.9.1
+[0.9.0]: https://github.com/L1nexi/Tunalo/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/L1nexi/Context-Aware-Wallpaper-Engine-Scheduler/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/L1nexi/Context-Aware-Wallpaper-Engine-Scheduler/compare/v0.8.0...v0.8.2
 [0.8.0]: https://github.com/L1nexi/Context-Aware-Wallpaper-Engine-Scheduler/compare/v0.7.2...v0.8.0
