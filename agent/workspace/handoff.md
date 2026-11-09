@@ -1,8 +1,25 @@
 # 工作交接
 
-更新时间：2026-11-06。分支：`codex/frontend-adjustments`。本轮基线：`58b02b8`。
+更新时间：2026-11-09。分支：`codex/frontend-adjustments`。本轮基线：`9e203ce`。
 
 ## 当前状态
+
+本轮完成用户截图中三处界面调整。用户已审阅并授权提交，界面修改、相关测试和本交接纳入本次提交。
+
+- `SetupFooter.vue`：取消／关闭按钮改用现有 `outline` 变体。
+- `ScenePresetForm.vue`：五个预设分类合为一个 `ToggleGroup`，同行间隔统一为 8px，窄窗口自动换行；保留跨组多选和键盘操作。
+- `scenes/presets.ts`、`copy/scenes.ts`、`copy/scene-labels.ts`：改用“时间 x 活动”／“Time x activity”，移除“季节与天气”分类、四个预设及闲置文案。当前共 18 个预设；已有场景的加载和保存流程保持原状。
+- 同步调整 `e2e/scene-presets.spec.ts`、`e2e/setup.spec.ts`、`e2e/responsive.spec.ts` 中受影响的现有用例。
+
+验证通过：`npm run type-check`、`npm run build-only`、`npm run test:e2e -- --reporter=line --workers=2`（65 项，2.0 分钟）、`git diff --check`。Impeccable detector 和样式源码检查均无发现。
+
+生产构建在 Edge 中检查中英文、深浅主题及 320、390、768、900、1200px 窗口，分类间距、跨组选择、键盘切换和横向溢出检查通过。截图、测量数据和临时走查脚本位于 `C:\Users\L1nex\.codex\visualizations\2026\11\09\01a1c05a-ea44-7471-adf7-13b93ded0458\` 的 `before/`、`after/`。
+
+本轮只验证浏览器内的生产构建，未重新打包 EXE。原生 WebView2 与 Windows DPI 缩放仍待实机复核。
+
+## 前轮发布工程与 CHANGELOG（2026-11-06）
+
+以下为前轮记录；发布准备已于 `9e203ce` 提交，本轮开始时工作区干净。
 
 本轮按用户确认的五个开发阶段重写 CHANGELOG，并保留此前 UI 打磨和 README 写作之外的发布工程修复。改动留在工作区，待用户审阅。
 

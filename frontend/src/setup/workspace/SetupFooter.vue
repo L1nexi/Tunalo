@@ -33,7 +33,7 @@ const copy = computed(() => COPY[locale.value])
       @click="navigateTo(previousSection)"
       >{{ copy.nav.backToSettings }}</Button
     >
-    <Button v-else variant="ghost" class="shrink-0" :disabled="submitting" @click="requestClose">{{
+    <Button v-else variant="outline" class="shrink-0" :disabled="submitting" @click="requestClose">{{
       mode === "setup" ? copy.common.cancel : copy.common.close
     }}</Button>
     <div class="flex min-w-0 flex-wrap justify-end gap-2">

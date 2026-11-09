@@ -1,24 +1,17 @@
 import type { ContextVariable, SceneAssociations, SemanticItem } from "@/api/profile"
 
-export type ScenePresetGroup = ContextVariable | "time_activity" | "season_weather"
+export type ScenePresetGroup = ContextVariable | "time_activity"
 
 export type ScenePresetId =
   | SemanticItem
   | `${"day" | "night"}_${"work" | "leisure"}`
-  | "winter_clear"
-  | "winter_precipitation"
-  | "summer_clear"
-  | "summer_rain"
 
 export interface ScenePreset {
   id: ScenePresetId
   associations: SceneAssociations
 }
 
-export const PRESET_SECTIONS = [
-  { id: "single", groups: ["season", "time", "activity", "weather"] },
-  { id: "double", groups: ["time_activity", "season_weather"] },
-] as const
+export const PRESET_GROUPS = ["season", "time", "activity", "weather", "time_activity"] as const
 
 export const SCENE_PRESETS: Record<ScenePresetGroup, ScenePreset[]> = {
   season: [
@@ -48,11 +41,5 @@ export const SCENE_PRESETS: Record<ScenePresetGroup, ScenePreset[]> = {
     { id: "day_leisure", associations: { time: ["day"], activity: ["leisure"] } },
     { id: "night_work", associations: { time: ["night"], activity: ["work"] } },
     { id: "night_leisure", associations: { time: ["night"], activity: ["leisure"] } },
-  ],
-  season_weather: [
-    { id: "winter_clear", associations: { season: ["winter"], weather: ["clear"] } },
-    { id: "winter_precipitation", associations: { season: ["winter"], weather: ["rain", "snow"] } },
-    { id: "summer_clear", associations: { season: ["summer"], weather: ["clear"] } },
-    { id: "summer_rain", associations: { season: ["summer"], weather: ["rain"] } },
   ],
 }

@@ -17,7 +17,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { COPY, associationSummary } from "@/setup/copy"
 import { copyScene } from "@/setup/profile/model"
-import { PRESET_SECTIONS, SCENE_PRESETS } from "./presets"
+import { PRESET_GROUPS, SCENE_PRESETS } from "./presets"
 import type { ScenePreset, ScenePresetGroup, ScenePresetId } from "./presets"
 import { associationKey } from "./associations"
 import ScenePlaylistField from "./ScenePlaylistField.vue"
@@ -90,25 +90,21 @@ function save(): void {
   >
     <FieldGroup>
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex min-w-0 flex-wrap gap-x-6 gap-y-2">
-          <FieldSet v-for="section in PRESET_SECTIONS" :key="section.id" class="relative min-w-0 gap-2">
-            <FieldLegend :id="`preset-section-${section.id}`" variant="label" class="sr-only">{{
-              copy.sections[section.id]
-            }}</FieldLegend>
-            <ToggleGroup
-              type="single"
-              :spacing="2"
-              class="flex-wrap"
-              :model-value="group"
-              :aria-labelledby="`preset-section-${section.id}`"
-              @update:model-value="setGroup"
-            >
-              <ToggleGroupItem v-for="id in section.groups" :key="id" :value="id">{{
-                copy.groups[id]
-              }}</ToggleGroupItem>
-            </ToggleGroup>
-          </FieldSet>
-        </div>
+        <FieldSet class="relative min-w-0 gap-2">
+          <FieldLegend id="preset-groups" variant="label" class="sr-only">{{ copy.presetGroups }}</FieldLegend>
+          <ToggleGroup
+            type="single"
+            :spacing="2"
+            class="flex-wrap"
+            :model-value="group"
+            aria-labelledby="preset-groups"
+            @update:model-value="setGroup"
+          >
+            <ToggleGroupItem v-for="id in PRESET_GROUPS" :key="id" :value="id">{{
+              copy.groups[id]
+            }}</ToggleGroupItem>
+          </ToggleGroup>
+        </FieldSet>
         <Button type="button" variant="ghost" size="sm" class="shrink-0" :disabled="!selectable.length" @click="selectGroup">
           {{ allSelected ? copy.deselectGroup : copy.selectGroup }}
         </Button>

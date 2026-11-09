@@ -34,10 +34,6 @@ const zh = {
     day_leisure: "日间休闲",
     night_work: "夜间工作",
     night_leisure: "夜间休闲",
-    winter_clear: "冬日晴天",
-    winter_precipitation: "冬日雨雪",
-    summer_clear: "夏日晴朗",
-    summer_rain: "夏日雨天",
   },
 };
 
@@ -77,10 +73,6 @@ const en = {
     day_leisure: "Daytime leisure",
     night_work: "Nighttime work",
     night_leisure: "Nighttime leisure",
-    winter_clear: "Sunny winter",
-    winter_precipitation: "Winter rain or snow",
-    summer_clear: "Sunny summer",
-    summer_rain: "Rainy summer",
   },
 };
 

@@ -32,7 +32,7 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   await navigation.getByRole("button", { name: /场景绑定/ }).click()
 
   await expect(page.getByText("添加你的第一个场景")).toBeVisible()
-  await addPreset(page, "时间与活动", "日间工作")
+  await addPreset(page, "时间 x 活动", "日间工作")
   await expect(page.getByText(/多个场景可以共用一个播放列表/)).toBeVisible()
   await page.getByRole("button", { name: "日间工作: 播放列表" }).click()
   await expect(page.getByRole("option", { name: "CASUAL_ANIME" })).toBeVisible()
@@ -86,7 +86,7 @@ test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({
   await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("31")
   await page.getByRole("spinbutton", { name: "经度", exact: true }).fill("121")
   await openSection(page, "场景绑定")
-  await addPreset(page, "时间与活动", "日间工作")
+  await addPreset(page, "时间 x 活动", "日间工作")
   await page.getByRole("button", { name: "日间工作: 播放列表", exact: true }).click()
   await page.getByRole("option", { name: "CASUAL_ANIME", exact: true }).click()
   await openSection(page, "查看配置草稿")
