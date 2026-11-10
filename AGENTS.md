@@ -4,6 +4,10 @@
 
 本项目大版本号为 0，即允许破坏性变更。若旧接口或旧心智影响新功能实现，以经过确认的目标和设计为主。旧产物是经过认真设计后的成果，在与新功能不冲突时应作为参考。
 
+## 变更记录
+
+用户可感知的行为变化（启动行为、托盘菜单、配置格式、API）记入 `CHANGELOG.md` 的 `[Unreleased]`，用一句话说明用户可见的变化，内部重构、测试和格式化不记。
+
 ## 项目结构与模块组织
 
 本项目是面向 Wallpaper Engine 的调度增强用 Windows-only 桌面应用，含核心调度模块、系统托盘入口、本地 API 服务和前端界面。
@@ -17,7 +21,7 @@
 - `frontend/` 前端页面，现提供初始配置和运行时设置。
 - `config/` 是本机真实运行配置目录，其中的 `profile.json`，可用于真实运行。
 - `tests/` 放 pytest 测试。
-- `docs/` 按规格生命周期管理，索引见 `docs/index.md`。
+- `docs/` 的规格按生命周期管理，索引见 `docs/index.md`；本地开发、测试与打包命令见 `docs/DEVELOPMENT.md`。
 - `agent/` 保存任务同步和交接信息，入口见 `agent/README.md`。
 
 ### 核心架构概述与阅读入口（`engine.schedule()`）
@@ -89,63 +93,6 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 - `app.py`： Bottle 应用组合根与健康检查、Tick History 路由
 - `routes/profile.py|profile_support.py`：业务逻辑路由
 
-## 构建、测试与本地开发常用命令
-
-- 本项目使用虚拟环境进行开发和构建，目录为根目录的 `.venv/`
-
-- 开发与构建命令：
-
-```bash
-pip install -r requirements.txt # 构建依赖
-pip install -r requirements-dev.txt # tools 以及 tests 依赖
-python main.py # 运行 Tunalo
-```
-
-- 测试命令
-
-pytest 配置以 `pytest.ini` 为准。测试命令须通过 `.\scripts\test.ps1` 运行。该脚本对 pytest 模块进行包装。它为每次运行分配独立唯一目录以支持多 `pytest` 并行测试，并在测试完毕后自动清理残留。使用方法与 pytest 相同。
-
-```shell
-.\scripts\test.ps1 tests/core/test_selection_model.py -q # 运行单个测试文件
-.\scripts\test.ps1 -q # 运行所有测试
-```
-
-- Windows 打包命令
-
-```bash
-.\scripts\build.bat
-```
-
-脚本会启动虚拟环境、安装依赖并完成资源打包。
-
-- 指定端口方便前端联调：
-
-```bash
-python main.py --api-port 38417
-cd frontend
-npm run dev
-```
-
-如需其他端口，保持后端端口与前端 `TUNALO_API_PORT=<port>` 一致；默认端口是 `38417`。
-
-- 编码规范要求：
-
-所有 Python 文件修改完毕后，应用 Ruff 格式化
-
-```powershell
-python -m ruff check . --fix
-python -m ruff format .
-```
-
-- 前端开发构建命令：
-
-```bash
-npm run type-check
-npm run build-only
-```
-
-前端工作后应运行 `npm run type-check` 和 `npm run build-only`。
-
 ## 编码风格与命名约定
 
 Python 代码使用完整类型注解。模块、类、函数职责清晰，函数名、变量名自解释。非必要不使用注释，但对会抛出异常的函数必须用 docstring 说明异常类型和触发条件。
@@ -155,3 +102,4 @@ Python 代码使用完整类型注解。模块、类、函数职责清晰，函�
 ## 补充材料
 
 - `CONTEXT.md`：领域术语，用于校准用词规范
+- `docs/DEVELOPMENT.md`：本地运行、测试、打包与代码风格的操作入口
