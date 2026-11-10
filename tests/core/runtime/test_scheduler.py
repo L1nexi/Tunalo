@@ -20,6 +20,7 @@ from configurations.runtime_models import PoliciesConfig, SceneConfig, Scheduler
 from core.models.association import Association
 from core.models.selection import SemanticItem
 from core.models.trace import TickTrace
+from core.models.weather import WeatherType
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
 from core.runtime.scheduler import Scheduler
@@ -165,7 +166,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     second_weather = observed[1][0].context.weather
     assert second_weather is not None
     assert second_weather.last_success_at is not None
-    assert second_weather.code == 0
+    assert second_weather.type == WeatherType.CLEAR
     assert second_weather.source_fingerprint == first_trace.context.weather.source_fingerprint
     assert first_trace.context.weather.last_success_at is None
     assert "test-key" not in repr(window.traces)
@@ -208,7 +209,7 @@ def test_paused_engine_senses_local_sun_times_and_replaces_location_when_weather
 
     engine = Engine.from_config(config)
     first = engine.schedule(paused=True, manual_requested=False)
-    assert first.context.weather is not None and first.context.weather.code is None
+    assert first.context.weather is not None and first.context.weather.type is None
     original = first.context.sun_times
     assert original is not None
     original_times = (original.sunrise, original.sunset)
@@ -218,7 +219,7 @@ def test_paused_engine_senses_local_sun_times_and_replaces_location_when_weather
     updated.policies.weather.lon = 91.47
     engine.install_replacement(engine.prepare_replacement(updated))
     following = engine.schedule(paused=True, manual_requested=False)
-    assert following.context.weather is not None and following.context.weather.code is None
+    assert following.context.weather is not None and following.context.weather.type is None
     assert following.context.sun_times is not None
     assert 3600 < following.context.sun_times.sunrise - original.sunrise < 10800
     assert first.context.sun_times is not None

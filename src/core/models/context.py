@@ -7,6 +7,8 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from core.models.weather import WeatherType
+
 if TYPE_CHECKING:
     from core.sensors import Sensor
 
@@ -21,7 +23,7 @@ class WindowData:
 
 @dataclass
 class WeatherData:
-    code: int | None = None
+    type: WeatherType | None = None
     last_success_at: float | None = None
     source_fingerprint: str = ""
 

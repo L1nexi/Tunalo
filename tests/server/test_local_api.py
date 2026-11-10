@@ -21,6 +21,7 @@ from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
 from core.models.trace import TickTrace
+from core.models.weather import WeatherType
 from core.policies.weather import WeatherPolicy
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
@@ -298,7 +299,7 @@ def test_api_history_exposes_sun_times_independently_of_weather(app, tick_histor
     status, body = wsgi_get(app, "/api/tick-history")
     assert status.startswith("200")
     sense = body["ticks"][0]["sense"]
-    assert sense["weather"] == {"available": False, "code": None}
+    assert sense["weather"] == {"available": False, "type": None}
     assert sense["sunTimes"] == (
         {"available": False, "sunrise": None, "sunset": None}
         if sun_times is None
@@ -306,9 +307,12 @@ def test_api_history_exposes_sun_times_independently_of_weather(app, tick_histor
     )
 
 
-@pytest.mark.parametrize("code, available, mapped", [(None, False, False), (0, True, True), (999, True, False)])
-def test_api_history_preserves_weather_code_zero_and_missing_state(app, tick_history, code, available, mapped):
-    weather = WeatherData(code=code)
+@pytest.mark.parametrize(
+    "weather_type, available, mapped",
+    [(None, False, False), (WeatherType.CLEAR, True, True), (WeatherType.UNKNOWN, True, False)],
+)
+def test_api_history_preserves_weather_type_and_missing_state(app, tick_history, weather_type, available, mapped):
+    weather = WeatherData(type=weather_type)
     evaluation = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=weather))
     tick_history.update(_make_trace(weather=weather, policy_evaluations=[evaluation]))
 
@@ -316,8 +320,9 @@ def test_api_history_preserves_weather_code_zero_and_missing_state(app, tick_his
 
     assert status.startswith("200")
     tick = body["ticks"][0]
-    assert tick["sense"]["weather"] == {"available": available, "code": code}
-    assert tick["think"]["policies"][0]["details"] == {"weatherCode": code, "available": available, "mapped": mapped}
+    weather_type_value = weather_type.value if weather_type is not None else None
+    assert tick["sense"]["weather"] == {"available": available, "type": weather_type_value}
+    assert tick["think"]["policies"][0]["details"] == {"weatherType": weather_type_value, "available": available, "mapped": mapped}
 
 
 def test_custom_scene_identity_survives_history_and_event_export(app, tick_history, tmp_path):

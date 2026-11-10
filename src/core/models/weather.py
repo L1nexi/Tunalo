@@ -1,0 +1,35 @@
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class WeatherType(StrEnum):
+    CLEAR = "clear"
+    MAINLY_CLEAR = "mainly_clear"
+    PARTLY_CLOUDY = "partly_cloudy"
+    OVERCAST = "overcast"
+    FOG = "fog"
+    LIGHT_DRIZZLE = "light_drizzle"
+    DRIZZLE = "drizzle"
+    DENSE_DRIZZLE = "dense_drizzle"
+    LIGHT_FREEZING_DRIZZLE = "light_freezing_drizzle"
+    DENSE_FREEZING_DRIZZLE = "dense_freezing_drizzle"
+    LIGHT_RAIN = "light_rain"
+    RAIN = "rain"
+    HEAVY_RAIN = "heavy_rain"
+    LIGHT_FREEZING_RAIN = "light_freezing_rain"
+    HEAVY_FREEZING_RAIN = "heavy_freezing_rain"
+    LIGHT_SNOW = "light_snow"
+    SNOW = "snow"
+    HEAVY_SNOW = "heavy_snow"
+    SNOW_GRAINS = "snow_grains"
+    LIGHT_RAIN_SHOWER = "light_rain_shower"
+    RAIN_SHOWER = "rain_shower"
+    VIOLENT_RAIN_SHOWER = "violent_rain_shower"
+    LIGHT_SNOW_SHOWER = "light_snow_shower"
+    HEAVY_SNOW_SHOWER = "heavy_snow_shower"
+    THUNDERSTORM = "thunderstorm"
+    THUNDERSTORM_WITH_HAIL = "thunderstorm_with_hail"
+    STRONG_THUNDERSTORM = "strong_thunderstorm"
+    STRONG_THUNDERSTORM_WITH_HAIL = "strong_thunderstorm_with_hail"
+    UNKNOWN = "unknown"

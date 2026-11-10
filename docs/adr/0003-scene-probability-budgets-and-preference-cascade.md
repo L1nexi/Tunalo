@@ -114,4 +114,4 @@ $$
 
 ## 实现与验证
 
-当前实现与行为证据：[Selector](../../src/core/runtime/selector.py)、[ProfileCompiler](../../src/configurations/profile_compiler.py)、[概率模型测试](../../tests/core/test_selection_model.py)、[配置编译测试](../../tests/configurations/test_profile_compiler.py)。可调整的当前参数见[开发指引](../DEVELOPMENT.md#内部参数与规则入口)。
+当前实现与行为证据：[Selector](../../src/core/runtime/selector.py)、[ProfileCompiler](../../src/configurations/profile_compiler.py)、[概率模型测试](../../tests/core/test_selection_model.py)、[配置编译测试](../../tests/configurations/test_profile_compiler.py)。可调整的当前参数见 [runtime_models.py](../../src/configurations/runtime_models.py) 和对应 Policy 实现。

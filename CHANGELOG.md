@@ -11,7 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- **天气服务**：完全改用 Open-Meteo，填写或估算坐标后即可测试连接，移除 API Key 配置和申请指引。天气强度沿用既有标尺，改按 WMO 天气码解释。
+- **天气服务**：完全改用 Open-Meteo，填写或估算坐标后即可测试连接，移除 API Key 配置和申请指引。天气强度沿用既有标尺；Open-Meteo 集成把 WMO 天气码归类为天气类型，`WeatherPolicy` 只按天气类型解释显著度。
 - **配置格式（破坏性变更）**：Profile 升为第 4 版，天气配置只保留地点。旧版配置直接拒绝读取，不提供格式转换。
 
 ## [0.12.0] - 2026-11-09

@@ -10,8 +10,10 @@ import requests
 
 from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context
+from core.models.weather import WeatherType
 from core.policies.weather import WeatherPolicy
 from core.sensors.weather import WeatherSensor
+from integrations.openmeteo import classify_weather_code
 
 
 class _Response:
@@ -62,6 +64,35 @@ def _config() -> WeatherPolicyConfig:
     return WeatherPolicyConfig(lat=31.0, lon=121.0)
 
 
+@pytest.mark.parametrize(
+    "code, weather_type",
+    [
+        (0, WeatherType.CLEAR),
+        (1, WeatherType.MAINLY_CLEAR),
+        (2, WeatherType.PARTLY_CLOUDY),
+        (3, WeatherType.OVERCAST),
+        (45, WeatherType.FOG),
+        (51, WeatherType.LIGHT_DRIZZLE),
+        (55, WeatherType.DENSE_DRIZZLE),
+        (57, WeatherType.DENSE_FREEZING_DRIZZLE),
+        (63, WeatherType.RAIN),
+        (67, WeatherType.HEAVY_FREEZING_RAIN),
+        (71, WeatherType.LIGHT_SNOW),
+        (75, WeatherType.HEAVY_SNOW),
+        (77, WeatherType.SNOW_GRAINS),
+        (82, WeatherType.VIOLENT_RAIN_SHOWER),
+        (86, WeatherType.HEAVY_SNOW_SHOWER),
+        (95, WeatherType.THUNDERSTORM),
+        (96, WeatherType.THUNDERSTORM_WITH_HAIL),
+        (97, WeatherType.STRONG_THUNDERSTORM),
+        (99, WeatherType.STRONG_THUNDERSTORM_WITH_HAIL),
+        (999, WeatherType.UNKNOWN),
+    ],
+)
+def test_wmo_codes_are_classified_into_provider_independent_weather_types(code: int, weather_type: WeatherType) -> None:
+    assert classify_weather_code(code) is weather_type
+
+
 def test_first_weather_failure_still_exposes_source_without_a_success_time(weather_requests: Queue[WeatherRequest]) -> None:
     sensor = WeatherSensor(_config())
     source = sensor.collect().source_fingerprint
@@ -83,7 +114,7 @@ def test_weather_success_is_timestamped_when_the_request_completes(monkeypatch: 
     respond_weather(weather_requests, _Response())
 
     current = sensor.collect()
-    assert (current.code, current.last_success_at, current.source_fingerprint) == (0, 1010.0, source)
+    assert (current.type, current.last_success_at, current.source_fingerprint) == (WeatherType.CLEAR, 1010.0, source)
 
 
 def test_same_source_configuration_update_preserves_cached_weather(monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest]) -> None:

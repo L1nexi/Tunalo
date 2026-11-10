@@ -4,10 +4,48 @@ from dataclasses import dataclass
 
 import requests
 
+from core.models.weather import WeatherType
 from integrations.request_failure import request_failure_reason
 
 CURRENT_WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 VALIDATION_TIMEOUT_SECONDS = 8.0
+
+_WMO_WEATHER_TYPES: dict[int, WeatherType] = {
+    0: WeatherType.CLEAR,
+    1: WeatherType.MAINLY_CLEAR,
+    2: WeatherType.PARTLY_CLOUDY,
+    3: WeatherType.OVERCAST,
+    45: WeatherType.FOG,
+    48: WeatherType.FOG,
+    51: WeatherType.LIGHT_DRIZZLE,
+    53: WeatherType.DRIZZLE,
+    55: WeatherType.DENSE_DRIZZLE,
+    56: WeatherType.LIGHT_FREEZING_DRIZZLE,
+    57: WeatherType.DENSE_FREEZING_DRIZZLE,
+    61: WeatherType.LIGHT_RAIN,
+    63: WeatherType.RAIN,
+    65: WeatherType.HEAVY_RAIN,
+    66: WeatherType.LIGHT_FREEZING_RAIN,
+    67: WeatherType.HEAVY_FREEZING_RAIN,
+    71: WeatherType.LIGHT_SNOW,
+    73: WeatherType.SNOW,
+    75: WeatherType.HEAVY_SNOW,
+    77: WeatherType.SNOW_GRAINS,
+    80: WeatherType.LIGHT_RAIN_SHOWER,
+    81: WeatherType.RAIN_SHOWER,
+    82: WeatherType.VIOLENT_RAIN_SHOWER,
+    85: WeatherType.LIGHT_SNOW_SHOWER,
+    86: WeatherType.HEAVY_SNOW_SHOWER,
+    95: WeatherType.THUNDERSTORM,
+    96: WeatherType.THUNDERSTORM_WITH_HAIL,
+    97: WeatherType.STRONG_THUNDERSTORM,
+    99: WeatherType.STRONG_THUNDERSTORM_WITH_HAIL,
+}
+
+
+def classify_weather_code(code: int) -> WeatherType:
+    """Translate an Open-Meteo WMO weather code into the shared weather type."""
+    return _WMO_WEATHER_TYPES.get(code, WeatherType.UNKNOWN)
 
 
 class WeatherRejected(RuntimeError):
@@ -39,6 +77,7 @@ class WeatherUnavailable(RuntimeError):
 @dataclass(frozen=True)
 class WeatherObservation:
     code: int
+    type: WeatherType
 
 
 def fetch_weather(
@@ -75,7 +114,7 @@ def fetch_weather(
         code = current.get("weather_code")
         if isinstance(code, bool) or not isinstance(code, int):
             raise WeatherUnavailable("weather service returned incomplete data", reason="invalid_response")
-        return WeatherObservation(code=code)
+        return WeatherObservation(code=code, type=classify_weather_code(code))
     if response.status_code == 400:
         raise InvalidLocation("weather location is invalid")
     if response.status_code == 429:

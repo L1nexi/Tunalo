@@ -9,6 +9,7 @@ from configurations.profile import Profile
 from configurations.profile_compiler import ProfileCompiler
 from configurations.profile_store import ProfileStore
 from core.models.context import Context, WeatherData, WindowData
+from core.models.weather import WeatherType
 from core.policies import POLICY_REGISTRY
 from core.runtime.selector import Selector
 
@@ -53,7 +54,7 @@ def test_profile_requires_an_enabled_scene():
 def test_compiled_preference_changes_distribution_using_real_policies():
     unpreferred = selector_for(profile(), {})
     preferred = selector_for(profile(matching={"preference_tiers": [["weather"], ["activity", "season"]]}), {})
-    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(code=65))
+    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(type=WeatherType.HEAVY_RAIN))
     for _ in range(600):
         ordinary = unpreferred.select(context)
         weather_first = preferred.select(context)
@@ -70,7 +71,7 @@ def test_m20_playlist_name_size_and_many_to_one_binding_do_not_change_scene_prob
         scene.playlist = "SHARED"
     first = selector_for(first_profile, {"WORK": 1, "RAIN": 9000})
     second = selector_for(second_profile, {"SHARED": 0})
-    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(code=65))
+    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(type=WeatherType.HEAVY_RAIN))
     for _ in range(600):
         a, b = first.select(context), second.select(context)
     assert a.probabilities == b.probabilities

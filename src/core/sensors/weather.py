@@ -66,11 +66,11 @@ class WeatherSensor(Sensor):
                 timeout=self.timeout,
             )
             self._cached = WeatherData(
-                code=observation.code,
+                type=observation.type,
                 last_success_at=time.time(),
                 source_fingerprint=self._cached.source_fingerprint,
             )
-            logger.info("Weather updated: code=%s", observation.code)
+            logger.info("Weather updated: code=%s type=%s", observation.code, observation.type)
         except WeatherRejected as exc:
             logger.warning("Weather fetch failed: reason=%s", exc.code)
         except WeatherUnavailable as exc:

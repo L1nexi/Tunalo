@@ -10,7 +10,7 @@
 
 ## 评估时的 Tunalo 需求
 
-以下记录替换前 `de27ce6` 的代码行为，作为选型背景；替换后的接口与标尺见[开发指引](../../DEVELOPMENT.md#天气集成与配置)。
+以下记录替换前 `de27ce6` 的代码行为，作为选型背景；替换后的接口与标尺见 [Open-Meteo 集成](../../../src/integrations/openmeteo.py) 和 [WeatherPolicy](../../../src/core/policies/weather.py)。
 
 - [WeatherPolicy](../../../src/core/policies/weather.py) 使用 OpenWeatherMap（OWM）天气代码及主分类，构建晴朗、阴天、雨、雪的显著度，即对相应场景的支持或违和程度。雨雪区分强弱，雷暴由雨语义承接，部分 OWM 代码可同时支持雨雪。当前没有独立的雾、霾、风或温度语义。
 - [WeatherSensor](../../../src/core/sensors/weather.py) 每 600 秒异步获取一次；失败保留内存缓存。[WeatherReminder](../../../src/app/weather_reminder.py) 在两小时没有成功获取后提醒一次，继续使用缓存。
@@ -111,7 +111,7 @@ MET Norway、wttr.in 和 7Timer 的核查仅涉及一手文档和源码，未向
 | 采集与提醒 | 保留每 600 秒获取、10 秒采集超时、失败缓存和两小时提醒；来源指纹改为坐标，同来源更新和迟到请求隔离沿用原契约 |
 | 配置及持久化 | 删除密钥，Profile 升为 v4；通过既有版本错误拒绝旧格式，不做转换 |
 | 本地接口与设置 | `POST /api/weather-validations` 接受当前坐标；删除密钥输入和申请指引，保留测试结果、错误详情和确认后跳过验证保存；坐标变化使验证失效 |
-| 诊断及文档 | Tick History 和调参工具使用新代码；同步 README、ADR-0001/0004、开发指引和天气提醒规格，补来源署名 |
+| 诊断及文档 | Tick History 和调参工具使用新代码；同步 README、ADR-0001/0004 和天气提醒规格，补来源署名 |
 
 本次保留既有缓存行为。数据适用时刻、缓存过期、重试退避和定量雨雪信息留作独立改进。`current.time` 是预报适用时刻，与模型初始化时间不同；若后续处理旧数据，需要分别核对两者。[模型更新时间说明](https://open-meteo.com/en/docs/model-updates)
 

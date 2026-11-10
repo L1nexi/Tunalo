@@ -13,7 +13,7 @@ date: 2026-10-03
 
 ## 后续决策（2026-10-11）
 
-上述范围描述的是 2026-10-03 重审当时；本记录保留旧心智与设计出发点。后续已经确认并实现的决策由 [ADR-0003：偏好级联与概率预算](0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](0004-context-salience-and-observation-boundaries.md) 承接。文中的旧算法、开放项和示例构想不作为当前实现契约；当前参数与接入状态见[开发指引](../DEVELOPMENT.md#场景选择模型)。
+上述范围描述的是 2026-10-03 重审当时；本记录保留旧心智与设计出发点。后续已经确认并实现的决策由 [ADR-0003：偏好级联与概率预算](0003-scene-probability-budgets-and-preference-cascade.md)、[ADR-0004：显著度构建与观测边界](0004-context-salience-and-observation-boundaries.md) 承接。文中的旧算法、开放项和示例构想不作为当前实现契约；当前参数见 [runtime_models.py](../../src/configurations/runtime_models.py)，模型与观测边界见 [ADR-0003](0003-scene-probability-budgets-and-preference-cascade.md) 和 [ADR-0004](0004-context-salience-and-observation-boundaries.md)。
 
 ## 背景
 
@@ -124,6 +124,6 @@ date: 2026-10-03
 
 - [领域术语](../../CONTEXT.md)：持续维护的领域词表，后续已按新模型更新。
 - [产品定位](../PRODUCT_POSITIONING.md)：场景与播单解耦、用户审美主导权及免打扰目标。
-- [产品化规划](../PRODUCTIZATION_PHASE_PLAN.md)：Profile 和旧五档响应风格的规划背景，后续变更以新 ADR 为准。
+- 产品化规划：Profile 和旧五档响应风格的规划背景保存于 Git 历史，后续变更以新 ADR 为准。
 - [后续待办](../TODO.md)：本轮模型重构已完成，未完成的界面接入及后续探索继续记录在这里。
 - 本记录形成时的 `profile_compiler.py`、Policy、`matcher.py` 和 `tag_resolver.py` 保存于 Git 历史；旧匹配器及标签解析器已在后续实现中移除。当前实现入口见后续 ADR，不将已删除源码作为仍可访问的链接。

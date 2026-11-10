@@ -12,23 +12,24 @@ from configurations.runtime_models import SchedulerConfig, SeasonPolicyConfig, T
 from core.models.association import Association
 from core.models.context import Context, SunTimesData, WeatherData
 from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, SemanticItem
+from core.models.weather import WeatherType
 
-WEATHER_PRESETS: dict[str, int] = {
-    "clear": 0,
-    "few_clouds": 1,
-    "overcast": 3,
-    "light_drizzle": 51,
-    "drizzle": 53,
-    "light_rain": 61,
-    "mod_rain": 63,
-    "heavy_rain": 65,
-    "violent_rain": 82,
-    "light_snow": 71,
-    "heavy_snow": 75,
-    "storm": 95,
-    "storm_rain": 95,
-    "heavy_storm": 97,
-    "fog": 45,
+WEATHER_PRESETS: dict[str, WeatherType] = {
+    "clear": WeatherType.CLEAR,
+    "few_clouds": WeatherType.MAINLY_CLEAR,
+    "overcast": WeatherType.OVERCAST,
+    "light_drizzle": WeatherType.LIGHT_DRIZZLE,
+    "drizzle": WeatherType.DRIZZLE,
+    "light_rain": WeatherType.LIGHT_RAIN,
+    "mod_rain": WeatherType.RAIN,
+    "heavy_rain": WeatherType.HEAVY_RAIN,
+    "violent_rain": WeatherType.VIOLENT_RAIN_SHOWER,
+    "light_snow": WeatherType.LIGHT_SNOW,
+    "heavy_snow": WeatherType.HEAVY_SNOW,
+    "storm": WeatherType.THUNDERSTORM,
+    "storm_rain": WeatherType.THUNDERSTORM,
+    "heavy_storm": WeatherType.STRONG_THUNDERSTORM,
+    "fog": WeatherType.FOG,
 }
 
 
@@ -117,9 +118,9 @@ def synthetic_config(*, activation_alpha: float = 2.0) -> SchedulerConfig:
 def build_context(hour: float, day_of_year: int, weather_name: str | None) -> Context:
     """Build a synthetic observation with local 06:00 sunrise and 18:00 sunset."""
     date = datetime(2025, 1, 1) + timedelta(days=day_of_year - 1, minutes=round(hour * 60))
-    weather_code = WEATHER_PRESETS[weather_name] if weather_name is not None else None
+    weather_type = WEATHER_PRESETS[weather_name] if weather_name is not None else None
     return Context(
-        weather=WeatherData(code=weather_code),
+        weather=WeatherData(type=weather_type),
         sun_times=SunTimesData(sunrise=int(date.replace(hour=6, minute=0).timestamp()), sunset=int(date.replace(hour=18, minute=0).timestamp())),
         time=date.timetuple(),
     )

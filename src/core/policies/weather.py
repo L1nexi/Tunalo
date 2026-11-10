@@ -3,6 +3,7 @@ from __future__ import annotations
 from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context
 from core.models.selection import SemanticItem, WeatherDetails, WeatherEvaluation
+from core.models.weather import WeatherType
 from core.policies.base import Policy
 
 _WEAK_OPPOSITION = 0.25
@@ -28,38 +29,37 @@ def _weather_salience(*, clear: float = 0.0, cloudy: float = 0.0, rain: float = 
     }
 
 
-_CODE_SALIENCE: dict[int, dict[SemanticItem, float]] = {
-    # Open-Meteo WMO 代码；沿用 ADR-0004 的显著度标尺。
-    0: _weather_salience(clear=1.0),
-    1: _weather_salience(clear=0.75),
-    2: _weather_salience(clear=0.25, cloudy=0.25),
-    3: _weather_salience(cloudy=1.0),
-    45: _weather_salience(),
-    48: _weather_salience(),
-    51: _weather_salience(rain=0.3),
-    53: _weather_salience(rain=0.6),
-    55: _weather_salience(rain=0.85),
-    56: _weather_salience(rain=0.3),
-    57: _weather_salience(rain=0.85),
-    61: _weather_salience(rain=0.75),
-    63: _weather_salience(rain=1.0),
-    65: _weather_salience(rain=2.0),
-    66: _weather_salience(rain=0.75),
-    67: _weather_salience(rain=2.0),
-    71: _weather_salience(snow=0.25),
-    73: _weather_salience(snow=0.75),
-    75: _weather_salience(snow=1.5),
-    77: _weather_salience(snow=0.25),
-    80: _weather_salience(rain=0.85),
-    81: _weather_salience(rain=1.5),
-    82: _weather_salience(rain=4.0),
-    85: _weather_salience(snow=0.35),
-    86: _weather_salience(snow=1.5),
-    # 雷暴本身强烈支持雨景；冰雹代码也由雨语义承接。
-    95: _weather_salience(rain=3.0),
-    96: _weather_salience(rain=3.0),
-    97: _weather_salience(rain=4.0),
-    99: _weather_salience(rain=4.0),
+_TYPE_SALIENCE: dict[WeatherType, dict[SemanticItem, float]] = {
+    # 天气类型由集成侧从来源代码归类；这里沿用 ADR-0004 的显著度标尺。
+    WeatherType.CLEAR: _weather_salience(clear=1.0),
+    WeatherType.MAINLY_CLEAR: _weather_salience(clear=0.75),
+    WeatherType.PARTLY_CLOUDY: _weather_salience(clear=0.25, cloudy=0.25),
+    WeatherType.OVERCAST: _weather_salience(cloudy=1.0),
+    WeatherType.FOG: _weather_salience(),
+    WeatherType.LIGHT_DRIZZLE: _weather_salience(rain=0.3),
+    WeatherType.DRIZZLE: _weather_salience(rain=0.6),
+    WeatherType.DENSE_DRIZZLE: _weather_salience(rain=0.85),
+    WeatherType.LIGHT_FREEZING_DRIZZLE: _weather_salience(rain=0.3),
+    WeatherType.DENSE_FREEZING_DRIZZLE: _weather_salience(rain=0.85),
+    WeatherType.LIGHT_RAIN: _weather_salience(rain=0.75),
+    WeatherType.RAIN: _weather_salience(rain=1.0),
+    WeatherType.HEAVY_RAIN: _weather_salience(rain=2.0),
+    WeatherType.LIGHT_FREEZING_RAIN: _weather_salience(rain=0.75),
+    WeatherType.HEAVY_FREEZING_RAIN: _weather_salience(rain=2.0),
+    WeatherType.LIGHT_SNOW: _weather_salience(snow=0.25),
+    WeatherType.SNOW: _weather_salience(snow=0.75),
+    WeatherType.HEAVY_SNOW: _weather_salience(snow=1.5),
+    WeatherType.SNOW_GRAINS: _weather_salience(snow=0.25),
+    WeatherType.LIGHT_RAIN_SHOWER: _weather_salience(rain=0.85),
+    WeatherType.RAIN_SHOWER: _weather_salience(rain=1.5),
+    WeatherType.VIOLENT_RAIN_SHOWER: _weather_salience(rain=4.0),
+    WeatherType.LIGHT_SNOW_SHOWER: _weather_salience(snow=0.35),
+    WeatherType.HEAVY_SNOW_SHOWER: _weather_salience(snow=1.5),
+    # 雷暴本身强烈支持雨景；冰雹类型也由雨语义承接。
+    WeatherType.THUNDERSTORM: _weather_salience(rain=3.0),
+    WeatherType.THUNDERSTORM_WITH_HAIL: _weather_salience(rain=3.0),
+    WeatherType.STRONG_THUNDERSTORM: _weather_salience(rain=4.0),
+    WeatherType.STRONG_THUNDERSTORM_WITH_HAIL: _weather_salience(rain=4.0),
 }
 
 
@@ -71,15 +71,14 @@ class WeatherPolicy(Policy):
 
     def evaluate(self, context: Context) -> WeatherEvaluation:
         weather = context.weather
-        values = None
-        if weather is not None and weather.code is not None:
-            values = _CODE_SALIENCE.get(weather.code)
+        weather_type = weather.type if weather is not None else None
+        values = _TYPE_SALIENCE.get(weather_type) if weather_type is not None else None
         return WeatherEvaluation(
             policy_id=self.config_key,
             salience=values.copy() if values is not None else _weather_salience(),
             details=WeatherDetails(
-                weather_code=weather.code if weather is not None else None,
-                available=weather is not None and weather.code is not None,
+                weather_type=weather_type,
+                available=weather_type is not None,
                 mapped=values is not None,
             ),
         )

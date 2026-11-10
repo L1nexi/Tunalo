@@ -7,6 +7,7 @@ from typing import Literal, Self
 from pydantic import FiniteFloat, RootModel, model_validator
 
 from core.models.scene import Scenes
+from core.models.weather import WeatherType
 
 
 class ContextVariable(StrEnum):
@@ -77,7 +78,7 @@ class SeasonDetails:
 
 @dataclass
 class WeatherDetails:
-    weather_code: int | None = None
+    weather_type: WeatherType | None = None
     available: bool = False
     mapped: bool = False
 

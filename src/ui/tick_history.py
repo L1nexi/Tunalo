@@ -11,6 +11,7 @@ from core.models.scene import Scenes
 from core.models.scheduling import Action, Blocker, DisturbanceEvaluation, TimingEvaluation
 from core.models.selection import ActivityEvaluation, PolicyEvaluation, SeasonEvaluation, TimeEvaluation, WeatherEvaluation
 from core.models.trace import TickTrace
+from core.models.weather import WeatherType
 from core.state.tick_history import TickHistoryWindow
 
 
@@ -59,7 +60,7 @@ class CpuSnapshotDto(ApiDto):
 
 class WeatherSnapshotDto(ApiDto):
     available: bool
-    code: int | None
+    type: WeatherType | None
 
 
 class SunTimesSnapshotDto(ApiDto):
@@ -96,7 +97,7 @@ class SeasonDetailsDto(ApiDto):
 
 
 class WeatherDetailsDto(ApiDto):
-    weather_code: int | None
+    weather_type: WeatherType | None
     available: bool
     mapped: bool
 
@@ -249,11 +250,11 @@ def _weather_snapshot(weather: WeatherData | None) -> WeatherSnapshotDto:
     if weather is None:
         return WeatherSnapshotDto(
             available=False,
-            code=None,
+            type=None,
         )
     return WeatherSnapshotDto(
-        available=weather.code is not None,
-        code=weather.code,
+        available=weather.type is not None,
+        type=weather.type,
     )
 
 
@@ -317,7 +318,7 @@ def _policy_snapshot(policy: PolicyEvaluation) -> EvaluationDto:
         return WeatherEvaluationDto(
             **base_kwargs,
             details=WeatherDetailsDto(
-                weather_code=policy.details.weather_code,
+                weather_type=policy.details.weather_type,
                 available=policy.details.available,
                 mapped=policy.details.mapped,
             ),
