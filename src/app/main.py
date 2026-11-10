@@ -10,6 +10,7 @@ import sys
 from dotenv import load_dotenv
 
 from app.context import get_app_root
+from app.instance import SingleInstance
 from app.logging import setup_logger
 
 # ── CLI ─────────────────────────────────────────────────────────
@@ -160,14 +161,23 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
 def main() -> None:
     load_dotenv(os.path.join(get_app_root(), ".env"), override=False)
-    logger = setup_logger()
-    logger.info("Tunalo starting...")
-
     args = _parse_args()
 
     if args.window:
+        setup_logger()
         _run_window(args.port, args.locale, setup=args.setup)
         return
+
+    single_instance = SingleInstance()
+    try:
+        is_primary = single_instance.acquire()
+    except OSError:
+        is_primary = True
+    if not is_primary:
+        return
+
+    logger = setup_logger()
+    logger.info("Tunalo starting...")
 
     random_seed = int.from_bytes(os.urandom(8), "big")
     random.seed(random_seed)
