@@ -11,6 +11,7 @@ from queue import Queue
 from typing import TextIO
 
 import pytest
+import requests
 
 from app.event_logger import JsonlEventLogger
 from configurations.profile import Profile
@@ -38,7 +39,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     profile = Profile.model_validate(
         {
             "wallpaper_engine_path": str(executable),
-            "weather": {"api_key": "test-key", "location": {"latitude": 31, "longitude": 121}},
+            "weather": {"location": {"latitude": 31, "longitude": 121}},
             "scenes": {"work": {"name": "工作", "associations": {"activity": ["work"]}, "playlist": "WORK"}},
         }
     )
@@ -67,7 +68,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
         status_code = 200
 
         def json(self) -> dict[str, object]:
-            return {"weather": [{"id": 800, "main": "Clear"}]}
+            return {"current": {"weather_code": 0}}
 
     def request_weather(*args: object, **kwargs: object) -> WeatherResponse:
         weather_threads.append(threading.current_thread())
@@ -78,7 +79,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
         return open(tmp_path / "state.json", mode, encoding=encoding)
 
     monkeypatch.setattr("core.runtime.executor.subprocess.Popen", Process)
-    monkeypatch.setattr("integrations.openweather.requests.get", request_weather)
+    monkeypatch.setattr("integrations.openmeteo.requests.get", request_weather)
     monkeypatch.setattr("win32gui.GetForegroundWindow", lambda: 0)
     monkeypatch.setattr("ctypes.windll.shell32.SHQueryUserNotificationState", lambda pointer: 0)
     monkeypatch.setattr("psutil.cpu_percent", lambda: 0.0)
@@ -164,7 +165,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     second_weather = observed[1][0].context.weather
     assert second_weather is not None
     assert second_weather.last_success_at is not None
-    assert second_weather.id == 800
+    assert second_weather.code == 0
     assert second_weather.source_fingerprint == first_trace.context.weather.source_fingerprint
     assert first_trace.context.weather.last_success_at is None
     assert "test-key" not in repr(window.traces)
@@ -179,7 +180,9 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     assert [record["type"] for record in records] == ["start", action_type, action_type, "stop"]
 
 
-def test_paused_engine_senses_local_sun_times_and_replaces_location_without_weather(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_paused_engine_senses_local_sun_times_and_replaces_location_when_weather_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     executable = tmp_path / "wallpaper64.exe"
     executable.touch()
     config = SchedulerConfig(
@@ -188,10 +191,16 @@ def test_paused_engine_senses_local_sun_times_and_replaces_location_without_weat
         policies=PoliciesConfig(weather=WeatherPolicyConfig(lat=31.23, lon=121.47)),
     )
 
-    def reject_external_call(*args: object, **kwargs: object) -> None:
-        raise AssertionError("Paused local sun times must not request weather or execute Wallpaper Engine")
+    weather_threads: list[threading.Thread] = []
 
-    monkeypatch.setattr("requests.sessions.Session.request", reject_external_call)
+    def offline_weather(*args: object, **kwargs: object) -> None:
+        weather_threads.append(threading.current_thread())
+        raise requests.ConnectionError("offline")
+
+    def reject_external_call(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Paused scheduling must not execute Wallpaper Engine")
+
+    monkeypatch.setattr("requests.sessions.Session.request", offline_weather)
     monkeypatch.setattr("subprocess.Popen", reject_external_call)
     monkeypatch.setattr("win32gui.GetForegroundWindow", lambda: 0)
     monkeypatch.setattr("ctypes.windll.shell32.SHQueryUserNotificationState", lambda pointer: 0)
@@ -199,7 +208,7 @@ def test_paused_engine_senses_local_sun_times_and_replaces_location_without_weat
 
     engine = Engine.from_config(config)
     first = engine.schedule(paused=True, manual_requested=False)
-    assert first.context.weather is None
+    assert first.context.weather is not None and first.context.weather.code is None
     original = first.context.sun_times
     assert original is not None
     original_times = (original.sunrise, original.sunset)
@@ -209,9 +218,12 @@ def test_paused_engine_senses_local_sun_times_and_replaces_location_without_weat
     updated.policies.weather.lon = 91.47
     engine.install_replacement(engine.prepare_replacement(updated))
     following = engine.schedule(paused=True, manual_requested=False)
-    assert following.context.weather is None
+    assert following.context.weather is not None and following.context.weather.code is None
     assert following.context.sun_times is not None
     assert 3600 < following.context.sun_times.sunrise - original.sunrise < 10800
     assert first.context.sun_times is not None
     assert (first.context.sun_times.sunrise, first.context.sun_times.sunset) == original_times
     assert not first.action.executed and not following.action.executed
+    for worker in weather_threads:
+        worker.join(timeout=1)
+        assert not worker.is_alive()

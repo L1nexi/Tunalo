@@ -20,17 +20,16 @@ export function describeProfileChanges(
   const copy = COPY[locale]
   const list: ProfileChange[] = []
   const empty = copy.common.notSet
-  const add = (id: StepId, label: string, oldValue: unknown, newValue: unknown, hide = false) => {
+  const add = (id: StepId, label: string, oldValue: unknown, newValue: unknown) => {
     if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return
     list.push({
       id,
       label,
-      before: hide ? copy.review.secretChanged : String(oldValue ?? empty),
-      after: hide ? copy.review.secretChanged : String(newValue ?? empty),
+      before: String(oldValue ?? empty),
+      after: String(newValue ?? empty),
     })
   }
   add("wallpaper", copy.review.wallpaper, before.wallpaper_engine_path, after.wallpaper_engine_path)
-  add("weather", copy.weather.keyLabel, before.weather.api_key, after.weather.api_key, true)
   add("weather", copy.review.location, reviewLocation(before, locale), reviewLocation(after, locale))
   for (const id of new Set([...Object.keys(before.scenes), ...Object.keys(after.scenes)])) {
     const describe = (scene: ProfileDraft["scenes"][string] | undefined) =>

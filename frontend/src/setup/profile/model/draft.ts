@@ -1,16 +1,15 @@
-import type { ActivityProfile, ContextVariable, Locale, Profile, SceneProfile } from "@/api/profile"
+import type { ActivityProfile, ContextVariable, Locale, Profile, SceneProfile, WeatherLocationProfile } from "@/api/profile"
 import { copyActivity } from "./activity"
 import { hasValidPreferences, normalizePreferenceTiers } from "./preferences"
 import { copyScenes, sortedScenes } from "./scenes"
 import { DISTURBANCE_PRESETS, requireNonNegativeInteger } from "./timing"
 
 export interface ProfileDraft {
-  version: 3
+  version: 4
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
   weather: {
-    api_key: string
     location: {
       latitude: number | null
       longitude: number | null
@@ -31,12 +30,11 @@ export interface ProfileDraft {
 export function createProfileDraft(profile: Profile | null, locale: Locale): ProfileDraft {
   if (profile !== null) {
     return {
-      version: 3,
+      version: 4,
       setup_complete: true,
       wallpaper_engine_path: profile.wallpaper_engine_path,
       language: profile.language,
       weather: {
-        api_key: profile.weather.api_key,
         location: {
           latitude: profile.weather.location.latitude,
           longitude: profile.weather.location.longitude,
@@ -50,12 +48,11 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
   }
 
   return {
-    version: 3,
+    version: 4,
     setup_complete: true,
     wallpaper_engine_path: "",
     language: locale,
     weather: {
-      api_key: "",
       location: {
         latitude: null,
         longitude: null,
@@ -70,6 +67,13 @@ export function createProfileDraft(profile: Profile | null, locale: Locale): Pro
   }
 }
 
+export function hasValidLocation(location: ProfileDraft["weather"]["location"]): location is WeatherLocationProfile {
+  return location.latitude !== null && Number.isFinite(location.latitude) &&
+    location.latitude >= -90 && location.latitude <= 90 &&
+    location.longitude !== null && Number.isFinite(location.longitude) &&
+    location.longitude >= -180 && location.longitude <= 180
+}
+
 export function buildProfile(draft: ProfileDraft): Profile {
   const latitude = draft.weather.location.latitude
   const longitude = draft.weather.location.longitude
@@ -79,12 +83,11 @@ export function buildProfile(draft: ProfileDraft): Profile {
   if (!hasValidPreferences(draft.matching)) throw new Error("invalid_preference_tiers")
 
   return {
-    version: 3,
+    version: 4,
     setup_complete: true,
     wallpaper_engine_path: draft.wallpaper_engine_path,
     language: draft.language,
     weather: {
-      api_key: draft.weather.api_key,
       location: {
         latitude,
         longitude,

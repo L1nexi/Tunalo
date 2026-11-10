@@ -1,4 +1,4 @@
-export { createProfileDraft, buildProfile, profileFingerprint } from "./draft"
+export { createProfileDraft, buildProfile, profileFingerprint, hasValidLocation } from "./draft"
 export type { ProfileDraft } from "./draft"
 export { emptyPendingActivity, normalizeProcess, normalizeTitle, activityConflicts } from "./activity"
 export type { ActivityField, PendingActivity } from "./activity"

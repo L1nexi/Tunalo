@@ -20,7 +20,7 @@ class _Response:
     @staticmethod
     def json() -> dict[str, object]:
         return {
-            "weather": [{"id": 800, "main": "Clear"}],
+            "current": {"weather_code": 0},
         }
 
 
@@ -39,7 +39,7 @@ def weather_requests(monkeypatch: pytest.MonkeyPatch) -> Iterator[Queue[WeatherR
         pending.put((reply, worker))
         return reply.result(timeout=5)
 
-    monkeypatch.setattr("integrations.openweather.requests.get", request)
+    monkeypatch.setattr("integrations.openmeteo.requests.get", request)
     yield pending
     for reply, worker in active:
         if not reply.done():
@@ -59,7 +59,7 @@ def respond_weather(pending: Queue[WeatherRequest], response: _Response | Except
 
 
 def _config() -> WeatherPolicyConfig:
-    return WeatherPolicyConfig(api_key="key", lat=31.0, lon=121.0)
+    return WeatherPolicyConfig(lat=31.0, lon=121.0)
 
 
 def test_first_weather_failure_still_exposes_source_without_a_success_time(weather_requests: Queue[WeatherRequest]) -> None:
@@ -83,7 +83,7 @@ def test_weather_success_is_timestamped_when_the_request_completes(monkeypatch: 
     respond_weather(weather_requests, _Response())
 
     current = sensor.collect()
-    assert (current.last_success_at, current.source_fingerprint) == (1010.0, source)
+    assert (current.code, current.last_success_at, current.source_fingerprint) == (0, 1010.0, source)
 
 
 def test_same_source_configuration_update_preserves_cached_weather(monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest]) -> None:
@@ -99,9 +99,9 @@ def test_same_source_configuration_update_preserves_cached_weather(monkeypatch: 
     assert replacement.collect() == original
 
 
-@pytest.mark.parametrize("changes", [{"api_key": "other-key"}, {"lat": 32.0}, {"lon": 122.0}])
+@pytest.mark.parametrize("changes", [{"lat": 32.0}, {"lon": 122.0}])
 def test_new_weather_source_does_not_inherit_previous_success(
-    monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest], changes: dict[str, str | float]
+    monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest], changes: dict[str, float]
 ) -> None:
     monkeypatch.setattr("core.sensors.weather.time.time", lambda: 1000.0)
     config = _config()
@@ -120,15 +120,15 @@ def test_new_weather_source_does_not_inherit_previous_success(
     assert current.last_success_at is None
 
 
-@pytest.mark.parametrize("api_key", ["key", "other-key"])
+@pytest.mark.parametrize("latitude", [31.0, 32.0])
 def test_late_weather_request_cannot_update_a_replacement(
-    monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest], api_key: str
+    monkeypatch: pytest.MonkeyPatch, weather_requests: Queue[WeatherRequest], latitude: float
 ) -> None:
     monkeypatch.setattr("core.sensors.weather.time.time", lambda: 1000.0)
     sensor = WeatherSensor(_config())
     sensor.collect()
     old_reply, old_worker = weather_requests.get(timeout=1)
-    replacement = WeatherSensor(_config().model_copy(update={"api_key": api_key}))
+    replacement = WeatherSensor(_config().model_copy(update={"lat": latitude}))
     replacement.import_state(sensor.export_state())
     replacement.collect()
     new_reply, new_worker = weather_requests.get(timeout=1)
@@ -144,7 +144,7 @@ def test_late_weather_request_cannot_update_a_replacement(
 
 def test_weather_sensor_construction_makes_no_request(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[int] = []
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: calls.append(1))
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: calls.append(1))
 
     WeatherSensor(_config())
 
@@ -171,7 +171,7 @@ def test_failed_weather_refresh_keeps_cached_semantic_evidence(monkeypatch: pyte
     class RainResponse(_Response):
         @staticmethod
         def json() -> dict[str, object]:
-            return {"weather": [{"id": 504, "main": "Rain"}]}
+            return {"current": {"weather_code": 82}}
 
     sensor = WeatherSensor(_config())
     sensor.collect()

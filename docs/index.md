@@ -45,12 +45,13 @@ ADR 记录已确定的架构选择及其理由。接口签名、执行步骤与�
 
 当前暂无活跃规格。
 
-## 已完成规格
+## 已完成规格与记录
 
 | 文档 | 内容 |
 | --- | --- |
 | [本地昼夜计算](archived/done/LOCAL_SUN_TIMES_SPEC.md) | 本地日出日落采集、时段输入与历史输出。 |
 | [天气更新超时提醒](archived/done/WEATHER_REMINDER_SPEC.md) | WeatherData 采集元数据、tick listener 提醒策略和托盘通知。 |
+| [v0.12.0 发布与界面验收](archived/done/V0_12_0_RELEASE.md) | 发布提交与标签、前端修复、构建产物及验证结果。 |
 
 ## Architecture Decisions
 
@@ -67,7 +68,8 @@ ADR 记录已确定的架构选择及其理由。接口签名、执行步骤与�
 
 这些文档记录背景事实、POC 和推迟的架构方向：
 
-- [OPENWEATHER_CURRENT_API.md](archived/reference/OPENWEATHER_CURRENT_API.md)：OWM 当前天气接口的请求参数、响应字段、天气代码与数据口径。
+- [API_KEY_FREE_WEATHER_EVALUATION.md](archived/reference/API_KEY_FREE_WEATHER_EVALUATION.md)：免密钥天气服务评估、Open-Meteo 选型依据与本次替换范围。
+- [OPENWEATHER_CURRENT_API.md](archived/reference/OPENWEATHER_CURRENT_API.md)：已移除的 OWM 接口及天气代码资料，保留为历史参考。
 - [WE_CLI.md](archived/reference/WE_CLI.md)：WE CLI 官方文档快照
 - [WE_CLI_POC.md](archived/reference/WE_CLI_POC.md)：WE CLI 实机 POC 验证结果
 - [config.json](archived/reference/config.json)：WE 官方配置文件 schema 参考

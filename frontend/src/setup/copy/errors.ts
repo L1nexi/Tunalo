@@ -31,9 +31,8 @@ const zh = {
     unexpected_wallpaper_engine_config_format: "Wallpaper Engine 配置文件格式无法识别。",
   },
   issueCodes: {
-    weather_api_key_invalid: "无效的 API Key。",
-    weather_location_invalid: "OpenWeatherMap 无法使用这个地点，请检查经纬度。",
-    weather_api_quota_exceeded: "API Key 已达到请求配额，请稍后重试或更换 Key。",
+    weather_location_invalid: "Open-Meteo 无法使用这个地点，请检查经纬度。",
+    weather_api_quota_exceeded: "天气服务的请求额度已用完，请稍后重试。",
   },
   stages: {
     compile: "配置编译",
@@ -77,9 +76,8 @@ const en = {
       "The Wallpaper Engine configuration format was not recognized.",
   },
   issueCodes: {
-    weather_api_key_invalid: "This API key is invalid.",
-    weather_location_invalid: "OpenWeatherMap could not use this location. Check the coordinates.",
-    weather_api_quota_exceeded: "This API key has reached its request quota. Try later or use another key.",
+    weather_location_invalid: "Open-Meteo could not use this location. Check the coordinates.",
+    weather_api_quota_exceeded: "The weather service request quota has been reached. Try again later.",
   },
   stages: {
     compile: "configuration compilation",

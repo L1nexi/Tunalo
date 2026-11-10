@@ -20,14 +20,14 @@ export function useProfileSubmission(
 
   async function submitProfile(allowUnverifiedWeather = false): Promise<void> {
     if (submitting.value || weather.locating.value || !flow.prepareSubmission()) return
-    const hasVerifiedKey = weather.hasVerifiedKey.value
-    if (!allowUnverifiedWeather && !hasVerifiedKey && weather.offerUnverifiedSave()) return
+    const hasVerifiedLocation = weather.hasVerifiedLocation.value
+    if (!allowUnverifiedWeather && !hasVerifiedLocation && weather.offerUnverifiedSave()) return
 
     submitting.value = true
     flow.clearSubmissionFailure()
     try {
       const profile = buildProfile(editor.draft)
-      const skipWeatherValidation = allowUnverifiedWeather || hasVerifiedKey
+      const skipWeatherValidation = allowUnverifiedWeather || hasVerifiedLocation
       const committed =
         editor.mode === "setup"
           ? await createInitialProfile(profile, skipWeatherValidation)

@@ -51,7 +51,6 @@ class SeasonPolicyConfig(BasePolicyConfig):
 
 
 class WeatherPolicyConfig(BasePolicyConfig):
-    api_key: str = ""
     lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
     lon: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     fetch_interval: float = Field(600.0, ge=60)

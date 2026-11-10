@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { COPY, associationSummary } from "@/setup/copy"
 import type { StepId } from "@/setup/workflow/steps"
 import type { ProfileDraft } from "@/setup/profile/model"
-import { playlistBindingStatus } from "@/setup/profile/model"
+import { hasValidLocation, playlistBindingStatus } from "@/setup/profile/model"
 import { describeProfileChanges } from "./changes"
 import { reviewGroups } from "./summary"
 import type { ReviewWeatherState } from "./summary"
@@ -22,7 +22,7 @@ const props = defineProps<{
   mode: "setup" | "settings"
   valid: boolean
   missingSteps: Array<{ id: StepId; title: string }>
-  weatherKeyState: ReviewWeatherState
+  weatherConnectionState: ReviewWeatherState
   weatherTestedAtText: string
   weatherConnectionError: string
   validatingWeather: boolean
@@ -32,7 +32,7 @@ const emit = defineEmits<{ validateWeather: []; openStep: [id: StepId]; openScen
 const copy = computed(() => COPY[props.locale])
 const sceneIds = computed(() => Object.keys(props.draft.scenes))
 const changes = computed(() => describeProfileChanges(props.savedDraft, props.draft, props.locale))
-const groups = computed(() => reviewGroups(props.draft, props.locale, props.weatherKeyState, props.playlists))
+const groups = computed(() => reviewGroups(props.draft, props.locale, props.weatherConnectionState, props.playlists))
 const sceneStatuses = computed(() => {
   const available = new Set(props.playlists.map((playlist) => playlist.name))
   return Object.fromEntries(Object.entries(props.draft.scenes).map(([id, scene]) => [id, playlistBindingStatus(scene.playlist, available)]))
@@ -76,12 +76,10 @@ const sceneStatuses = computed(() => {
           <div class="min-w-0">
             <p class="text-sm font-medium">{{ change.label }}</p>
             <p
-              v-if="change.before !== copy.review.secretChanged"
               class="text-sm text-muted-foreground [overflow-wrap:anywhere]"
             >
               {{ change.before }} → {{ change.after }}
             </p>
-            <p v-else class="text-sm text-muted-foreground">{{ change.after }}</p>
           </div>
           <Button type="button" variant="ghost" size="sm" @click="emit('openStep', change.id)">{{
             copy.review.edit
@@ -112,11 +110,11 @@ const sceneStatuses = computed(() => {
                 <ReviewWeatherStatus
                   v-if="row.id === 'weather'"
                   :locale="locale"
-                  :state="weatherKeyState"
+                  :state="weatherConnectionState"
                   :tested-at-text="weatherTestedAtText"
                   :connection-error="weatherConnectionError"
                   :validating="validatingWeather"
-                  :has-api-key="Boolean(draft.weather.api_key.trim())"
+                  :can-test="hasValidLocation(draft.weather.location)"
                   @validate="emit('validateWeather')"
                 />
                 <div

@@ -26,7 +26,6 @@ def _profile(tmp_path: Path) -> Profile:
         {
             "wallpaper_engine_path": str(executable),
             "weather": {
-                "api_key": "test-key",
                 "location": {
                     "name": "上海",
                     "latitude": 31.2304,

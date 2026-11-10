@@ -80,4 +80,4 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
     assert payload["liveTickId"] == 7
     assert payload["ticks"][0]["summary"]["tickId"] == 7
     assert payload["ticks"][0]["sense"]["sunTimes"] == {"available": True, "sunrise": 1714800000, "sunset": 1714843200}
-    assert payload["ticks"][0]["sense"]["weather"] == {"available": False, "id": None, "main": None}
+    assert payload["ticks"][0]["sense"]["weather"] == {"available": False, "code": None}

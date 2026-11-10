@@ -17,7 +17,7 @@ def profile(**overrides) -> Profile:
     values = {
         "wallpaper_engine_path": "C:/fixture/wallpaper64.exe",
         "language": "zh",
-        "weather": {"api_key": "fixture", "location": {"latitude": 31.23, "longitude": 121.47}},
+        "weather": {"location": {"latitude": 31.23, "longitude": 121.47}},
         "scenes": {
             "day_work": {"name": "日间工作", "associations": {"time": ["day"], "activity": ["work"]}, "playlist": "WORK"},
             "rain": {"name": "雨天", "associations": {"weather": ["rain"]}, "playlist": "RAIN"},
@@ -53,7 +53,7 @@ def test_profile_requires_an_enabled_scene():
 def test_compiled_preference_changes_distribution_using_real_policies():
     unpreferred = selector_for(profile(), {})
     preferred = selector_for(profile(matching={"preference_tiers": [["weather"], ["activity", "season"]]}), {})
-    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(id=502, main="Rain"))
+    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(code=65))
     for _ in range(600):
         ordinary = unpreferred.select(context)
         weather_first = preferred.select(context)
@@ -70,7 +70,7 @@ def test_m20_playlist_name_size_and_many_to_one_binding_do_not_change_scene_prob
         scene.playlist = "SHARED"
     first = selector_for(first_profile, {"WORK": 1, "RAIN": 9000})
     second = selector_for(second_profile, {"SHARED": 0})
-    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(id=502, main="Rain"))
+    context = Context(window=WindowData(process="code.exe"), weather=WeatherData(code=65))
     for _ in range(600):
         a, b = first.select(context), second.select(context)
     assert a.probabilities == b.probabilities

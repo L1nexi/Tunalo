@@ -13,22 +13,22 @@ from core.models.association import Association
 from core.models.context import Context, SunTimesData, WeatherData
 from core.models.selection import VARIABLE_SEMANTIC_ITEMS, ContextVariable, SemanticItem
 
-WEATHER_PRESETS: dict[str, tuple[int, str]] = {
-    "clear": (800, "Clear"),
-    "few_clouds": (801, "Clouds"),
-    "overcast": (804, "Clouds"),
-    "light_drizzle": (300, "Drizzle"),
-    "drizzle": (301, "Drizzle"),
-    "light_rain": (500, "Rain"),
-    "mod_rain": (501, "Rain"),
-    "heavy_rain": (502, "Rain"),
-    "violent_rain": (504, "Rain"),
-    "light_snow": (600, "Snow"),
-    "heavy_snow": (602, "Snow"),
-    "storm": (211, "Thunderstorm"),
-    "storm_rain": (201, "Thunderstorm"),
-    "heavy_storm": (212, "Thunderstorm"),
-    "fog": (741, "Fog"),
+WEATHER_PRESETS: dict[str, int] = {
+    "clear": 0,
+    "few_clouds": 1,
+    "overcast": 3,
+    "light_drizzle": 51,
+    "drizzle": 53,
+    "light_rain": 61,
+    "mod_rain": 63,
+    "heavy_rain": 65,
+    "violent_rain": 82,
+    "light_snow": 71,
+    "heavy_snow": 75,
+    "storm": 95,
+    "storm_rain": 95,
+    "heavy_storm": 97,
+    "fog": 45,
 }
 
 
@@ -102,7 +102,7 @@ def synthetic_config(*, activation_alpha: float = 2.0) -> SchedulerConfig:
     profile = Profile(
         wallpaper_engine_path="C:/wallpaper_engine",
         language="zh",
-        weather={"api_key": "tuning-key", "location": {"latitude": 39.9, "longitude": 116.4}},
+        weather={"location": {"latitude": 39.9, "longitude": 116.4}},
         scenes={
             scene_id: SceneProfile(name=scene_id, associations=association, playlist=f"playlist_{scene_id}")
             for scene_id, association in CALIBRATION_ASSOCIATIONS.items()
@@ -117,11 +117,9 @@ def synthetic_config(*, activation_alpha: float = 2.0) -> SchedulerConfig:
 def build_context(hour: float, day_of_year: int, weather_name: str | None) -> Context:
     """Build a synthetic observation with local 06:00 sunrise and 18:00 sunset."""
     date = datetime(2025, 1, 1) + timedelta(days=day_of_year - 1, minutes=round(hour * 60))
-    weather_id, main = WEATHER_PRESETS[weather_name] if weather_name is not None else (0, "")
+    weather_code = WEATHER_PRESETS[weather_name] if weather_name is not None else None
     return Context(
-        weather=WeatherData(id=weather_id, main=main),
-        sun_times=SunTimesData(
-            sunrise=int(date.replace(hour=6, minute=0).timestamp()), sunset=int(date.replace(hour=18, minute=0).timestamp())
-        ),
+        weather=WeatherData(code=weather_code),
+        sun_times=SunTimesData(sunrise=int(date.replace(hour=6, minute=0).timestamp()), sunset=int(date.replace(hour=18, minute=0).timestamp())),
         time=date.timetuple(),
     )

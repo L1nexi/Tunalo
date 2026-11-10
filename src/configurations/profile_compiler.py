@@ -36,7 +36,6 @@ class ProfileCompiler:
             policies=PoliciesConfig(
                 activity=ActivityPolicyConfig(matchers=cls._compile_activity_matchers(profile.activity)),
                 weather=WeatherPolicyConfig(
-                    api_key=profile.weather.api_key,
                     lat=location.latitude,
                     lon=location.longitude,
                     fetch_interval=600,

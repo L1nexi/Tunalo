@@ -18,7 +18,6 @@ def _profile(*, playlist: str = "WORK") -> Profile:
         {
             "wallpaper_engine_path": r"C:\Wallpaper Engine\wallpaper64.exe",
             "weather": {
-                "api_key": "test-key",
                 "location": {
                     "name": "上海",
                     "latitude": 31.2304,
@@ -43,7 +42,8 @@ def test_profile_store_commit_round_trips_scene_definition(tmp_path):
 
     assert store.load() == committed
     payload = json.loads((tmp_path / PROFILE_FILE_NAME).read_text(encoding="utf-8"))
-    assert payload["version"] == 3
+    assert payload["version"] == 4
+    assert payload["weather"] == {"location": {"name": "上海", "latitude": 31.2304, "longitude": 121.4737}}
     assert payload["scenes"]["day_work"] == {"name": "日间工作", "playlist": "WORK", "associations": {"time": ["day"], "activity": ["work"]}}
 
 

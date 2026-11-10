@@ -44,7 +44,7 @@ const {
 } = useSetupFlowContext()
 const scan = useSetupScan()
 const { hasNativeBridge } = useSetupNativeWindow()
-const { weatherKeyState, weatherTestedAtText, weatherConnectionError, validatingWeather, testWeatherKey } =
+const { weatherConnectionState, weatherTestedAtText, weatherConnectionError, validatingWeather, testWeatherConnection } =
   useSetupWeather()
 const copy = computed(() => COPY[locale.value])
 
@@ -128,12 +128,12 @@ async function openScene(id: string): Promise<void> {
       :mode="mode"
       :valid="allValid"
       :missing-steps="missingSteps"
-      :weather-key-state="weatherKeyState"
+      :weather-connection-state="weatherConnectionState"
       :weather-tested-at-text="weatherTestedAtText"
       :weather-connection-error="weatherConnectionError"
       :validating-weather="validatingWeather"
       :has-pending-activity="pendingActivityFields.length > 0"
-      @validate-weather="testWeatherKey"
+      @validate-weather="testWeatherConnection"
       @open-step="navigateToStep"
       @open-scene="openScene"
     />

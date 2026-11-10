@@ -33,7 +33,6 @@ def _profile(wallpaper_engine_path: str, *, playlist: str = "WORK") -> Profile:
         {
             "wallpaper_engine_path": wallpaper_engine_path,
             "weather": {
-                "api_key": "test-key",
                 "location": {
                     "name": "上海",
                     "latitude": 31.2304,

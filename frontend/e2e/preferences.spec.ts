@@ -39,7 +39,7 @@ test("拖拽与键盘设置同层偏好，保存过滤空层并在重开后恢�
   await openSection(page, "查看配置草稿")
   await expect(page.getByText(/^未指定优先级 → 天气 > (活动、时段|时段、活动)$/)).toBeVisible()
   const saved = await saveSettings(page)
-  expect(saved.version).toBe(3)
+  expect(saved.version).toBe(4)
   expect(saved.matching.preference_tiers.map((tier) => new Set(tier))).toEqual([new Set(["weather"]), new Set(["activity", "time"])])
   expect(saved.activity).toEqual({ work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] })
   await page.reload()

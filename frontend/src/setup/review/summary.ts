@@ -17,9 +17,9 @@ export function reviewWeather(state: ReviewWeatherState, locale: Locale): string
   const copy = COPY[locale]
   switch (state) {
     case "valid":
-      return copy.weather.keyValid
+      return copy.weather.connectionValid
     case "invalid":
-      return copy.errors.issueCodes.weather_api_key_invalid
+      return copy.errors.issueCodes.weather_location_invalid
     case "quota":
       return copy.errors.issueCodes.weather_api_quota_exceeded
     case "untested":

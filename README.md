@@ -13,9 +13,11 @@ Tunalo 是面向希望充分欣赏壁纸收藏的 Windows 用户的 Wallpaper En
 ## 快速开始
 
 1. 在 Wallpaper Engine 中准备至少一个包含壁纸的播放列表。建议播放列表名称优先使用英文字母和数字，以减少命令行调用时的兼容问题。
-2. 准备 OpenWeatherMap API Key。设置窗口会引导你获取并测试密钥；天气及日出日落判断还需要所在地的经纬度。
+2. 确认所在地的经纬度，可在设置窗口中估算或手动填写。天气由 Open-Meteo 提供，无需申请密钥；日出日落按同一地点在本地计算。
 3. 将发布包解压到可写入的目录，运行 `Tunalo.exe`。首次启动时会打开设置窗口。连接 Wallpaper Engine、扫描播放列表，填写天气和地点信息，再为想使用的场景选择播放列表。
 4. 在“查看配置草稿”中检查设置并保存。之后调度器会在系统托盘运行。
+
+天气数据来自 [Open-Meteo](https://open-meteo.com/)，按 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 使用，并转换为天气场景的判断依据。
 
 可以为天气服务配置代理。将项目目录的 `.env.example` 复制为 `.env`，填入你的代理地址：
 

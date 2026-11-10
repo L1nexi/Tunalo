@@ -15,18 +15,17 @@ from core.runtime.profile_manager import (
     ProfileApplyUnavailable,
     ProfileManager,
 )
-from integrations.openweather import WeatherRejected, WeatherUnavailable, validate_weather_connection
+from integrations.openmeteo import WeatherRejected, WeatherUnavailable, validate_weather_connection
 
 logger = logging.getLogger("Tunalo.API")
 PROFILE_APPLY_TIMEOUT_SECONDS = 2.0
-WEATHER_KEY_TEST_LATITUDE = 51.5072
-WEATHER_KEY_TEST_LONGITUDE = -0.1276
 
 
-class WeatherKeyValidationRequest(BaseModel):
+class WeatherValidationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    api_key: str = Field(min_length=1)
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
 
 
 def _read_json_object() -> dict[str, object]:
@@ -65,29 +64,29 @@ def _weather_unavailable_response(exc: WeatherUnavailable) -> dict[str, object]:
 
 
 def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager) -> None:
-    @app.post("/api/weather-key-validations")
-    def api_validate_weather_key():
+    @app.post("/api/weather-validations")
+    def api_validate_weather():
         bottle.response.content_type = "application/json; charset=utf-8"
         if bottle.request.content_type != "application/json":
             bottle.response.status = 415
             return {"error": "unsupported_media_type"}
         try:
-            request = WeatherKeyValidationRequest.model_validate(_read_json_object())
+            request = WeatherValidationRequest.model_validate(_read_json_object())
         except (ValidationError, ValueError, TypeError) as exc:
             bottle.response.status = 400 if isinstance(exc, (json.JSONDecodeError, UnicodeDecodeError)) else 422
-            return {"error": "invalid_weather_key_request", "issues": _request_validation_issues(exc)}
+            return {"error": "invalid_weather_request", "issues": _request_validation_issues(exc)}
 
         try:
-            logger.debug("Weather key test started")
-            validate_weather_connection(request.api_key, WEATHER_KEY_TEST_LATITUDE, WEATHER_KEY_TEST_LONGITUDE)
+            logger.debug("Weather connection test started")
+            validate_weather_connection(request.latitude, request.longitude)
         except WeatherRejected as exc:
-            logger.warning("Weather key test rejected: reason=%s", exc.code)
+            logger.warning("Weather connection test rejected: reason=%s", exc.code)
             return _weather_rejection_response(exc)
         except WeatherUnavailable as exc:
-            logger.warning("Weather key test unavailable: reason=%s http_status=%s", exc.reason, exc.http_status)
+            logger.warning("Weather connection test unavailable: reason=%s http_status=%s", exc.reason, exc.http_status)
             return _weather_unavailable_response(exc)
 
-        logger.debug("Weather key test succeeded")
+        logger.debug("Weather connection test succeeded")
         return {"status": "valid"}
 
     @app.route("/api/profile")
@@ -121,7 +120,7 @@ def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager)
             location = draft.weather.location
             if bottle.request.query.get("allow_unverified_weather") != "1":
                 logger.debug("Weather validation started: operation=create")
-                validate_weather_connection(draft.weather.api_key, location.latitude, location.longitude)
+                validate_weather_connection(location.latitude, location.longitude)
                 logger.debug("Weather validation succeeded: operation=create")
             else:
                 logger.info("Weather validation bypassed: operation=create")
@@ -185,7 +184,7 @@ def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager)
             try:
                 location = draft.weather.location
                 logger.debug("Weather validation started: operation=replace")
-                validate_weather_connection(draft.weather.api_key, location.latitude, location.longitude)
+                validate_weather_connection(location.latitude, location.longitude)
                 logger.debug("Weather validation succeeded: operation=replace")
             except WeatherRejected as exc:
                 logger.warning("Weather validation rejected: operation=replace reason=%s", exc.code)

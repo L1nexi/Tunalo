@@ -2,12 +2,11 @@ import { expect, type Page } from "@playwright/test"
 import type { Profile } from "../../src/api/profile"
 
 export const profile: Profile = {
-  version: 3,
+  version: 4,
   setup_complete: true,
   wallpaper_engine_path: "C:\\Wallpaper Engine\\wallpaper64.exe",
   language: "zh",
   weather: {
-    api_key: "saved-key",
     location: { name: "上海", latitude: 31.2304, longitude: 121.4737 },
   },
   scenes: { day_work: { name: "日间工作", playlist: "CASUAL_ANIME", associations: { time: ["day"], activity: ["work"] } } },

@@ -75,7 +75,7 @@ export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigati
     submissionFailure.value = null
   }
 
-  function clearWeatherFieldFeedback(field: "api_key" | "location"): void {
+  function clearWeatherFieldFeedback(field: "location"): void {
     validationIssues.value = validationIssues.value.filter(
       (issue) => !(issue.path[0] === "weather" && issue.path[1] === field),
     )

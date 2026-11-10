@@ -15,11 +15,13 @@ import requests
 from app.event_logger import JsonlEventLogger
 from configurations.profile import Profile
 from configurations.profile_store import ProfileStore
+from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context, SunTimesData, WeatherData, WindowData
 from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
 from core.models.selection import Selection
 from core.models.trace import TickTrace
+from core.policies.weather import WeatherPolicy
 from core.runtime.engine import Engine
 from core.runtime.profile_manager import ProfileManager
 from core.state.action_events import ActionEventWriter
@@ -45,10 +47,10 @@ def weather_api(monkeypatch):
         @staticmethod
         def json():
             return {
-                "weather": [{"id": 800, "main": "Clear"}],
+                "current": {"weather_code": 0},
             }
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
 
 
 def _wallpaper_engine_path(tmp_path: Path) -> str:
@@ -146,12 +148,11 @@ def wsgi_put(app, path, data=None):
 
 def _profile_payload(wallpaper_engine_path: str, *, playlist: str = "WORK") -> dict:
     return {
-        "version": 3,
+        "version": 4,
         "setup_complete": True,
         "language": None,
         "wallpaper_engine_path": wallpaper_engine_path,
         "weather": {
-            "api_key": "test-key",
             "location": {
                 "name": "上海",
                 "latitude": 31.2304,
@@ -297,12 +298,26 @@ def test_api_history_exposes_sun_times_independently_of_weather(app, tick_histor
     status, body = wsgi_get(app, "/api/tick-history")
     assert status.startswith("200")
     sense = body["ticks"][0]["sense"]
-    assert sense["weather"] == {"available": False, "id": None, "main": None}
+    assert sense["weather"] == {"available": False, "code": None}
     assert sense["sunTimes"] == (
         {"available": False, "sunrise": None, "sunset": None}
         if sun_times is None
         else {"available": True, "sunrise": 1714800000, "sunset": 1714843200}
     )
+
+
+@pytest.mark.parametrize("code, available, mapped", [(None, False, False), (0, True, True), (999, True, False)])
+def test_api_history_preserves_weather_code_zero_and_missing_state(app, tick_history, code, available, mapped):
+    weather = WeatherData(code=code)
+    evaluation = WeatherPolicy(WeatherPolicyConfig()).evaluate(Context(weather=weather))
+    tick_history.update(_make_trace(weather=weather, policy_evaluations=[evaluation]))
+
+    status, body = wsgi_get(app, "/api/tick-history")
+
+    assert status.startswith("200")
+    tick = body["ticks"][0]
+    assert tick["sense"]["weather"] == {"available": available, "code": code}
+    assert tick["think"]["policies"][0]["details"] == {"weatherCode": code, "available": available, "mapped": mapped}
 
 
 def test_custom_scene_identity_survives_history_and_event_export(app, tick_history, tmp_path):
@@ -358,7 +373,7 @@ def test_profile_api_preserves_preferences_and_activity_after_save_and_reload(
     reloaded.load_initial_profile()
     read_status, body = wsgi_get(build_api_app(tick_history, reloaded), "/api/profile")
     assert read_status.startswith("200")
-    assert body["profile"]["version"] == 3
+    assert body["profile"]["version"] == 4
     assert body["profile"]["matching"] == {"preference_tiers": [["weather"], ["activity", "time"]]}
     assert body["profile"]["activity"] == expected
     assert body["profile"]["disturbance"]["startup_grace_seconds"] == 30
@@ -478,10 +493,10 @@ def test_api_setup_logs_safe_location_failure_reason(app, monkeypatch, caplog):
     assert all("fake-secret" not in message for message in warnings)
 
 
-def test_api_weather_key_test_checks_connection_without_creating_profile(tmp_path: Path, tick_history):
+def test_api_weather_connection_test_checks_connection_without_creating_profile(tmp_path: Path, tick_history):
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
-    status, body = wsgi_post(app, "/api/weather-key-validations", {"api_key": "sample-key"})
+    status, body = wsgi_post(app, "/api/weather-validations", {"latitude": 0, "longitude": 0})
     profile_status, profile_body = wsgi_get(app, "/api/profile")
 
     assert "200" in status
@@ -490,44 +505,75 @@ def test_api_weather_key_test_checks_connection_without_creating_profile(tmp_pat
     assert profile_body == {"error": "profile_not_found"}
 
 
-def test_api_weather_key_test_reports_rejection_without_exposing_key(tmp_path: Path, tick_history, monkeypatch):
-    class Response:
-        status_code = 401
-
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+@pytest.mark.parametrize("payload", [{}, {"latitude": 91, "longitude": 0}, {"latitude": 0, "longitude": -181}, {"api_key": "legacy-key"}])
+def test_api_weather_connection_test_requires_valid_coordinates(tmp_path, tick_history, payload):
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
-    status, body = wsgi_post(app, "/api/weather-key-validations", {"api_key": "private-key"})
+    status, body = wsgi_post(app, "/api/weather-validations", payload)
+
+    assert status.startswith("422")
+    assert body["error"] == "invalid_weather_request"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [None, {}, {"current": None}, {"current": []}, {"current": {}}, *({"current": {"weather_code": code}} for code in [None, True, "0", 0.5])],
+)
+def test_api_weather_connection_test_rejects_unusable_observations(tmp_path, tick_history, monkeypatch, payload):
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return payload
+
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
+    app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
+
+    status, body = wsgi_post(app, "/api/weather-validations", {"latitude": 0, "longitude": 0})
+
+    assert status.startswith("503")
+    assert body == {"error": "weather_validation_unavailable", "reason": "invalid_response"}
+
+
+def test_api_weather_connection_test_reports_quota_at_weather_root(tmp_path: Path, tick_history, monkeypatch):
+    class Response:
+        status_code = 429
+
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
+    app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
+
+    status, body = wsgi_post(app, "/api/weather-validations", {"latitude": 31.0, "longitude": 121.0})
 
     assert "422" in status
-    assert body["issues"][0]["code"] == "weather_api_key_invalid"
-    assert "private-key" not in json.dumps(body)
+    assert body["issues"][0]["code"] == "weather_api_quota_exceeded"
+    assert body["issues"][0]["path"] == ["weather"]
 
 
-def test_api_weather_key_test_reports_safe_timeout_reason(tmp_path: Path, tick_history, monkeypatch):
+def test_api_weather_connection_test_reports_safe_timeout_reason(tmp_path: Path, tick_history, monkeypatch):
     def timeout(*_args, **_kwargs):
         raise requests.Timeout("request URL contained appid=private-key")
 
-    monkeypatch.setattr("integrations.openweather.requests.get", timeout)
+    monkeypatch.setattr("integrations.openmeteo.requests.get", timeout)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
-    status, body = wsgi_post(app, "/api/weather-key-validations", {"api_key": "private-key"})
+    status, body = wsgi_post(app, "/api/weather-validations", {"latitude": 31.0, "longitude": 121.0})
 
     assert "503" in status
     assert body == {"error": "weather_validation_unavailable", "reason": "timeout"}
     assert "private-key" not in json.dumps(body)
 
 
-def test_api_create_profile_leaves_profile_absent_when_weather_key_is_rejected(
+def test_api_create_profile_leaves_profile_absent_when_weather_quota_is_exceeded(
     tmp_path: Path,
     tick_history,
     monkeypatch,
     caplog,
 ):
     class Response:
-        status_code = 401
+        status_code = 429
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     executable = _wallpaper_engine_path(tmp_path)
     config_dir = tmp_path / "profile"
     manager = ProfileManager(str(config_dir))
@@ -540,9 +586,9 @@ def test_api_create_profile_leaves_profile_absent_when_weather_key_is_rejected(
         "error": "weather_validation_failed",
         "issues": [
             {
-                "path": ["weather", "api_key"],
-                "code": "weather_api_key_invalid",
-                "message": "weather_api_key_invalid",
+                "path": ["weather"],
+                "code": "weather_api_quota_exceeded",
+                "message": "weather_api_quota_exceeded",
             }
         ],
     }
@@ -551,7 +597,7 @@ def test_api_create_profile_leaves_profile_absent_when_weather_key_is_rejected(
     assert "404" in profile_status
     assert profile_body == {"error": "profile_not_found"}
     assert any(
-        "Weather validation rejected: operation=create reason=weather_api_key_invalid" in record.message
+        "Weather validation rejected: operation=create reason=weather_api_quota_exceeded" in record.message
         for record in caplog.records
         if record.name == "Tunalo.API"
     )
@@ -575,7 +621,7 @@ def test_api_create_profile_leaves_profile_absent_when_weather_validation_is_una
     class Response:
         status_code = 500
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     executable = _wallpaper_engine_path(tmp_path)
     config_dir = tmp_path / "profile"
     manager = ProfileManager(str(config_dir))
@@ -595,7 +641,7 @@ def test_api_create_profile_logs_safe_weather_timeout_reason(tmp_path: Path, tic
     def timeout(*_args, **_kwargs):
         raise requests.Timeout("request URL contained appid=fake-secret")
 
-    monkeypatch.setattr("integrations.openweather.requests.get", timeout)
+    monkeypatch.setattr("integrations.openmeteo.requests.get", timeout)
     executable = _wallpaper_engine_path(tmp_path)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
@@ -613,9 +659,9 @@ def test_api_create_profile_rejects_incomplete_weather_response(tmp_path: Path, 
 
         @staticmethod
         def json():
-            return {"weather": []}
+            return {"current": {}}
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     executable = _wallpaper_engine_path(tmp_path)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
@@ -647,7 +693,7 @@ def test_api_create_profile_reports_conflict_during_weather_outage(tick_history,
     class Response:
         status_code = 500
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     current = profile_manager.get_profile()
     assert current is not None
     app = build_api_app(tick_history, profile_manager)
@@ -662,7 +708,7 @@ def test_api_create_profile_reports_conflict_before_startup_load(tmp_path: Path,
     class Response:
         status_code = 500
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     executable = _wallpaper_engine_path(tmp_path)
     config_dir = tmp_path / "profile"
     draft = Profile.model_validate(_profile_payload(executable))
@@ -708,7 +754,7 @@ def test_api_apply_profile_succeeds_during_weather_outage_when_weather_is_unchan
     class Response:
         status_code = 500
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     app = build_api_app(tick_history, profile_manager)
     draft = _profile_payload_for(profile_manager, playlist="NEW")
 
@@ -724,9 +770,9 @@ def test_api_apply_profile_maps_rejected_location_to_weather_location_field(
     monkeypatch,
 ):
     class Response:
-        status_code = 404
+        status_code = 400
 
-    monkeypatch.setattr("integrations.openweather.requests.get", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr("integrations.openmeteo.requests.get", lambda *_args, **_kwargs: Response())
     app = build_api_app(tick_history, profile_manager)
     draft = _profile_payload_for(profile_manager)
     draft["weather"]["location"]["latitude"] = 30.0

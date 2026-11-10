@@ -21,8 +21,7 @@ class WindowData:
 
 @dataclass
 class WeatherData:
-    id: int = 0
-    main: str = ""
+    code: int | None = None
     last_success_at: float | None = None
     source_fingerprint: str = ""
 

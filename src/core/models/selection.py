@@ -77,8 +77,7 @@ class SeasonDetails:
 
 @dataclass
 class WeatherDetails:
-    weather_id: int | None = None
-    weather_main: str | None = None
+    weather_code: int | None = None
     available: bool = False
     mapped: bool = False
 

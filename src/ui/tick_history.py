@@ -59,8 +59,7 @@ class CpuSnapshotDto(ApiDto):
 
 class WeatherSnapshotDto(ApiDto):
     available: bool
-    id: int | None
-    main: str | None
+    code: int | None
 
 
 class SunTimesSnapshotDto(ApiDto):
@@ -97,8 +96,7 @@ class SeasonDetailsDto(ApiDto):
 
 
 class WeatherDetailsDto(ApiDto):
-    weather_id: int | None
-    weather_main: str | None
+    weather_code: int | None
     available: bool
     mapped: bool
 
@@ -251,13 +249,11 @@ def _weather_snapshot(weather: WeatherData | None) -> WeatherSnapshotDto:
     if weather is None:
         return WeatherSnapshotDto(
             available=False,
-            id=None,
-            main=None,
+            code=None,
         )
     return WeatherSnapshotDto(
-        available=True,
-        id=weather.id or None,
-        main=weather.main or None,
+        available=weather.code is not None,
+        code=weather.code,
     )
 
 
@@ -321,8 +317,7 @@ def _policy_snapshot(policy: PolicyEvaluation) -> EvaluationDto:
         return WeatherEvaluationDto(
             **base_kwargs,
             details=WeatherDetailsDto(
-                weather_id=policy.details.weather_id,
-                weather_main=policy.details.weather_main,
+                weather_code=policy.details.weather_code,
                 available=policy.details.available,
                 mapped=policy.details.mapped,
             ),

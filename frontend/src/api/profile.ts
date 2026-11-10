@@ -17,12 +17,11 @@ export interface WeatherLocationProfile {
 }
 
 export interface Profile {
-  version: 3
+  version: 4
   setup_complete: true
   wallpaper_engine_path: string
   language: Locale | null
   weather: {
-    api_key: string
     location: WeatherLocationProfile
   }
   scenes: Record<string, SceneProfile>
@@ -120,8 +119,11 @@ export async function detectLocation(): Promise<DetectedLocation> {
   return response.location
 }
 
-export async function validateWeatherKey(apiKey: string): Promise<void> {
-  await requestJson<{ status: "valid" }>("/api/weather-key-validations", jsonRequest({ api_key: apiKey }))
+export async function validateWeatherConnection(location: WeatherLocationProfile): Promise<void> {
+  await requestJson<{ status: "valid" }>("/api/weather-validations", jsonRequest({
+    latitude: location.latitude,
+    longitude: location.longitude,
+  }))
 }
 
 export function scanPlaylists(wallpaperEnginePath: string): Promise<PlaylistScanResult> {

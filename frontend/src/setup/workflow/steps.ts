@@ -1,5 +1,5 @@
 import type { PlaylistScanResult } from "@/api/profile"
-import { activityConflicts, hasValidPreferences, hasValidTiming, playlistBindingStatus, preferenceFingerprint, sceneFingerprint } from "@/setup/profile/model"
+import { activityConflicts, hasValidLocation, hasValidPreferences, hasValidTiming, playlistBindingStatus, preferenceFingerprint, sceneFingerprint } from "@/setup/profile/model"
 import type { ProfileDraft } from "@/setup/profile/model"
 
 export const STEP_ORDER = [
@@ -47,16 +47,6 @@ export function evaluateSteps(
   wallpaperReady: boolean,
   playlists: PlaylistScanResult["playlists"],
 ): StepEvaluation {
-  // 草稿坐标只会是 null 或有限数：输入解析过滤非有限值，后端 JSON 无法携带 NaN/Infinity。
-  const location = draft.weather.location
-  const locationValid =
-    location.latitude !== null &&
-    location.latitude >= -90 &&
-    location.latitude <= 90 &&
-    location.longitude !== null &&
-    location.longitude >= -180 &&
-    location.longitude <= 180
-
   const available = new Set(playlists.map((playlist) => playlist.name))
   const assignments = Object.values(draft.scenes)
   const scenesValid =
@@ -66,7 +56,7 @@ export function evaluateSteps(
   return {
     validity: {
       wallpaper: wallpaperReady,
-      weather: draft.weather.api_key.trim().length > 0 && locationValid,
+      weather: hasValidLocation(draft.weather.location),
       scenes: scenesValid,
       scheduling: hasValidTiming(draft.disturbance) && hasValidPreferences(draft.matching),
       activity: conflicts.length === 0,

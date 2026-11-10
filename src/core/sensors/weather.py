@@ -10,7 +10,7 @@ from typing import Any
 from configurations.runtime_models import SchedulerConfig, WeatherPolicyConfig
 from core.models.context import WeatherData
 from core.sensors.base import Sensor
-from integrations.openweather import WeatherRejected, WeatherUnavailable, fetch_weather
+from integrations.openmeteo import WeatherRejected, WeatherUnavailable, fetch_weather
 
 logger = logging.getLogger("Tunalo.Sensor")
 
@@ -19,14 +19,13 @@ class WeatherSensor(Sensor):
     key = "weather"
 
     def __init__(self, config: WeatherPolicyConfig) -> None:
-        self.api_key: str = config.api_key
         self.lat: float = float(config.lat)
         self.lon: float = float(config.lon)
         self.interval: float = config.fetch_interval
         self.timeout: float = config.request_timeout
 
         self._last_fetch: float = 0.0
-        source = json.dumps([self.api_key, self.lat, self.lon], separators=(",", ":")).encode("utf-8")
+        source = json.dumps([self.lat, self.lon], separators=(",", ":")).encode("utf-8")
         self._cached = WeatherData(source_fingerprint=hashlib.sha256(source).hexdigest())
         self._fetching: bool = False  # guard: only one background thread at a time
 
@@ -45,14 +44,14 @@ class WeatherSensor(Sensor):
 
     def export_state(self) -> dict[str, Any]:
         return {
-            "source": (self.api_key, self.lat, self.lon),
+            "source": (self.lat, self.lon),
             # In-flight requests belong to this instance; a replacement must retry.
             "last_fetch": 0.0 if self._fetching else self._last_fetch,
             "cached": self._cached,
         }
 
     def import_state(self, state: dict[str, Any]) -> None:
-        if state["source"] != (self.api_key, self.lat, self.lon):
+        if state["source"] != (self.lat, self.lon):
             return
         self._last_fetch = state["last_fetch"]
         self._cached = state["cached"]
@@ -62,18 +61,16 @@ class WeatherSensor(Sensor):
         try:
             logger.debug("Weather fetch started")
             observation = fetch_weather(
-                self.api_key,
                 self.lat,
                 self.lon,
                 timeout=self.timeout,
             )
             self._cached = WeatherData(
-                id=observation.id,
-                main=observation.main,
+                code=observation.code,
                 last_success_at=time.time(),
                 source_fingerprint=self._cached.source_fingerprint,
             )
-            logger.info("Weather updated: id=%s main=%s", observation.id, observation.main)
+            logger.info("Weather updated: code=%s", observation.code)
         except WeatherRejected as exc:
             logger.warning("Weather fetch failed: reason=%s", exc.code)
         except WeatherUnavailable as exc:
@@ -85,8 +82,8 @@ class WeatherSensor(Sensor):
 
     @classmethod
     def create(cls, config: SchedulerConfig) -> WeatherSensor | None:
-        """Return a new instance only when an API key and coordinates are present."""
+        """Return a new instance only when coordinates are present."""
         weather_cfg = config.policies.weather
-        if not weather_cfg.api_key or weather_cfg.lat is None or weather_cfg.lon is None:
+        if weather_cfg.lat is None or weather_cfg.lon is None:
             return None
         return cls(weather_cfg)

@@ -25,7 +25,6 @@ test("首次设置允许自由选择分类，并在检查页指出未完成设�
   await expect(page.getByText(/英文字母与数字/)).toBeVisible()
 
   await navigation.getByRole("button", { name: /天气服务/ }).click()
-  await page.getByRole("textbox", { name: "OpenWeatherMap API Key" }).fill("test-key")
   await navigation.getByRole("button", { name: /天气服务/ }).click()
   await page.getByRole("spinbutton", { name: "纬度" }).fill("31.2304")
   await page.getByRole("spinbutton", { name: "经度" }).fill("121.4737")
@@ -58,7 +57,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
     },
   }
   await mockSetupApi(page, true, configuredProfile)
-  await page.route("**/api/weather-key-validations", async (route) => {
+  await page.route("**/api/weather-validations", async (route) => {
     await route.fulfill({ json: { status: "valid" } })
   })
   await page.goto("/?locale=zh&test=1")
@@ -68,21 +67,20 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   await expect(page.getByRole("heading", { name: "Wallpaper Engine", exact: true })).toBeVisible()
   await expect(page.getByText(configuredProfile.wallpaper_engine_path)).toBeVisible()
   await expect(page.getByText("本次草稿的天气测试")).toBeVisible()
-  await expect(page.getByText("当前草稿密钥尚未手动测试")).toBeVisible()
+  await expect(page.getByText("当前坐标尚未手动测试连接")).toBeVisible()
   await expect(page.getByText("纬度 31.2304，经度 121.4737")).toBeVisible()
   await expect(page.getByText("窗口名规则 2 条，进程名规则 2 条")).toBeVisible()
 
   await page.getByRole("button", { name: "测试连接" }).click()
-  await expect(page.getByRole("status").filter({ hasText: "API Key 有效" })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "天气连接正常" })).toBeVisible()
   await expect(page.getByText(/^验证时间：/)).toBeVisible()
 })
 
-test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({ page }) => {
+test("首次设置提交第 4 版配置与空偏好、空活动规则", async ({ page }) => {
   await mockSetupApi(page, false)
   await page.goto("/?locale=zh&test=1")
   await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
   await openSection(page, "天气服务")
-  await page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true }).fill("test-key")
   await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("31")
   await page.getByRole("spinbutton", { name: "经度", exact: true }).fill("121")
   await openSection(page, "场景绑定")
@@ -93,7 +91,8 @@ test("首次设置提交第 3 版配置与空偏好、空活动规则", async ({
   const response = page.waitForResponse((item) => new URL(item.url()).pathname === "/api/profile" && item.request().method() === "POST")
   await page.getByRole("button", { name: "完成设置", exact: true }).click()
   const saved = (await response).request().postDataJSON()
-  expect(saved.version).toBe(3)
+  expect(saved.version).toBe(4)
+  expect(saved.weather).toEqual({ location: { latitude: 31, longitude: 121 } })
   expect(saved.matching).toEqual({ preference_tiers: [] })
   expect(saved.activity).toEqual({ work_processes: [], leisure_processes: [], work_title_keywords: [], leisure_title_keywords: [] })
 })

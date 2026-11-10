@@ -9,26 +9,24 @@ import {
   useSetupWeather,
 } from "@/setup/workspace/useSetupWorkspace"
 import LocationStep from "./LocationStep.vue"
-import WeatherKeyStep from "./WeatherKeyStep.vue"
+import WeatherConnectionStep from "./WeatherConnectionStep.vue"
 
 const { locale, draft, savedDraft } = useSetupEditor()
 const { stepError, issuesByStep } = useSetupFlowContext()
 const { openExternal } = useSetupNativeWindow()
 const {
   validatingWeather,
-  weatherKeyState,
+  weatherConnectionState,
+  canTestWeather,
   weatherTestedAtText,
   weatherConnectionError,
   weatherValidationError,
-  apiKeyTouched,
   locating,
   locationDetectionStatus,
   locationDetectionError,
   locationDetectionCity,
-  updateApiKey,
-  touchApiKey,
   updateLocation,
-  testWeatherKey,
+  testWeatherConnection,
   detectCity,
 } = useSetupWeather()
 const copy = computed(() => COPY[locale.value])
@@ -39,21 +37,6 @@ const locationEdited = computed(
 
 <template>
   <div class="flex flex-col gap-10">
-    <WeatherKeyStep
-      :locale="locale"
-      :api-key="draft.weather.api_key"
-      :invalid="(Boolean(stepError) || apiKeyTouched) && !draft.weather.api_key.trim()"
-      :errors="issuesByStep.weather['weather.api_key'] ?? []"
-      :validating="validatingWeather"
-      :key-state="weatherKeyState"
-      :tested-at-text="weatherTestedAtText"
-      :connection-error="weatherConnectionError"
-      :validation-error="weatherValidationError"
-      @update:api-key="updateApiKey"
-      @blur="touchApiKey"
-      @validate="testWeatherKey"
-      @open-key-page="openExternal('https://home.openweathermap.org/api_keys')"
-    />
     <section class="flex flex-col gap-5" :aria-label="copy.location.title">
       <h2 class="text-lg font-semibold">{{ copy.location.title }}</h2>
       <LocationStep
@@ -71,5 +54,16 @@ const locationEdited = computed(
         @open-map="openExternal('https://www.openstreetmap.org')"
       />
     </section>
+    <WeatherConnectionStep
+      :locale="locale"
+      :can-test="canTestWeather"
+      :validating="validatingWeather"
+      :state="weatherConnectionState"
+      :tested-at-text="weatherTestedAtText"
+      :connection-error="weatherConnectionError"
+      :validation-error="weatherValidationError"
+      @validate="testWeatherConnection"
+      @open-provider="openExternal('https://open-meteo.com/')"
+    />
   </div>
 </template>

@@ -15,7 +15,7 @@ const props = defineProps<{
   testedAtText: string
   connectionError: string
   validating: boolean
-  hasApiKey: boolean
+  canTest: boolean
 }>()
 const emit = defineEmits<{ validate: [] }>()
 const copy = computed(() => COPY[props.locale])
@@ -43,7 +43,7 @@ const status = computed(
       </p>
       <p v-if="testedAtText" class="mt-1 text-xs text-muted-foreground">{{ testedAtText }}</p>
     </div>
-    <Button size="sm" variant="outline" :disabled="validating || !hasApiKey" @click="emit('validate')">
+    <Button size="sm" variant="outline" :disabled="validating || !canTest" @click="emit('validate')">
       <Spinner v-if="validating" data-icon="inline-start" />
       <GaugeIcon v-else data-icon="inline-start" />
       {{ validating ? copy.weather.validating : copy.weather.validate }}

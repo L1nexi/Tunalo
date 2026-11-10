@@ -12,7 +12,7 @@
 - `src/configurations/` 提供用户配置、配置编译、配置持久化和 运行时配置
 - `src/core/` 提供调度器核心模块。
 - `src/server/` 提供本地 API 服务。
-- `src/integrations/` 含 OpenWeatherMap、IP 查询的外部集成
+- `src/integrations/` 含 Open-Meteo、IP 查询的外部集成
 - `src/ui/` 提供系统托盘包装、前端 WebView 窗口，附带国际化、图标资源和历史导出。
 - `frontend/` 前端页面，现提供初始配置和运行时设置。
 - `config/` 是本机真实运行配置目录，其中的 `profile.json`，可用于真实运行。

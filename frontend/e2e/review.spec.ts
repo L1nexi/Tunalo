@@ -13,7 +13,7 @@ test("首次检查配置时待处理项和修正入口位于首屏", async ({ pa
   await expect(issues.getByRole("button", { name: "场景绑定", exact: true })).toBeInViewport()
   await expect(page.getByRole("button", { name: "完成设置", exact: true })).toBeDisabled()
   await issues.getByRole("button", { name: "天气服务", exact: true }).click()
-  await expect(page.getByRole("textbox", { name: "OpenWeatherMap API Key", exact: true })).toBeFocused()
+  await expect(page.getByRole("spinbutton", { name: "纬度", exact: true })).toBeFocused()
 })
 
 for (const scanChange of ["改名", "删除", "清空"] as const) {

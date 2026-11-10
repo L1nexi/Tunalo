@@ -1,38 +1,39 @@
 import { computed, ref, shallowRef } from "vue"
 import type { Ref } from "vue"
 
-import { ApiError, detectLocation, validateWeatherKey } from "@/api/profile"
+import { ApiError, detectLocation, validateWeatherConnection } from "@/api/profile"
 import type { Locale } from "@/api/profile"
 import { COPY } from "@/setup/copy"
 import { describeNetworkFailure, describeWeatherTestError, isSoftWeatherFailure } from "@/setup/errorMessages"
 import type { ProfileDraft } from "@/setup/profile/model"
+import { hasValidLocation } from "@/setup/profile/model"
 
-/** 密钥验证与位置估算共享天气草稿，但独立于表单导航及 Profile 提交。 */
+/** 天气连接测试与位置估算共享天气草稿，验证结果只用于被测试的坐标。 */
 export function useWeatherServices(
   weather: Ref<ProfileDraft["weather"]>,
   locale: Ref<Locale>,
-  onEdit: (field: "api_key" | "location") => void,
+  onEdit: (field: "location") => void,
 ) {
   const copy = computed(() => COPY[locale.value])
   const validatingWeather = ref(false)
-  const apiKeyTouched = ref(false)
-  let apiKeyEdited = false
   const weatherFailureKind = ref<null | "invalid" | "quota" | "connection">(null)
   const weatherTestedAt = ref<number | null>(null)
   const weatherValidationError = ref("")
   const weatherValidationFailure = shallowRef<unknown>(null)
-  const verifiedWeatherKey = ref<string | null>(null)
+  const verifiedLocation = ref<string | null>(null)
   const weatherSaveDialogOpen = ref(false)
   const weatherSaveFailure = ref("")
   const locating = ref(false)
   const locationDetectionStatus = ref<"idle" | "success" | "error">("idle")
   const locationDetectionError = ref("")
   const locationDetectionCity = ref<string | null>(null)
-  const hasVerifiedKey = computed(() => verifiedWeatherKey.value === weather.value.api_key.trim())
-  const weatherKeyState = computed<"untested" | "valid" | "invalid" | "quota">(() => {
+  const locationFingerprint = computed(() => JSON.stringify([weather.value.location.latitude, weather.value.location.longitude]))
+  const canTestWeather = computed(() => hasValidLocation(weather.value.location))
+  const hasVerifiedLocation = computed(() => verifiedLocation.value === locationFingerprint.value)
+  const weatherConnectionState = computed<"untested" | "valid" | "invalid" | "quota">(() => {
     if (weatherFailureKind.value === "invalid") return "invalid"
     if (weatherFailureKind.value === "quota") return "quota"
-    return hasVerifiedKey.value ? "valid" : "untested"
+    return hasVerifiedLocation.value ? "valid" : "untested"
   })
   const weatherConnectionError = computed(() => {
     if (weatherFailureKind.value !== "connection") return ""
@@ -44,21 +45,14 @@ export function useWeatherServices(
   const weatherTestedAtText = computed(() => weatherTestedAt.value === null ? "" :
     copy.value.weather.testedAt(new Date(weatherTestedAt.value).toLocaleString(locale.value === "zh" ? "zh-CN" : "en-US")))
 
-  function updateApiKey(value: string): void {
-    apiKeyEdited = true
-    weather.value.api_key = value
-    weatherFailureKind.value = null
-    weatherValidationError.value = ""
-    weatherValidationFailure.value = null
-    if (value.trim() !== verifiedWeatherKey.value) weatherTestedAt.value = null
-    onEdit("api_key")
-  }
-
-  function touchApiKey(): void {
-    if (apiKeyEdited) apiKeyTouched.value = true
-  }
-
   function updateLocation(value: ProfileDraft["weather"]["location"]): void {
+    if (value.latitude !== weather.value.location.latitude || value.longitude !== weather.value.location.longitude) {
+      verifiedLocation.value = null
+      weatherTestedAt.value = null
+      weatherFailureKind.value = null
+      weatherValidationFailure.value = null
+      weatherValidationError.value = ""
+    }
     weather.value.location = value
     locationDetectionStatus.value = "idle"
     locationDetectionError.value = ""
@@ -66,35 +60,37 @@ export function useWeatherServices(
     onEdit("location")
   }
 
-  async function testWeatherKey(): Promise<void> {
-    const apiKey = weather.value.api_key.trim()
-    if (!apiKey) {
+  async function testWeatherConnection(): Promise<void> {
+    if (validatingWeather.value) return
+    const location = { ...weather.value.location }
+    if (!hasValidLocation(location)) {
       weatherValidationError.value = copy.value.weather.validationMissing
       return
     }
+    const testedLocation = locationFingerprint.value
     validatingWeather.value = true
     weatherValidationError.value = ""
     weatherValidationFailure.value = null
     weatherFailureKind.value = null
     try {
-      await validateWeatherKey(apiKey)
-      if (weather.value.api_key.trim() === apiKey) {
-        verifiedWeatherKey.value = apiKey
+      await validateWeatherConnection(location)
+      if (locationFingerprint.value === testedLocation) {
+        verifiedLocation.value = testedLocation
         weatherTestedAt.value = Date.now()
       }
     } catch (error) {
-      if (weather.value.api_key.trim() === apiKey) {
+      if (locationFingerprint.value === testedLocation) {
         const issueCodes = error instanceof ApiError ? (error.payload.issues ?? []).map((issue) => issue.code) : []
-        if (issueCodes.includes("weather_api_key_invalid")) {
+        if (issueCodes.includes("weather_location_invalid")) {
           weatherFailureKind.value = "invalid"
-          verifiedWeatherKey.value = null
+          verifiedLocation.value = null
         } else if (issueCodes.includes("weather_api_quota_exceeded")) {
           weatherFailureKind.value = "quota"
         } else {
           weatherFailureKind.value = "connection"
         }
         weatherValidationFailure.value = error
-        if (verifiedWeatherKey.value !== apiKey) weatherTestedAt.value = Date.now()
+        if (verifiedLocation.value !== testedLocation) weatherTestedAt.value = Date.now()
       }
     } finally {
       validatingWeather.value = false
@@ -134,10 +130,10 @@ export function useWeatherServices(
   }
 
   return {
-    validatingWeather, apiKeyTouched, weatherKeyState, weatherTestedAtText, weatherConnectionError, weatherValidationError,
+    validatingWeather, canTestWeather, weatherConnectionState, weatherTestedAtText, weatherConnectionError, weatherValidationError,
     locating, locationDetectionStatus, locationDetectionError, locationDetectionCity,
-    weatherSaveDialogOpen, weatherSaveFailure, hasVerifiedKey,
-    updateApiKey, touchApiKey, updateLocation, testWeatherKey, detectCity, offerUnverifiedSave, clearSaveFeedback,
+    weatherSaveDialogOpen, weatherSaveFailure, hasVerifiedLocation,
+    updateLocation, testWeatherConnection, detectCity, offerUnverifiedSave, clearSaveFeedback,
   }
 }
 

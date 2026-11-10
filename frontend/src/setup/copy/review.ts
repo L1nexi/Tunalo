@@ -10,7 +10,7 @@ const zh = {
   response: "情境偏好",
   disturbance: "防打扰程度",
   activity: "活动识别规则",
-  weatherUntested: "当前草稿密钥尚未手动测试",
+  weatherUntested: "当前坐标尚未手动测试连接",
   testedAt: (date: string) => `测试时间：${date}`,
   sceneCount: (bound: number, pending: number, unavailable: number) =>
     bound + pending + unavailable === 0
@@ -24,7 +24,6 @@ const zh = {
   edit: "修改",
   disabled: "未启用",
   awaitingPlaylist: "待绑定播放列表",
-  secretChanged: "已更改（内容不显示）",
   activityCount: (windows: number, processes: number) =>
     `窗口名规则 ${windows} 条，进程名规则 ${processes} 条`,
   coordinates: (latitude: number, longitude: number) => `纬度 ${latitude}，经度 ${longitude}`,
@@ -48,7 +47,7 @@ const en = {
   response: "Context preferences",
   disturbance: "Interruption level",
   activity: "Activity rules",
-  weatherUntested: "This draft key has not been tested manually",
+  weatherUntested: "Connection not tested manually for these coordinates",
   testedAt: (date: string) => `Tested: ${date}`,
   sceneCount: (bound: number, pending: number, unavailable: number) =>
     bound + pending + unavailable === 0
@@ -62,7 +61,6 @@ const en = {
   edit: "Edit",
   disabled: "Disabled",
   awaitingPlaylist: "Playlist needed",
-  secretChanged: "Changed (value hidden)",
   activityCount: (windows: number, processes: number) =>
     `${windows} window rules, ${processes} process names`,
   coordinates: (latitude: number, longitude: number) => `Latitude ${latitude}, longitude ${longitude}`,

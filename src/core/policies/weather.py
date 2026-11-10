@@ -29,81 +29,37 @@ def _weather_salience(*, clear: float = 0.0, cloudy: float = 0.0, rain: float = 
 
 
 _CODE_SALIENCE: dict[int, dict[SemanticItem, float]] = {
-    # 雷暴本身强烈支持雨景；伴随小雨或毛毛雨不降低雷暴的显著度。
-    200: _weather_salience(rain=3.0),
-    201: _weather_salience(rain=3.0),
-    202: _weather_salience(rain=4.0),
-    210: _weather_salience(rain=2.0),
-    211: _weather_salience(rain=3.0),
-    212: _weather_salience(rain=4.0),
-    221: _weather_salience(rain=3.0),
-    230: _weather_salience(rain=3.0),
-    231: _weather_salience(rain=3.0),
-    232: _weather_salience(rain=3.0),
-    300: _weather_salience(rain=0.3),
-    301: _weather_salience(rain=0.6),
-    302: _weather_salience(rain=0.85),
-    310: _weather_salience(rain=0.45),
-    311: _weather_salience(rain=0.8),
-    312: _weather_salience(rain=1.3),
-    313: _weather_salience(rain=0.95),
-    314: _weather_salience(rain=1.7),
-    321: _weather_salience(rain=0.9),
-    500: _weather_salience(rain=0.75),
-    501: _weather_salience(rain=1.0),
-    502: _weather_salience(rain=2.0),
-    503: _weather_salience(rain=3.0),
-    504: _weather_salience(rain=4.0),
-    511: _weather_salience(rain=1.5),
-    520: _weather_salience(rain=0.85),
-    521: _weather_salience(rain=1.5),
-    522: _weather_salience(rain=3.0),
-    531: _weather_salience(rain=1.8),
-    600: _weather_salience(snow=0.25),
-    601: _weather_salience(snow=0.75),
-    602: _weather_salience(snow=1.5),
-    611: _weather_salience(rain=0.85, snow=0.35),
-    612: _weather_salience(rain=0.75, snow=0.25),
-    613: _weather_salience(rain=1.0, snow=0.5),
-    615: _weather_salience(rain=0.75, snow=0.25),
-    616: _weather_salience(rain=1.0, snow=0.5),
-    620: _weather_salience(snow=0.35),
-    621: _weather_salience(snow=0.85),
-    622: _weather_salience(snow=1.5),
-    701: _weather_salience(),
-    711: _weather_salience(),
-    721: _weather_salience(),
-    731: _weather_salience(),
-    741: _weather_salience(),
-    751: _weather_salience(),
-    761: _weather_salience(),
-    762: _weather_salience(),
-    771: _weather_salience(),
-    781: _weather_salience(),
-    # 少云仍偏晴朗，疏云保留过渡证据；浓云和全阴偏阴天。
-    800: _weather_salience(clear=1.0),
-    801: _weather_salience(clear=0.75),
-    802: _weather_salience(clear=0.25, cloudy=0.25),
-    803: _weather_salience(cloudy=0.75),
-    804: _weather_salience(cloudy=1.0),
-}
-
-_MAIN_SALIENCE: dict[str, dict[SemanticItem, float]] = {
-    "thunderstorm": _weather_salience(rain=3.0),
-    "drizzle": _weather_salience(rain=0.6),
-    "rain": _weather_salience(rain=1.0),
-    "snow": _weather_salience(snow=0.75),
-    "clear": _weather_salience(clear=1.0),
-    "clouds": _weather_salience(cloudy=1.0),
-    "mist": _weather_salience(),
-    "smoke": _weather_salience(),
-    "haze": _weather_salience(),
-    "dust": _weather_salience(),
-    "fog": _weather_salience(),
-    "sand": _weather_salience(),
-    "ash": _weather_salience(),
-    "squall": _weather_salience(),
-    "tornado": _weather_salience(),
+    # Open-Meteo WMO 代码；沿用 ADR-0004 的显著度标尺。
+    0: _weather_salience(clear=1.0),
+    1: _weather_salience(clear=0.75),
+    2: _weather_salience(clear=0.25, cloudy=0.25),
+    3: _weather_salience(cloudy=1.0),
+    45: _weather_salience(),
+    48: _weather_salience(),
+    51: _weather_salience(rain=0.3),
+    53: _weather_salience(rain=0.6),
+    55: _weather_salience(rain=0.85),
+    56: _weather_salience(rain=0.3),
+    57: _weather_salience(rain=0.85),
+    61: _weather_salience(rain=0.75),
+    63: _weather_salience(rain=1.0),
+    65: _weather_salience(rain=2.0),
+    66: _weather_salience(rain=0.75),
+    67: _weather_salience(rain=2.0),
+    71: _weather_salience(snow=0.25),
+    73: _weather_salience(snow=0.75),
+    75: _weather_salience(snow=1.5),
+    77: _weather_salience(snow=0.25),
+    80: _weather_salience(rain=0.85),
+    81: _weather_salience(rain=1.5),
+    82: _weather_salience(rain=4.0),
+    85: _weather_salience(snow=0.35),
+    86: _weather_salience(snow=1.5),
+    # 雷暴本身强烈支持雨景；冰雹代码也由雨语义承接。
+    95: _weather_salience(rain=3.0),
+    96: _weather_salience(rain=3.0),
+    97: _weather_salience(rain=4.0),
+    99: _weather_salience(rain=4.0),
 }
 
 
@@ -116,17 +72,14 @@ class WeatherPolicy(Policy):
     def evaluate(self, context: Context) -> WeatherEvaluation:
         weather = context.weather
         values = None
-        if weather is not None:
-            values = _CODE_SALIENCE.get(weather.id)
-            if values is None:
-                values = _MAIN_SALIENCE.get(weather.main.casefold())
+        if weather is not None and weather.code is not None:
+            values = _CODE_SALIENCE.get(weather.code)
         return WeatherEvaluation(
             policy_id=self.config_key,
             salience=values.copy() if values is not None else _weather_salience(),
             details=WeatherDetails(
-                weather_id=weather.id if weather is not None else None,
-                weather_main=weather.main if weather is not None else None,
-                available=weather is not None,
+                weather_code=weather.code if weather is not None else None,
+                available=weather is not None and weather.code is not None,
                 mapped=values is not None,
             ),
         )
