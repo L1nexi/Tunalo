@@ -20,7 +20,7 @@ class WeatherReminder:
         Raises:
             Exception: If the injected notification function fails.
         """
-        weather = trace.context.weather
+        weather = trace.schedule.context.weather
         if weather is None:
             return
         if weather.source_fingerprint != self._source_fingerprint:

@@ -8,7 +8,7 @@ from pydantic.alias_generators import to_camel
 
 from core.models.context import SunTimesData, WeatherData
 from core.models.scene import Scenes
-from core.models.scheduling import Action, Blocker, DisturbanceEvaluation, TimingEvaluation
+from core.models.scheduling import Action, Blocker, DecisionMode, DisturbanceEvaluation, TimingEvaluation
 from core.models.selection import ActivityEvaluation, PolicyEvaluation, SeasonEvaluation, TimeEvaluation, WeatherEvaluation
 from core.models.trace import TickTrace
 from core.models.weather import WeatherType
@@ -160,6 +160,7 @@ class SceneRefDto(ApiDto):
 
 
 class ActionDecisionDto(ApiDto):
+    mode: DecisionMode
     action: Action
     executed: bool
     active_scenes: list[SceneRefDto]
@@ -353,58 +354,64 @@ def _timing_evaluation(evaluation: TimingEvaluation) -> TimingEvaluationDto:
 
 
 def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
-    candidate_scene_refs = _scene_refs(trace.selection.scenes)
-    action_candidate_scene_refs = _scene_refs(trace.decision.target)
-    target_refs = _scene_refs(trace.target)
-    active_scene_refs = _scene_refs(trace.decision.timing.active_scenes)
-    target_playlist_ref = _playlist_ref(trace.action.target_playlist)
-    has_event = trace.decision.action == Action.APPLY
+    schedule = trace.schedule
+    context = schedule.context
+    selection = schedule.selection
+    decision = schedule.decision
+    action = schedule.action
+    candidate_scene_refs = _scene_refs(selection.scenes)
+    action_candidate_scene_refs = _scene_refs(decision.target)
+    target_refs = _scene_refs(schedule.target)
+    active_scene_refs = _scene_refs(decision.timing.active_scenes)
+    target_playlist_ref = _playlist_ref(action.target_playlist)
+    has_event = decision.action == Action.APPLY
 
     return TickSnapshotDto(
         summary=TickSummaryDto(
             tick_id=trace.tick_id,
             ts=trace.ts,
-            selection_reason=trace.selection.reason,
+            selection_reason=selection.reason,
             active_scenes=target_refs,
             candidate_scenes=candidate_scene_refs,
-            action=trace.decision.action,
+            action=decision.action,
             paused=trace.paused,
-            executed=trace.action.executed,
+            executed=action.executed,
             has_event=has_event,
         ),
         sense=SenseSnapshotDto(
             window=WindowSnapshotDto(
-                process=trace.context.window.process or "",
-                title=trace.context.window.title or "",
+                process=context.window.process or "",
+                title=context.window.title or "",
             ),
-            idle=IdleSnapshotDto(seconds=_round_float(trace.context.idle)),
-            cpu=CpuSnapshotDto(average_percent=_round_float(trace.context.cpu)),
-            fullscreen=trace.context.fullscreen,
-            weather=_weather_snapshot(trace.context.weather),
-            sun_times=_sun_times_snapshot(trace.context.sun_times),
-            clock=_clock_snapshot(trace.context.time),
+            idle=IdleSnapshotDto(seconds=_round_float(context.idle)),
+            cpu=CpuSnapshotDto(average_percent=_round_float(context.cpu)),
+            fullscreen=context.fullscreen,
+            weather=_weather_snapshot(context.weather),
+            sun_times=_sun_times_snapshot(context.sun_times),
+            clock=_clock_snapshot(context.time),
         ),
         think=ThinkSnapshotDto(
-            salience=_salience_values(trace.selection.salience),
+            salience=_salience_values(selection.salience),
             selection=SelectionExplanationDto(
-                reason=trace.selection.reason,
-                selected_tier=trace.selection.selected_tier,
-                sources=trace.selection.sources,
-                excluded_scenes={scene_id: sorted(items) for scene_id, items in trace.selection.excluded_scenes.items()},
+                reason=selection.reason,
+                selected_tier=selection.selected_tier,
+                sources=selection.sources,
+                excluded_scenes={scene_id: sorted(items) for scene_id, items in selection.excluded_scenes.items()},
             ),
-            policies=[_policy_snapshot(policy) for policy in trace.selection.policy_evaluations],
+            policies=[_policy_snapshot(policy) for policy in selection.policy_evaluations],
             controller=ControllerDto(
-                timing=_timing_evaluation(trace.decision.timing),
-                disturbance=_disturbance_evaluation(trace.decision.disturbance),
+                timing=_timing_evaluation(decision.timing),
+                disturbance=_disturbance_evaluation(decision.disturbance),
             ),
             decision=ActionDecisionDto(
-                action=trace.decision.action,
-                executed=trace.action.executed,
+                mode=schedule.mode,
+                action=decision.action,
+                executed=action.executed,
                 active_scenes=active_scene_refs,
                 target_scenes=target_refs,
                 candidate_scenes=action_candidate_scene_refs,
                 target_playlist=target_playlist_ref,
-                selected_scene=_scene_ref(trace.action.selected_scene) if trace.action.selected_scene is not None else None,
+                selected_scene=_scene_ref(action.selected_scene) if action.selected_scene is not None else None,
             ),
         ),
         act=ActSnapshotDto(
@@ -413,7 +420,7 @@ def map_tick_snapshot(trace: TickTrace) -> TickSnapshotDto:
                     scene=_scene_ref(scene_id),
                     probability=_round_float(probability),
                 )
-                for scene_id, probability in sorted(trace.selection.probabilities.items(), key=lambda item: (-item[1], item[0]))
+                for scene_id, probability in sorted(selection.probabilities.items(), key=lambda item: (-item[1], item[0]))
             ],
         ),
     )

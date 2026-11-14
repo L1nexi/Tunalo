@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,17 +13,11 @@ from core.models.event import EventType
 
 
 @pytest.fixture
-def event_logger(tmp_path):
+def event_logger(tmp_path: Path) -> JsonlEventLogger:
     return JsonlEventLogger(str(tmp_path))
 
 
-def test_write_returns_monotonically_incrementing_id(event_logger):
-    assert event_logger.write(EventType.START, {"playlist": "A"}) == 1
-    assert event_logger.write(EventType.PAUSE, {"reason": "idle"}) == 2
-    assert event_logger.write(EventType.RESUME, {"playlist": "A"}) == 3
-
-
-def test_write_persists_to_jsonl(event_logger, tmp_path):
+def test_write_persists_to_jsonl(event_logger: JsonlEventLogger, tmp_path: Path) -> None:
     event_logger.write(EventType.START, {"playlist": "test"})
 
     files = list(tmp_path.glob("events-*.jsonl"))
@@ -50,33 +45,34 @@ def test_delayed_records_use_occurrence_time_across_months(tmp_path: Path) -> No
     assert september_record == {"ts": "2026-09-30T23:59:59+00:00", "type": "pause", "data": {"duration": 60}}
 
 
-def test_concurrent_writes_preserve_ids(event_logger):
-    errors = []
+def test_concurrent_writes_preserve_complete_records(event_logger: JsonlEventLogger, tmp_path: Path) -> None:
     n_per_thread = 50
     n_threads = 4
+    barrier = threading.Barrier(n_threads)
 
-    def writer():
-        for _ in range(n_per_thread):
-            try:
-                event_logger.write(EventType.START, {})
-            except Exception as exc:
-                errors.append(exc)
+    def writer(worker: int) -> None:
+        barrier.wait(timeout=5)
+        for sequence in range(n_per_thread):
+            event_logger.write(EventType.START, {"worker": worker, "sequence": sequence}, ts=0.0)
 
-    threads = [threading.Thread(target=writer) for _ in range(n_threads)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    with ThreadPoolExecutor(max_workers=n_threads) as executor:
+        futures = [executor.submit(writer, worker) for worker in range(n_threads)]
+        for future in futures:
+            future.result(timeout=5)
 
-    assert errors == []
-    assert event_logger.write(EventType.STOP, {}) == n_per_thread * n_threads + 1
+    records = [json.loads(line) for line in (tmp_path / "events-1970-01.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert sorted((record["data"]["worker"], record["data"]["sequence"]) for record in records) == [
+        (worker, sequence) for worker in range(n_threads) for sequence in range(n_per_thread)
+    ]
 
 
-def test_write_failure_rolls_back_event_id(event_logger, monkeypatch):
-    def failing_open(*args, **kwargs):
-        raise OSError("disk full")
+def test_file_error_is_reported_and_later_writes_succeed(event_logger: JsonlEventLogger, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    filepath = tmp_path / "events-1970-01.jsonl"
+    filepath.mkdir()
 
-    event_logger.write(EventType.START, {})
-    monkeypatch.setattr("builtins.open", failing_open)
+    event_logger.write(EventType.PAUSE, {}, ts=0.0)
+    assert "Failed to write event" in caplog.text
 
-    assert event_logger.write(EventType.PAUSE, {}) == 1
+    filepath.rmdir()
+    event_logger.write(EventType.RESUME, {}, ts=1.0)
+    assert json.loads(filepath.read_text(encoding="utf-8")) == {"ts": "1970-01-01T00:00:01+00:00", "type": "resume", "data": {}}

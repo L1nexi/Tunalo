@@ -282,7 +282,7 @@ class TrayIcon:
 
     def _get_active_text(self) -> str:
         trace = self.scheduler.last_tick_trace
-        scenes = trace.target if trace is not None else None
+        scenes = trace.schedule.target if trace is not None else None
 
         if scenes:
             primary = self._scene_name(scenes[0])
@@ -295,10 +295,11 @@ class TrayIcon:
         trace = self.scheduler.last_tick_trace
         if trace is None:
             return None
-        best_scenes = trace.selection.scenes
+        selection = trace.schedule.selection
+        best_scenes = selection.scenes
         if not best_scenes:
             return None
-        primary = self._scene_name(max(trace.selection.probabilities, key=trace.selection.probabilities.__getitem__))
+        primary = self._scene_name(max(selection.probabilities, key=selection.probabilities.__getitem__))
         if len(best_scenes) > 1:
             return f"{primary}(+{len(best_scenes) - 1})"
         return primary

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 from core.models.context import Context, SunTimesData
 from core.models.scene import Scenes
@@ -16,14 +17,14 @@ from ui.tick_history_export import (
 )
 
 
-def test_tick_history_json_formatter_uses_tick_window_contract():
+def test_tick_history_json_formatter_uses_tick_window_contract() -> None:
     content = TickHistoryJsonFormatter.format(TickHistoryWindow(live_tick_id=None, traces=()))
 
     assert json.loads(content) == {"liveTickId": None, "ticks": []}
     assert content.endswith("\n")
 
 
-def test_tick_history_export_redacts_only_credentials_and_location():
+def test_tick_history_export_redacts_only_credentials_and_location() -> None:
     payload = {
         "apiKey": "secret",
         "location": {"name": "上海", "latitude": 31.2, "longitude": 121.5},
@@ -39,7 +40,7 @@ def test_tick_history_export_redacts_only_credentials_and_location():
     }
 
 
-def test_export_tick_history_writes_timestamped_json(tmp_path):
+def test_export_tick_history_writes_timestamped_json(tmp_path: Path) -> None:
     store = TickHistoryStore()
     store.update(
         TickTrace(
@@ -79,5 +80,6 @@ def test_export_tick_history_writes_timestamped_json(tmp_path):
     payload = json.loads((tmp_path / "tick-history-20260905T010203.456789Z.json").read_text(encoding="utf-8"))
     assert payload["liveTickId"] == 7
     assert payload["ticks"][0]["summary"]["tickId"] == 7
+    assert payload["ticks"][0]["think"]["decision"]["mode"] == "normal"
     assert payload["ticks"][0]["sense"]["sunTimes"] == {"available": True, "sunrise": 1714800000, "sunset": 1714843200}
     assert payload["ticks"][0]["sense"]["weather"] == {"available": False, "type": None}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import getpass
 import json
+import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -29,8 +30,9 @@ from core.state.tick_history import TickHistoryStore
 
 @pytest.mark.parametrize("returncode", [0, 1])
 def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_stop(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, returncode: int
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, returncode: int
 ) -> None:
+    caplog.set_level(logging.INFO, logger="Tunalo.Actions")
     executable = tmp_path / "wallpaper64.exe"
     executable.touch()
     (tmp_path / "config.json").write_text(
@@ -107,6 +109,7 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
             assert first_command[-1] == "WORK"
             assert scheduler.last_tick_trace is None
             assert history.read_window().traces == ()
+            assert not any(record.name == "Tunalo.Actions" for record in caplog.records)
             release_weather.set()
             for worker in weather_threads:
                 worker.join(timeout=1)
@@ -122,17 +125,18 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
                 time.sleep(0.005)
             first_trace = scheduler.last_tick_trace
             assert first_trace is not None
-            assert first_trace.context.weather is not None
-            assert first_trace.context.weather.last_success_at is None
-            assert first_trace.context.sun_times is not None
-            assert any(first_trace.selection.salience[item] != 0 for item in ("dawn", "day", "sunset", "night"))
+            first_schedule = first_trace.schedule
+            assert first_schedule.context.weather is not None
+            assert first_schedule.context.weather.last_success_at is None
+            assert first_schedule.context.sun_times is not None
+            assert any(first_schedule.selection.salience[item] != 0 for item in ("dawn", "day", "sunset", "night"))
 
             second_command, release_second = commands.get(timeout=5)
             assert second_command[-1] == "NEW"
             assert updating.result(timeout=5) == replacement
             assert [trace.tick_id for trace in history.read_window().traces] == [1]
             assert observed[0][1] == "WORK"
-            assert first_trace.action.target_playlist == "WORK"
+            assert first_schedule.action.target_playlist == "WORK"
 
             stop_started = threading.Event()
 
@@ -159,16 +163,16 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     window = history.read_window()
     assert window.live_tick_id == 2
     assert [trace.tick_id for trace in window.traces] == [1, 2]
-    assert [trace.action.target_playlist for trace in window.traces] == ["WORK", "NEW"]
-    assert all(trace.action.executed == (returncode == 0) for trace in window.traces)
+    assert [trace.schedule.action.target_playlist for trace in window.traces] == ["WORK", "NEW"]
+    assert all(trace.schedule.action.executed == (returncode == 0) for trace in window.traces)
     assert [trace.tick_id for trace, _, _ in observed] == [1, 2]
     assert observed[1][1] == "NEW"
-    second_weather = observed[1][0].context.weather
+    second_weather = observed[1][0].schedule.context.weather
     assert second_weather is not None
     assert second_weather.last_success_at is not None
     assert second_weather.type == WeatherType.CLEAR
-    assert second_weather.source_fingerprint == first_trace.context.weather.source_fingerprint
-    assert first_trace.context.weather.last_success_at is None
+    assert second_weather.source_fingerprint == first_schedule.context.weather.source_fingerprint
+    assert first_schedule.context.weather.last_success_at is None
     assert "test-key" not in repr(window.traces)
     assert scheduler.thread is not None
     assert {thread_id for _, _, thread_id in observed} == {scheduler.thread.ident}
@@ -179,6 +183,26 @@ def test_scheduler_commits_before_profile_updates_and_waits_for_current_tick_on_
     records = [json.loads(line) for path in sorted(tmp_path.glob("events-*.jsonl")) for line in path.read_text(encoding="utf-8").splitlines()]
     action_type = "scenes_applied" if returncode == 0 else "actuation_failed"
     assert [record["type"] for record in records] == ["start", action_type, action_type, "stop"]
+    assert [
+        (record["data"]["tick_id"], record["data"]["mode"], record["data"]["selected_scene"], record["data"]["target_playlist"])
+        for record in records[1:-1]
+    ] == [(1, "recovery", "work", "WORK"), (2, "recovery", "work", "NEW")]
+
+    outcomes = [record for record in caplog.records if record.name == "Tunalo.Actions"]
+    expected_level = logging.INFO if returncode == 0 else logging.WARNING
+    assert [record.levelno for record in outcomes] == [expected_level, expected_level]
+    for record, expected in zip(
+        outcomes,
+        [
+            ("tick_id=1", "target_playlist='WORK'"),
+            ("tick_id=2", "target_playlist='NEW'"),
+        ],
+        strict=True,
+    ):
+        assert all(
+            fragment in record.getMessage()
+            for fragment in (*expected, "mode=recovery", f"executed={returncode == 0}", "selected_scene='work'", "probabilities={'work': 1.0}")
+        )
 
 
 def test_paused_engine_senses_local_sun_times_and_replaces_location_when_weather_is_unavailable(

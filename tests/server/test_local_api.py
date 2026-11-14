@@ -9,6 +9,7 @@ import time
 import urllib.request
 from pathlib import Path
 
+import bottle
 import pytest
 import requests
 
@@ -19,7 +20,7 @@ from configurations.runtime_models import WeatherPolicyConfig
 from core.models.context import Context, SunTimesData, WeatherData, WindowData
 from core.models.scene import Scenes
 from core.models.scheduling import Action, ActionResult, Decision, DecisionMode, DisturbanceEvaluation, ScheduleResult, TimingEvaluation
-from core.models.selection import Selection
+from core.models.selection import PolicyEvaluation, Selection
 from core.models.trace import TickTrace
 from core.models.weather import WeatherType
 from core.policies.weather import WeatherPolicy
@@ -177,15 +178,17 @@ def _make_trace(
     *,
     tick_id: int = 1,
     paused: bool = False,
+    mode: DecisionMode = DecisionMode.NORMAL,
     active_scene_before: str | None = None,
     matched_scene: str | None = None,
     target_playlist: str | None = None,
+    selected_scene: str | None = None,
     executed: bool = False,
     action_kind: Action = Action.NOOP,
     disturbance: DisturbanceEvaluation | None = None,
     weather: WeatherData | None = None,
     sun_times: SunTimesData | None = None,
-    policy_evaluations: list | None = None,
+    policy_evaluations: list[PolicyEvaluation] | None = None,
 ) -> TickTrace:
     current_time = time.localtime(1714800000)
     best_scenes = Scenes([matched_scene]) if matched_scene else Scenes()
@@ -210,7 +213,7 @@ def _make_trace(
                 reason="best_effort",
                 policy_evaluations=policy_evaluations or [],
             ),
-            mode=DecisionMode.NORMAL,
+            mode=mode,
             decision=Decision(
                 action=action_kind,
                 target=best_scenes,
@@ -226,6 +229,7 @@ def _make_trace(
             ),
             action=ActionResult(
                 target_playlist=target_playlist,
+                selected_scene=selected_scene,
                 executed=executed,
             ),
         ),
@@ -325,20 +329,93 @@ def test_api_history_preserves_weather_type_and_missing_state(app, tick_history,
     assert tick["think"]["policies"][0]["details"] == {"weatherType": weather_type_value, "available": available, "mapped": mapped}
 
 
-def test_custom_scene_identity_survives_history_and_event_export(app, tick_history, tmp_path):
+@pytest.mark.parametrize("executed, expected_active", [(True, "winter-rain-snow"), (False, "previous-custom")])
+def test_custom_scene_identity_survives_history_and_event_export(
+    app: bottle.Bottle, tick_history: TickHistoryStore, tmp_path: Path, executed: bool, expected_active: str
+) -> None:
     trace = _make_trace(
-        active_scene_before="previous-custom", matched_scene="winter-rain-snow", target_playlist="WORK", executed=True, action_kind=Action.APPLY
+        mode=DecisionMode.MANUAL,
+        active_scene_before="previous-custom",
+        matched_scene="winter-rain-snow",
+        target_playlist="WORK",
+        selected_scene="winter-rain-snow",
+        executed=executed,
+        action_kind=Action.APPLY,
     )
     tick_history.update(trace)
     ActionEventWriter(JsonlEventLogger(str(tmp_path))).on_tick(trace)
 
     status, body = wsgi_get(app, "/api/tick-history")
     assert status.startswith("200")
-    assert body["ticks"][0]["summary"]["activeScenes"] == [{"id": "winter-rain-snow"}]
+    tick = body["ticks"][0]
+    assert tick["summary"]["activeScenes"] == [{"id": expected_active}]
+    assert tick["think"]["decision"] == {
+        "mode": "manual",
+        "action": "apply",
+        "executed": executed,
+        "activeScenes": [{"id": "previous-custom"}],
+        "targetScenes": [{"id": expected_active}],
+        "candidateScenes": [{"id": "winter-rain-snow"}],
+        "targetPlaylist": {"name": "WORK"},
+        "selectedScene": {"id": "winter-rain-snow"},
+    }
     record = json.loads(next(tmp_path.glob("events-*.jsonl")).read_text(encoding="utf-8"))
-    assert record["data"]["scenes_from"] == ["previous-custom"]
-    assert record["data"]["scenes_to"] == ["winter-rain-snow"]
-    assert record["data"]["probabilities"] == {"winter-rain-snow": 1}
+    if executed:
+        assert record["type"] == "scenes_applied"
+        assert record["data"] == {
+            "tick_id": 1,
+            "mode": "manual",
+            "target_playlist": "WORK",
+            "selected_scene": "winter-rain-snow",
+            "scenes_from": ["previous-custom"],
+            "scenes_to": ["winter-rain-snow"],
+            "salience": {"work": 0.8, "rain": 0.4},
+            "probabilities": {"winter-rain-snow": 1},
+        }
+    else:
+        assert record["type"] == "actuation_failed"
+        assert record["data"] == {
+            "tick_id": 1,
+            "mode": "manual",
+            "target_playlist": "WORK",
+            "selected_scene": "winter-rain-snow",
+            "action": "apply",
+            "matched_scenes": ["winter-rain-snow"],
+            "active_scenes": ["previous-custom"],
+        }
+
+
+@pytest.mark.parametrize("mode, action", [(DecisionMode.NORMAL, Action.NOOP), (DecisionMode.PAUSE, Action.PAUSE)])
+def test_unapplied_ticks_are_retained_in_history_without_action_events(
+    app: bottle.Bottle, tick_history: TickHistoryStore, tmp_path: Path, mode: DecisionMode, action: Action
+) -> None:
+    trace = _make_trace(
+        mode=mode,
+        paused=mode == DecisionMode.PAUSE,
+        active_scene_before="previous",
+        matched_scene="candidate",
+        action_kind=action,
+    )
+    tick_history.update(trace)
+    ActionEventWriter(JsonlEventLogger(str(tmp_path))).on_tick(trace)
+
+    status, body = wsgi_get(app, "/api/tick-history")
+
+    assert status.startswith("200")
+    tick = body["ticks"][0]
+    assert tick["summary"] == {
+        "tickId": 1,
+        "ts": 1714800001.0,
+        "selectionReason": "best_effort",
+        "activeScenes": [{"id": "previous"}],
+        "candidateScenes": [{"id": "candidate"}],
+        "action": action.value,
+        "paused": mode == DecisionMode.PAUSE,
+        "executed": False,
+        "hasEvent": False,
+    }
+    assert tick["think"]["decision"]["mode"] == mode.value
+    assert list(tmp_path.glob("events-*.jsonl")) == []
 
 
 def test_api_profile_returns_current_committed_profile(tick_history, profile_manager):
