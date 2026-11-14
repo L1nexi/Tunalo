@@ -95,7 +95,7 @@ configurations 处理用户配置 `profile.json` 到运行时模型的编译、�
 
 ## 编码风格与命名约定
 
-Python 代码使用完整类型注解。模块、类、函数职责清晰，函数名、变量名自解释。非必要不使用注释，但对会抛出异常的函数必须用 docstring 说明异常类型和触发条件。
+Python 代码使用完整类型注解。模块、类、函数职责清晰，函数名、变量名自解释，非必要不使用注释。会抛出业务异常（由项目主动抛出的异常，而非库或系统异常）的函数必须用 docstring 说明异常类型和触发条件。
 
 产品界面使用 `frontend/` 的 shadcn-vue 组件和语义 token，保持 Vite `base: './'`、URL query locale 和 pywebview 本地加载；引入路由时使用 hash router。
 
