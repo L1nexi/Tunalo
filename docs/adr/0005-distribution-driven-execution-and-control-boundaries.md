@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-10-17
-updated: 2026-10-20
+updated: 2026-11-14
 ---
 
 # ADR-0005：按场景分布变化统一执行时机，拆分时序与防打扰职责
@@ -51,3 +51,13 @@ $$
 | \(d_t=0\)                   | \(C\)                   |
 | \(d*t=d*{\mathrm{ref}}\)    | \(\min(C,31\text{秒})\) |
 | \(d*t\ge2d*{\mathrm{ref}}\) | 0                       |
+
+### 记录侧消费已提交的结果
+
+Engine 形成单轮 `ScheduleResult`，SchedulerState 提交时将它连同轮次、时间和暂停信息放入 `TickTrace`，Scheduler 再通过 tick listener 交给消费者。Trace 保留结果对象，消费者分别读取结果和提交信息，避免在两者上维护重复的属性入口。
+
+三类记录各自回答不同的问题：运行日志记录程序运行、执行结果和异常；Event Log 持久化保存启动、暂停与动作结果等稀疏事件；Tick History 在内存中有界保留逐轮判断，供近期诊断和导出。
+
+场景抽样与执行结果的日志由动作记录侧在提交后统一输出，使一次记录同时包含目标和执行结果。执行器保留命令超时、返回码和异常等底层诊断。这样，新增记录字段时可优先使用已有结果，调度模块继续负责形成判断和执行动作。
+
+记录字段与接口见[日志与历史记录规格](../archived/done/LOGGING_AND_HISTORY_SPEC.md)；tick listener 沿用 [ADR-0006 的替代安排](0006-in-process-events-and-scheduler-consumption.md#弃用原因与替代安排)。

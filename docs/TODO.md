@@ -32,12 +32,13 @@
   - 优先级：P3
   - 理由：工程量中小，但是需要评估这一块的需求。
 
-- [ ] **重构日志与历史记录**
+## Completed
+
+- [x] **重构日志与历史记录**
   - 功能描述：梳理运行日志、动作事件和 Tick History 的职责与数据传递，减少仅为填充记录字段而增加的多层属性转发。记录侧继续消费调度结果。
   - 优先级：P2
   - 理由：需要评估现有日志、记录的价值和必要性
-
-## Completed
+  - 状态：2026-11-15 用户审阅通过。行为与接口见[已完成规格](archived/done/LOGGING_AND_HISTORY_SPEC.md)。
 
 - [x] **标签发布流程**
   - 功能描述：GitHub Actions 在推送 `v*` 标签时校验 `src/app/version.py`、CHANGELOG 与标签版本一致，构建 Windows 发布包、生成 SHA-256 摘要和发布说明并创建 Release。pytest、Ruff、前端检查和实际启动验证在本地完成，不进入 Actions。

@@ -18,7 +18,7 @@
 
 `WeatherSensor.collect() -> WeatherData` 首次尚未成功时也返回带指纹的数据，天气字段沿用默认值。请求成功完成时一次性替换完整数据，成功时间取完成时的 Unix 秒；失败保留缓存与成功时间。同来源通过现有状态迁移保留这些信息，旧请求迟到只更新旧实例。
 
-`WeatherReminder(notify: Callable[[float], None])` 提供 `on_tick(trace: TickTrace) -> None`，阈值为 `2 * 60 * 60` 秒。提醒器读取 `trace.context.weather`，用 `trace.ts` 计算持续时长。达到阈值时先标记已提醒，再向通知函数传入持续秒数；通知异常沿用 Scheduler 的 listener 异常处理。
+`WeatherReminder(notify: Callable[[float], None])` 提供 `on_tick(trace: TickTrace) -> None`，阈值为 `2 * 60 * 60` 秒。提醒器读取 `trace.schedule.context.weather`，用 `trace.ts` 计算持续时长。达到阈值时先标记已提醒，再向通知函数传入持续秒数；通知异常沿用 Scheduler 的 listener 异常处理。
 
 应用入口在托盘创建后、Scheduler 启动前注册提醒器。`TrayIcon.notify_weather_unavailable(elapsed_seconds: float) -> None` 发送系统通知，已设置停止信号时跳过发送。退出沿用原有线程等待和状态保存流程。
 

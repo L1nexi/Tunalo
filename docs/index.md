@@ -40,7 +40,6 @@ ADR 记录已确定的架构选择及其理由。接口签名、执行步骤与�
 | 文档                                 | 作用                                             |
 | ------------------------------------ | ------------------------------------------------ |
 | `PRODUCT_POSITIONING.md`             | 长期产品定位、目标用户与开发阶段的体验判断准则。 |
-| [brainstorming.md](brainstorming.md) | 功能构思的判断原则与常见失误。                   |
 
 ## Active Specs
 
@@ -53,6 +52,7 @@ ADR 记录已确定的架构选择及其理由。接口签名、执行步骤与�
 | [本地昼夜计算](archived/done/LOCAL_SUN_TIMES_SPEC.md) | 本地日出日落采集、时段输入与历史输出。 |
 | [天气更新超时提醒](archived/done/WEATHER_REMINDER_SPEC.md) | WeatherData 采集元数据、tick listener 提醒策略和托盘通知。 |
 | [v0.12.0 发布与界面验收](archived/done/V0_12_0_RELEASE.md) | 发布提交与标签、前端修复、构建产物及验证结果。 |
+| [日志与历史记录](archived/done/LOGGING_AND_HISTORY_SPEC.md) | 记录职责、调度结果读取、事件字段与验证入口。 |
 
 ## Architecture Decisions
 
