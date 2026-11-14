@@ -9,6 +9,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
+pytestmark = pytest.mark.tuning
+
 
 def _run_scan(directory: Path, suite: str, mode: str | None = None) -> tuple[Path, dict[str, Any]]:
     """运行公开扫描命令；命令失败时抛出 subprocess.CalledProcessError。"""

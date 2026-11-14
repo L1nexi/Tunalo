@@ -30,13 +30,18 @@ npm run dev
 
 ## 测试
 
-pytest 配置以 `pytest.ini` 为准。测试须通过 `.\scripts\test.ps1` 运行；脚本为每次运行分配独立目录以支持并行测试，结束后自动清理。用法与 pytest 相同：
+pytest 配置以 `pytest.ini` 为准。测试须通过 `.\scripts\test.ps1` 运行；脚本为每次运行分配独立目录以支持并行测试，结束后自动清理，其余参数继续传给 pytest：
 
 ```shell
 .\scripts\test.ps1 tests/core/test_selection_model.py -q  # 运行单个测试文件
-.\scripts\test.ps1 -q                                      # 运行所有测试
+.\scripts\test.ps1 -q                                      # 运行常规测试
+.\scripts\test.ps1 -Tuning -q                              # 只运行调参工具集成测试
+.\scripts\test.ps1 -All -q                                 # 运行全部测试
 ```
 
+调参工具的扫描与绘图测试要遍历完整网格并生成热图，单独运行约 80 秒，因此常规测试默认跳过；指定测试路径时按路径运行。改动 `tools/tuning/` 或场景概率输出后，加 `-Tuning` 验证。
+
+<<<<<<< HEAD
 前端界面测试在 `frontend/` 中运行，使用本机 Edge：
 
 ```powershell
@@ -44,6 +49,10 @@ cd frontend
 npm ci
 npm run test:e2e -- --reporter=line --workers=2
 ```
+
+=======
+
+> > > > > > > 015ddb3 (test: 调参工具集成测试默认跳过)
 
 ## 打包
 
