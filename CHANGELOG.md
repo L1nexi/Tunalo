@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **天气连接测试**：测试成功后显示本次获取的天气类型，天气服务页与配置检查页同步展示。
+
 ## [0.13.0] - 2026-11-16
 
 ### Changed

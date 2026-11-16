@@ -575,14 +575,32 @@ def test_api_setup_logs_safe_location_failure_reason(app, monkeypatch, caplog):
     assert all("fake-secret" not in message for message in warnings)
 
 
-def test_api_weather_connection_test_checks_connection_without_creating_profile(tmp_path: Path, tick_history):
+@pytest.mark.parametrize("weather_code, weather_type", [(0, "clear"), (61, "light_rain"), (999, "unknown")])
+def test_api_weather_connection_test_returns_weather_without_creating_profile(
+    tmp_path: Path,
+    tick_history: TickHistoryStore,
+    monkeypatch: pytest.MonkeyPatch,
+    weather_code: int,
+    weather_type: str,
+) -> None:
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json() -> dict[str, object]:
+            return {"current": {"weather_code": weather_code}}
+
+    def request_weather(*_args: object, **_kwargs: object) -> Response:
+        return Response()
+
+    monkeypatch.setattr("integrations.openmeteo.requests.get", request_weather)
     app = build_api_app(tick_history, ProfileManager(str(tmp_path / "profile")))
 
     status, body = wsgi_post(app, "/api/weather-validations", {"latitude": 0, "longitude": 0})
     profile_status, profile_body = wsgi_get(app, "/api/profile")
 
     assert "200" in status
-    assert body == {"status": "valid"}
+    assert body == {"status": "valid", "weather": {"type": weather_type}}
     assert "404" in profile_status
     assert profile_body == {"error": "profile_not_found"}
 

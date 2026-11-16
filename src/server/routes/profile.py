@@ -65,7 +65,7 @@ def _weather_unavailable_response(exc: WeatherUnavailable) -> dict[str, object]:
 
 def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager) -> None:
     @app.post("/api/weather-validations")
-    def api_validate_weather():
+    def api_validate_weather() -> dict[str, object]:
         bottle.response.content_type = "application/json; charset=utf-8"
         if bottle.request.content_type != "application/json":
             bottle.response.status = 415
@@ -78,7 +78,7 @@ def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager)
 
         try:
             logger.debug("Weather connection test started")
-            validate_weather_connection(request.latitude, request.longitude)
+            observation = validate_weather_connection(request.latitude, request.longitude)
         except WeatherRejected as exc:
             logger.warning("Weather connection test rejected: reason=%s", exc.code)
             return _weather_rejection_response(exc)
@@ -87,7 +87,7 @@ def register_profile_routes(app: bottle.Bottle, profile_manager: ProfileManager)
             return _weather_unavailable_response(exc)
 
         logger.debug("Weather connection test succeeded")
-        return {"status": "valid"}
+        return {"status": "valid", "weather": {"type": observation.type.value}}
 
     @app.route("/api/profile")
     def api_profile():

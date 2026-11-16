@@ -23,6 +23,7 @@ const props = defineProps<{
   valid: boolean
   missingSteps: Array<{ id: StepId; title: string }>
   weatherConnectionState: ReviewWeatherState
+  weatherConnectionSummary: string
   weatherTestedAtText: string
   weatherConnectionError: string
   validatingWeather: boolean
@@ -111,6 +112,7 @@ const sceneStatuses = computed(() => {
                   v-if="row.id === 'weather'"
                   :locale="locale"
                   :state="weatherConnectionState"
+                  :connection-summary="weatherConnectionSummary"
                   :tested-at-text="weatherTestedAtText"
                   :connection-error="weatherConnectionError"
                   :validating="validatingWeather"

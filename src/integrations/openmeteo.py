@@ -126,11 +126,11 @@ def fetch_weather(
     )
 
 
-def validate_weather_connection(latitude: float, longitude: float) -> None:
-    """Verify weather settings with a parsed observation.
+def validate_weather_connection(latitude: float, longitude: float) -> WeatherObservation:
+    """Verify weather settings and return the parsed observation.
 
     Raises:
         WeatherRejected: If the service rejects the settings or quota.
         WeatherUnavailable: If the request fails or its response is unusable.
     """
-    fetch_weather(latitude, longitude)
+    return fetch_weather(latitude, longitude)

@@ -14,6 +14,7 @@ const props = defineProps<{
   canTest: boolean
   validating: boolean
   state: ReviewWeatherState
+  connectionSummary: string
   testedAtText: string
   connectionError: string
   validationError: string
@@ -22,7 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{ validate: []; openProvider: [] }>()
 const copy = computed(() => COPY[props.locale])
 const stateText = computed(() => {
-  if (props.state === "valid") return copy.value.weather.connectionValid
+  if (props.state === "valid") return props.connectionSummary
   if (props.state === "invalid") return copy.value.errors.issueCodes.weather_location_invalid
   if (props.state === "quota") return copy.value.errors.issueCodes.weather_api_quota_exceeded
   return copy.value.weather.connectionUntested
@@ -43,9 +44,11 @@ const stateText = computed(() => {
     </Alert>
 
     <div v-if="state !== 'untested' || connectionError" class="flex flex-col gap-1.5" role="status">
-      <p v-if="state === 'valid'" class="flex items-center gap-2 text-sm">
-        <CheckCircle2Icon class="text-success" />
-        <span>{{ stateText }}</span>
+      <p v-if="state === 'valid'" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        <span class="flex min-w-0 items-start gap-2">
+          <CheckCircle2Icon class="shrink-0 text-success" />
+          <span>{{ stateText }}</span>
+        </span>
         <span v-if="testedAtText" class="text-muted-foreground">{{ testedAtText }}</span>
       </p>
       <p v-else-if="state === 'invalid'" class="flex items-center gap-2 text-sm text-destructive">

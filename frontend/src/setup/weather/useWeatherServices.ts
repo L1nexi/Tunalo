@@ -2,7 +2,7 @@ import { computed, ref, shallowRef } from "vue"
 import type { Ref } from "vue"
 
 import { ApiError, detectLocation, validateWeatherConnection } from "@/api/profile"
-import type { Locale } from "@/api/profile"
+import type { Locale, WeatherType } from "@/api/profile"
 import { COPY } from "@/setup/copy"
 import { describeNetworkFailure, describeWeatherTestError, isSoftWeatherFailure } from "@/setup/errorMessages"
 import type { ProfileDraft } from "@/setup/profile/model"
@@ -18,6 +18,7 @@ export function useWeatherServices(
   const validatingWeather = ref(false)
   const weatherFailureKind = ref<null | "invalid" | "quota" | "connection">(null)
   const weatherTestedAt = ref<number | null>(null)
+  const testedWeatherType = ref<WeatherType | null>(null)
   const weatherValidationError = ref("")
   const weatherValidationFailure = shallowRef<unknown>(null)
   const verifiedLocation = ref<string | null>(null)
@@ -35,6 +36,12 @@ export function useWeatherServices(
     if (weatherFailureKind.value === "quota") return "quota"
     return hasVerifiedLocation.value ? "valid" : "untested"
   })
+  const weatherConnectionSummary = computed(() => {
+    const type = testedWeatherType.value
+    if (type === null) return copy.value.weather.connectionValid
+    if (type === "unknown") return copy.value.weather.connectionWeatherUnknown
+    return copy.value.weather.connectionWithWeather(copy.value.weather.weatherTypes[type])
+  })
   const weatherConnectionError = computed(() => {
     if (weatherFailureKind.value !== "connection") return ""
     const error = weatherValidationFailure.value
@@ -49,6 +56,7 @@ export function useWeatherServices(
     if (value.latitude !== weather.value.location.latitude || value.longitude !== weather.value.location.longitude) {
       verifiedLocation.value = null
       weatherTestedAt.value = null
+      testedWeatherType.value = null
       weatherFailureKind.value = null
       weatherValidationFailure.value = null
       weatherValidationError.value = ""
@@ -69,14 +77,16 @@ export function useWeatherServices(
     }
     const testedLocation = locationFingerprint.value
     validatingWeather.value = true
+    testedWeatherType.value = null
     weatherValidationError.value = ""
     weatherValidationFailure.value = null
     weatherFailureKind.value = null
     try {
-      await validateWeatherConnection(location)
+      const result = await validateWeatherConnection(location)
       if (locationFingerprint.value === testedLocation) {
         verifiedLocation.value = testedLocation
         weatherTestedAt.value = Date.now()
+        testedWeatherType.value = result.weather.type
       }
     } catch (error) {
       if (locationFingerprint.value === testedLocation) {
@@ -130,7 +140,7 @@ export function useWeatherServices(
   }
 
   return {
-    validatingWeather, canTestWeather, weatherConnectionState, weatherTestedAtText, weatherConnectionError, weatherValidationError,
+    validatingWeather, canTestWeather, weatherConnectionState, weatherConnectionSummary, weatherTestedAtText, weatherConnectionError, weatherValidationError,
     locating, locationDetectionStatus, locationDetectionError, locationDetectionCity,
     weatherSaveDialogOpen, weatherSaveFailure, hasVerifiedLocation,
     updateLocation, testWeatherConnection, detectCity, offerUnverifiedSave, clearSaveFeedback,

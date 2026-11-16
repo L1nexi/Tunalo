@@ -12,6 +12,7 @@ import type { ReviewWeatherState } from "./summary"
 const props = defineProps<{
   locale: Locale
   state: ReviewWeatherState
+  connectionSummary: string
   testedAtText: string
   connectionError: string
   validating: boolean
@@ -33,9 +34,9 @@ const status = computed(
 <template>
   <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
     <div class="min-w-0">
-      <p class="flex items-center gap-2 text-sm font-medium" role="status">
-        <component :is="status.icon" :class="status.class" />
-        <span>{{ reviewWeather(state, locale) }}</span>
+      <p class="flex items-start gap-2 text-sm font-medium" role="status">
+        <component :is="status.icon" class="shrink-0" :class="status.class" />
+        <span>{{ state === 'valid' ? connectionSummary : reviewWeather(state, locale) }}</span>
       </p>
       <p v-if="connectionError" class="mt-1 flex items-start gap-2 text-sm text-warning">
         <TriangleAlertIcon class="mt-0.5 shrink-0" />

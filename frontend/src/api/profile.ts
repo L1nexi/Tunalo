@@ -58,6 +58,42 @@ export interface DetectedLocation {
   city?: string
 }
 
+export type WeatherType =
+  | "clear"
+  | "mainly_clear"
+  | "partly_cloudy"
+  | "overcast"
+  | "fog"
+  | "light_drizzle"
+  | "drizzle"
+  | "dense_drizzle"
+  | "light_freezing_drizzle"
+  | "dense_freezing_drizzle"
+  | "light_rain"
+  | "rain"
+  | "heavy_rain"
+  | "light_freezing_rain"
+  | "heavy_freezing_rain"
+  | "light_snow"
+  | "snow"
+  | "heavy_snow"
+  | "snow_grains"
+  | "light_rain_shower"
+  | "rain_shower"
+  | "violent_rain_shower"
+  | "light_snow_shower"
+  | "heavy_snow_shower"
+  | "thunderstorm"
+  | "thunderstorm_with_hail"
+  | "strong_thunderstorm"
+  | "strong_thunderstorm_with_hail"
+  | "unknown"
+
+export interface WeatherValidationResult {
+  status: "valid"
+  weather: { type: WeatherType }
+}
+
 export interface ValidationIssue {
   path: Array<string | number>
   code: string
@@ -119,8 +155,8 @@ export async function detectLocation(): Promise<DetectedLocation> {
   return response.location
 }
 
-export async function validateWeatherConnection(location: WeatherLocationProfile): Promise<void> {
-  await requestJson<{ status: "valid" }>("/api/weather-validations", jsonRequest({
+export function validateWeatherConnection(location: WeatherLocationProfile): Promise<WeatherValidationResult> {
+  return requestJson<WeatherValidationResult>("/api/weather-validations", jsonRequest({
     latitude: location.latitude,
     longitude: location.longitude,
   }))

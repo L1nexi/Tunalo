@@ -17,6 +17,7 @@ const { openExternal } = useSetupNativeWindow()
 const {
   validatingWeather,
   weatherConnectionState,
+  weatherConnectionSummary,
   canTestWeather,
   weatherTestedAtText,
   weatherConnectionError,
@@ -59,6 +60,7 @@ const locationEdited = computed(
       :can-test="canTestWeather"
       :validating="validatingWeather"
       :state="weatherConnectionState"
+      :connection-summary="weatherConnectionSummary"
       :tested-at-text="weatherTestedAtText"
       :connection-error="weatherConnectionError"
       :validation-error="weatherValidationError"

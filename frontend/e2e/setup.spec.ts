@@ -58,7 +58,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   }
   await mockSetupApi(page, true, configuredProfile)
   await page.route("**/api/weather-validations", async (route) => {
-    await route.fulfill({ json: { status: "valid" } })
+    await route.fulfill({ json: { status: "valid", weather: { type: "clear" } } })
   })
   await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: /查看配置草稿/ }).click()
@@ -72,7 +72,7 @@ test("检查页显示路径、测试状态、坐标及两类 Activity 规则数"
   await expect(page.getByText("窗口名规则 2 条，进程名规则 2 条")).toBeVisible()
 
   await page.getByRole("button", { name: "测试连接" }).click()
-  await expect(page.getByRole("status").filter({ hasText: "天气连接正常" })).toBeVisible()
+  await expect(page.getByRole("status").getByText("天气连接正常。当前天气：晴", { exact: true })).toBeVisible()
   await expect(page.getByText(/^验证时间：/)).toBeVisible()
 })
 

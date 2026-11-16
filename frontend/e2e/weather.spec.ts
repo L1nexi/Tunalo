@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test"
 import type { Profile } from "../src/api/profile"
-import { mockSetupApi } from "./support/profileApi"
+import { mockSetupApi, profile } from "./support/profileApi"
 
 test("填写坐标即可测试天气，零度坐标也有效", async ({ page }) => {
   await mockSetupApi(page, false)
   await page.route("**/api/weather-validations", async (route) => {
-    await route.fulfill({ json: { status: "valid" } })
+    await route.fulfill({ json: { status: "valid", weather: { type: "clear" } } })
   })
   await page.goto("/?locale=zh&test=1")
   await page.getByRole("navigation").getByRole("button", { name: "天气服务", exact: true }).click()
@@ -19,8 +19,26 @@ test("填写坐标即可测试天气，零度坐标也有效", async ({ page }) 
   const tested = page.waitForRequest("**/api/weather-validations")
   await testConnection.click()
   expect((await tested).postDataJSON()).toEqual({ latitude: 0, longitude: 0 })
-  await expect(page.getByRole("status").getByText("天气连接正常")).toBeVisible()
+  await expect(page.getByRole("status").getByText("天气连接正常。当前天气：晴", { exact: true })).toBeVisible()
 })
+
+for (const { locale, type, expected } of [
+  { locale: "zh", type: "light_rain", expected: "天气连接正常。当前天气：小雨" },
+  { locale: "zh", type: "unknown", expected: "天气连接正常。暂无法识别当前天气" },
+  { locale: "en", type: "light_rain", expected: "Weather connection is working. Current weather: Light rain" },
+  { locale: "en", type: "unknown", expected: "Weather connection is working. Current weather could not be identified" },
+] as const) {
+  test(`天气测试显示服务返回的天气（${locale}，${type}）`, async ({ page }) => {
+    await mockSetupApi(page, true, { ...profile, language: locale })
+    await page.route("**/api/weather-validations", async (route) => {
+      await route.fulfill({ json: { status: "valid", weather: { type } } })
+    })
+    await page.goto(`/?locale=${locale}&test=1`)
+    await page.getByRole("navigation").getByRole("button", { name: locale === "zh" ? "天气服务" : "Weather service", exact: true }).click()
+    await page.getByRole("button", { name: locale === "zh" ? "测试连接" : "Test connection", exact: true }).click()
+    await expect(page.getByRole("status").getByText(expected, { exact: true })).toBeVisible()
+  })
+}
 
 test("天气页测试连接时说明代理失败原因", async ({ page }) => {
   await mockSetupApi(page, true)
@@ -51,10 +69,13 @@ test("天气服务拒绝坐标时说明地点错误", async ({ page }) => {
 test("已验证的当前坐标可直接保存，后续网络故障保留通过记录", async ({ page }) => {
   await mockSetupApi(page, true)
   let attempts = 0
+  let finishRetry: () => void = () => {}
+  const pendingRetry = new Promise<void>((resolve) => { finishRetry = resolve })
   await page.route("**/api/weather-validations", async (route) => {
     attempts += 1
+    if (attempts > 1) await pendingRetry
     await route.fulfill(attempts === 1
-      ? { json: { status: "valid" } }
+      ? { json: { status: "valid", weather: { type: "light_rain" } } }
       : { status: 503, json: { error: "weather_validation_unavailable", reason: "timeout" } })
   })
   await page.route("**/api/profile?allow_unverified_weather=1", async (route) => {
@@ -68,11 +89,15 @@ test("已验证的当前坐标可直接保存，后续网络故障保留通过�
   await page.getByRole("button", { name: "测试连接" }).click()
   expect((await tested).postDataJSON()).toEqual({ latitude: 32, longitude: 121.4737 })
   const statusBlock = page.getByRole("status")
-  await expect(statusBlock.getByText("天气连接正常")).toBeVisible()
+  await expect(statusBlock.getByText("天气连接正常。当前天气：小雨", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "测试连接" }).click()
+  await expect(page.getByRole("button", { name: /正在测试/ })).toBeDisabled()
+  await expect(statusBlock.getByText(/当前天气：/)).toHaveCount(0)
+  finishRetry()
   await expect(statusBlock.getByText("天气连接正常")).toBeVisible()
   await expect(statusBlock.getByText(/连接天气服务失败/)).toBeVisible()
   await expect(statusBlock.getByText(/连接超时/)).toBeVisible()
+  await expect(statusBlock.getByText(/当前天气：/)).toHaveCount(0)
 
   await page.getByRole("navigation", { name: "设置项" }).getByRole("button", { name: "查看配置草稿" }).click()
   const saveRequest = page.waitForRequest((request) => request.url().includes("allow_unverified_weather=1") && request.method() === "PUT")
@@ -84,15 +109,15 @@ test("已验证的当前坐标可直接保存，后续网络故障保留通过�
 test("修改坐标后需要重新验证，保存时检查新坐标", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.route("**/api/weather-validations", async (route) => {
-    await route.fulfill({ json: { status: "valid" } })
+    await route.fulfill({ json: { status: "valid", weather: { type: "clear" } } })
   })
   await page.goto("/?locale=zh&test=1")
   const navigation = page.getByRole("navigation", { name: "设置项" })
   await navigation.getByRole("button", { name: "天气服务", exact: true }).click()
   await page.getByRole("button", { name: "测试连接", exact: true }).click()
-  await expect(page.getByText("天气连接正常", { exact: true })).toBeVisible()
+  await expect(page.getByText("天气连接正常。当前天气：晴", { exact: true })).toBeVisible()
   await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("33")
-  await expect(page.getByText("天气连接正常", { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/^天气连接正常/)).toHaveCount(0)
   await expect(page.getByText(/^验证时间：/)).toHaveCount(0)
   await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
   const saving = page.waitForRequest((request) => request.method() === "PUT")
@@ -111,7 +136,7 @@ for (const outcome of ["成功", "失败"] as const) {
     await page.route("**/api/weather-validations", async (route) => {
       await pending
       await route.fulfill(outcome === "成功"
-        ? { json: { status: "valid" } }
+        ? { json: { status: "valid", weather: { type: "clear" } } }
         : { status: 503, json: { error: "weather_validation_unavailable", reason: "timeout" } })
     })
     await page.goto("/?locale=zh&test=1")
@@ -123,7 +148,7 @@ for (const outcome of ["成功", "失败"] as const) {
     await page.getByRole("spinbutton", { name: "纬度", exact: true }).fill("34")
     release()
     await expect(page.getByRole("button", { name: "测试连接", exact: true })).toBeEnabled()
-    await expect(page.getByText("天气连接正常", { exact: true })).toHaveCount(0)
+    await expect(page.getByText(/^天气连接正常/)).toHaveCount(0)
     await expect(page.getByText(/连接超时/)).toHaveCount(0)
     await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
     await page.getByText("查看当前草稿全部设置").click()
