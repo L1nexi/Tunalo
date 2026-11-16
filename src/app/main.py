@@ -6,6 +6,7 @@ import os
 import random
 import subprocess
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -57,7 +58,7 @@ def _resolve_config_path(config_arg: str) -> str:
 # ── Mode runners ────────────────────────────────────────────────
 
 
-def _spawn_window_subprocess(port: int, *, setup: bool = False) -> subprocess.Popen[bytes]:
+def _spawn_window_subprocess(port: int, config_dir: str, *, setup: bool = False) -> subprocess.Popen[bytes]:
     """Spawn a detached webview subprocess loading the local host URL."""
     from ui.i18n import current_lang
 
@@ -67,18 +68,21 @@ def _spawn_window_subprocess(port: int, *, setup: bool = False) -> subprocess.Po
         creationflags = subprocess.CREATE_NO_WINDOW
     else:
         cmd.append(os.path.join(get_app_root(), "main.py"))
-    cmd.extend(("--window", f"--port={port}", f"--locale={current_lang}"))
+    cmd.extend(("--window", f"--port={port}", f"--locale={current_lang}", f"--config={config_dir}"))
     if setup:
         cmd.append("--setup")
     return subprocess.Popen(cmd, creationflags=creationflags)
 
 
-def _run_window(port: int, locale: str, *, setup: bool = False) -> None:
+def _run_window(port: int, locale: str, config_dir: str, *, setup: bool = False) -> None:
     """Webview subprocess entry point."""
+    from app.autostart import AutostartRegistration, build_autostart_command
     from ui.webview import AppWindow
 
+    script = None if getattr(sys, "frozen", False) else Path(get_app_root()) / "main.py"
+    autostart = AutostartRegistration(build_autostart_command(Path(sys.executable), Path(config_dir), script=script))
     path = "/setup/" if setup else "/"
-    AppWindow(port, locale, path=path).create_and_block()
+    AppWindow(port, locale, autostart=autostart, path=path).create_and_block()
 
 
 def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -> None:
@@ -116,7 +120,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
 
     def launch_setup() -> subprocess.Popen[bytes]:
         logger.info("No Profile found; opening first-run setup.")
-        return _spawn_window_subprocess(api_server.port, setup=True)
+        return _spawn_window_subprocess(api_server.port, config_dir, setup=True)
 
     try:
         try:
@@ -138,7 +142,7 @@ def _run_tray_mode(config_dir: str, logger: logging.Logger, api_port: int = 0) -
         reminder = WeatherReminder(tray.notify_weather_unavailable)
         scheduler.add_tick_listener(reminder.on_tick)
         settings_window = SettingsWindowController(
-            spawn=lambda: _spawn_window_subprocess(api_server.port),
+            spawn=lambda: _spawn_window_subprocess(api_server.port, config_dir),
             focus=focus_process_window,
         )
         tray.on_show_settings = settings_window.show
@@ -165,7 +169,7 @@ def main() -> None:
 
     if args.window:
         setup_logger()
-        _run_window(args.port, args.locale, setup=args.setup)
+        _run_window(args.port, args.locale, _resolve_config_path(args.config), setup=args.setup)
         return
 
     single_instance = SingleInstance()
