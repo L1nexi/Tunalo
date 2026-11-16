@@ -41,7 +41,6 @@ pytest 配置以 `pytest.ini` 为准。测试须通过 `.\scripts\test.ps1` 运�
 
 调参工具的扫描与绘图测试要遍历完整网格并生成热图，单独运行约 80 秒，因此常规测试默认跳过；指定测试路径时按路径运行。改动 `tools/tuning/` 或场景概率输出后，加 `-Tuning` 验证。
 
-<<<<<<< HEAD
 前端界面测试在 `frontend/` 中运行，使用本机 Edge：
 
 ```powershell
@@ -49,10 +48,6 @@ cd frontend
 npm ci
 npm run test:e2e -- --reporter=line --workers=2
 ```
-
-=======
-
-> > > > > > > 015ddb3 (test: 调参工具集成测试默认跳过)
 
 ## 打包
 
