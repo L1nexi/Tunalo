@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "!v*-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Validate tag, version, and CHANGELOG
+        shell: pwsh
+        run: python scripts/release.py validate --tag "$env:GITHUB_REF_NAME"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Build distribution
+        shell: cmd
+        run: scripts\build.bat --no-pause
+
+      - name: Package release assets
+        shell: pwsh
+        run: python scripts/release.py package --tag "$env:GITHUB_REF_NAME"
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $assets = Get-Content -LiteralPath "dist/release/assets.txt"
+          gh release create $tag @assets `
+            --title $tag `
+            --notes-file "dist/release/release-notes.md" `
+            --verify-tag

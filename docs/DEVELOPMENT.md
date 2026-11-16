@@ -37,6 +37,14 @@ pytest 配置以 `pytest.ini` 为准。测试须通过 `.\scripts\test.ps1` 运�
 .\scripts\test.ps1 -q                                      # 运行所有测试
 ```
 
+前端界面测试在 `frontend/` 中运行，使用本机 Edge：
+
+```powershell
+cd frontend
+npm ci
+npm run test:e2e -- --reporter=line --workers=2
+```
+
 ## 打包
 
 ```powershell
@@ -44,6 +52,45 @@ pytest 配置以 `pytest.ini` 为准。测试须通过 `.\scripts\test.ps1` 运�
 ```
 
 脚本会启动虚拟环境、安装依赖并完成资源打包，产物在 `dist\Tunalo.exe`。
+
+## 持续交付
+
+开发阶段的 pytest、Ruff、前端检查与构建在本地完成。GitHub Actions 只在推送 `v*` 标签时构建 Windows 发布包并创建 Release；Runner 上不运行 Wallpaper Engine，实际启动和壁纸切换仍在本机验证。
+
+发布前在本机运行：
+
+```powershell
+.\scripts\test.ps1 -q
+python -m ruff check .
+python -m ruff format --check .
+.\scripts\build.bat --no-pause
+```
+
+构建后运行 `dist\Tunalo.exe`，确认设置窗口、托盘和 Wallpaper Engine 连接正常。
+
+## 发布
+
+1. 更新 `src/app/version.py` 的 `VERSION`。
+2. 在 `CHANGELOG.md` 顶部把 `[Unreleased]` 内容整理为 `## [x.y.z] - YYYY-MM-DD` 段落，分隔符用短横线或破折号均可。
+3. 提交后创建并推送标签：
+
+   ```powershell
+   git tag vx.y.z
+   git push origin vx.y.z
+   ```
+
+4. 标签触发 [release.yml](../.github/workflows/release.yml)：校验标签、`VERSION` 与 CHANGELOG 段落一致，构建 `dist\Tunalo.exe`，生成 `Tunalo-vx.y.z-windows-x64.zip`、`SHA256SUMS.txt` 与发布说明，最后创建 Release。
+
+标签必须匹配 `v<major>.<minor>.<patch>`；不支持预发布标签（如 `v0.13.0-rc.1`，不会触发发布）。构建或版本校验失败时不会创建 Release。
+
+本地验证发布包：
+
+```powershell
+.\scripts\build.bat --no-pause
+python scripts\release.py package --tag vx.y.z
+```
+
+产物位于 `dist\release\`。
 
 ## 代码风格
 

@@ -10,13 +10,6 @@ set "FRONTEND_APP_DIR=frontend"
 set "FRONTEND_DIST_DIR=%FRONTEND_APP_DIR%\dist"
 set "BUILD_EXIT_CODE=0"
 
-for %%F in (README.md CHANGELOG.md .env.example) do (
-    if not exist "%%F" (
-        echo Required distribution file not found: %%F
-        exit /b 1
-    )
-)
-
 echo ==========================================
 echo      Tunalo Build Script
 echo ==========================================
@@ -27,6 +20,8 @@ if errorlevel 1 goto :failed
 
 echo [2/5] Building frontend...
 pushd "%FRONTEND_APP_DIR%"
+if errorlevel 1 goto :failed
+call npm ci
 if errorlevel 1 goto :failed
 call npm run build
 set "BUILD_EXIT_CODE=%errorlevel%"
@@ -61,11 +56,7 @@ echo [4/5] Running PyInstaller...
 if errorlevel 1 goto :failed
 
 echo [5/5] Preparing distribution folder...
-copy /y README.md dist\README.md >nul
-if errorlevel 1 goto :failed
-copy /y CHANGELOG.md dist\CHANGELOG.md >nul
-if errorlevel 1 goto :failed
-copy /y .env.example dist\.env.example >nul
+"%PYTHON%" scripts\release.py stage --dist "%CD%\dist"
 if errorlevel 1 goto :failed
 
 echo ==========================================

@@ -1,3 +1,5 @@
-# 开发工具链专用依赖（tuning 出图等）；不进主 requirements.txt，不进冻结包。
+# 开发工具链专用依赖（测试、静态检查、tuning 出图等）；不进主 requirements.txt，不进冻结包。
 numpy
 matplotlib
+pytest
+ruff
