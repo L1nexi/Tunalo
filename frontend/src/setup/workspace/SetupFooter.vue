@@ -16,29 +16,30 @@ import {
 defineProps<{ scrollable: boolean }>()
 
 const { locale, mode, isDirty } = useSetupEditor()
-const { activeStep, previousSection, allValid, navigateTo, navigateToStep } = useSetupFlowContext()
+const { activePage, previousPage, allValid, navigateTo, navigateToStep } = useSetupFlowContext()
 const { requestClose } = useSetupNativeWindow()
 const { submitting, submitProfile } = useSetupSubmission()
 const { locating } = useSetupWeather()
 const copy = computed(() => COPY[locale.value])
+const application = computed(() => activePage.value === "application")
 </script>
 
 <template>
   <footer :class="cn('flex shrink-0 items-end justify-between gap-3 border-t px-5 py-5 sm:px-8', scrollable ? 'border-border' : 'border-transparent')">
     <Button
-      v-if="activeStep === 'review'"
+      v-if="activePage === 'review'"
       variant="outline"
       class="shrink-0"
       :disabled="submitting"
-      @click="navigateTo(previousSection)"
+      @click="navigateTo(previousPage)"
       >{{ copy.nav.backToSettings }}</Button
     >
     <Button v-else variant="outline" class="shrink-0" :disabled="submitting" @click="requestClose">{{
       mode === "setup" ? copy.common.cancel : copy.common.close
     }}</Button>
-    <div class="flex min-w-0 flex-wrap justify-end gap-2">
+    <div v-if="!application" class="flex min-w-0 flex-wrap justify-end gap-2">
       <Button
-        v-if="activeStep !== 'review'"
+        v-if="activePage !== 'review'"
         :variant="mode === 'settings' ? 'outline' : 'default'"
         :disabled="submitting"
         @click="navigateToStep('review')"
@@ -46,7 +47,7 @@ const copy = computed(() => COPY[locale.value])
         {{ mode === "setup" ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
       </Button>
       <Button
-        v-if="mode === 'settings' || activeStep === 'review'"
+        v-if="mode === 'settings' || activePage === 'review'"
         :disabled="submitting || locating || !allValid || (mode === 'settings' && !isDirty)"
         @click="submitProfile()"
       >

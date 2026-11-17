@@ -3,36 +3,25 @@ import type { Component } from "vue"
 import { computed } from "vue"
 import {
   AppWindowIcon, ClipboardCheckIcon, CloudSunIcon, LayersIcon,
-  MonitorIcon, MoonIcon, SlidersHorizontalIcon, SunIcon,
+  MonitorIcon, MoonIcon, SettingsIcon, SlidersHorizontalIcon, SunIcon,
 } from "@lucide/vue"
 
-import type { Locale } from "@/api/profile"
 import TunaloMark from "@/components/TunaloMark.vue"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 import { COPY } from "@/setup/copy"
-import type { StepId } from "@/setup/workflow/steps"
-import type { SetupMode } from "@/setup/profile/useProfileDraft"
-import type { SetupNavigationItem } from "@/setup/workflow/useSetupFlow"
+import type { PageId } from "@/setup/workflow/useSetupNavigation"
 import { themeMode } from "@/theme"
+import { useSetupEditor, useSetupFlowContext, useSetupSubmission } from "./useSetupWorkspace"
 
-const props = defineProps<{
-  locale: Locale
-  mode: SetupMode
-  steps: SetupNavigationItem[]
-  activeStep: StepId
-  dirty: boolean
-  submitting: boolean
-}>()
-const emit = defineEmits<{
-  navigate: [id: StepId]
-  "update:locale": [locale: Locale]
-}>()
-
-const copy = computed(() => COPY[props.locale])
-const stepIcons: Record<StepId, Component> = {
+const { locale, mode, isDirty: dirty, setLocale } = useSetupEditor()
+const { navigationItems, activePage, navigateTo } = useSetupFlowContext()
+const { submitting } = useSetupSubmission()
+const copy = computed(() => COPY[locale.value])
+const pageIcons: Record<PageId, Component> = {
+  application: SettingsIcon,
   wallpaper: MonitorIcon,
   weather: CloudSunIcon,
   scenes: LayersIcon,
@@ -50,10 +39,6 @@ const themeLabel = computed(() => ({
 function setTheme(value: unknown): void {
   if (value === "auto" || value === "light" || value === "dark") themeMode.value = value
 }
-
-function setLocale(value: unknown): void {
-  if (value === "zh" || value === "en") emit("update:locale", value)
-}
 </script>
 
 <template>
@@ -68,23 +53,23 @@ function setLocale(value: unknown): void {
 
     <nav :inert="submitting" class="flex gap-1 overflow-x-auto pb-1 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto" :aria-label="mode === 'setup' ? copy.nav.setupNavigation : copy.nav.settingsNavigation">
       <Button
-        v-for="step in steps"
-        :key="step.id"
+        v-for="page in navigationItems"
+        :key="page.id"
         type="button"
         variant="ghost"
-        :aria-label="step.title"
-        :aria-current="activeStep === step.id ? 'page' : undefined"
-        :aria-describedby="step.nextRequired || step.status === copy.nav.changed ? `setup-nav-status-${step.id}` : undefined"
+        :aria-label="page.title"
+        :aria-current="activePage === page.id ? 'page' : undefined"
+        :aria-describedby="page.nextRequired || page.status === copy.nav.changed ? `setup-nav-status-${page.id}` : undefined"
         :class="cn('min-w-44 justify-start px-3 text-left md:min-w-0',
-          activeStep === step.id
+          activePage === page.id
             ? 'bg-sidebar-accent'
             : 'hover:bg-sidebar-accent')"
-        @click="emit('navigate', step.id)"
+        @click="navigateTo(page.id)"
       >
-        <component :is="stepIcons[step.id]" data-icon="inline-start" :class="cn(activeStep === step.id && 'text-primary')" />
-        <span class="min-w-0 flex-1 truncate font-medium">{{ step.title }}</span>
-        <span v-if="step.nextRequired" :id="`setup-nav-status-${step.id}`" class="shrink-0 text-xs text-muted-foreground">{{ copy.nav.pending }}</span>
-        <span v-else-if="step.status === copy.nav.changed" :id="`setup-nav-status-${step.id}`" class="relative size-1.5 shrink-0 rounded-full bg-foreground">
+        <component :is="pageIcons[page.id]" data-icon="inline-start" :class="cn(activePage === page.id && 'text-primary')" />
+        <span class="min-w-0 flex-1 truncate font-medium">{{ page.title }}</span>
+        <span v-if="page.nextRequired" :id="`setup-nav-status-${page.id}`" class="shrink-0 text-xs text-muted-foreground">{{ copy.nav.pending }}</span>
+        <span v-else-if="page.status === copy.nav.changed" :id="`setup-nav-status-${page.id}`" class="relative size-1.5 shrink-0 rounded-full bg-foreground">
           <span class="sr-only">{{ copy.nav.changed }}</span>
         </span>
       </Button>

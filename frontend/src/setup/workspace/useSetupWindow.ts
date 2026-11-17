@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref } from "vue"
 import type { Ref } from "vue"
+import { autostartSaving, flushAutostartPreference } from "@/autostart"
 import { flushThemePreference } from "@/theme"
 
 /** 原生桥接、关闭请求和浏览器离开保护随设置窗口一起注册与释放。 */
@@ -26,7 +27,10 @@ export function useSetupWindow(isDirty: Readonly<Ref<boolean>>) {
   }
 
   async function closeWindow(): Promise<void> {
-    await flushThemePreference()
+    do {
+      await flushAutostartPreference()
+      await flushThemePreference()
+    } while (autostartSaving.value)
     if (window.pywebview?.api) await window.pywebview.api.close()
   }
 

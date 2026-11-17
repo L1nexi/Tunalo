@@ -1,12 +1,12 @@
 # 工作交接
 
-更新时间：2026-11-17。分支：`dev`。本轮基线：`f8d852f`。开始时工作区干净。
+更新时间：2026-11-17。分支：`dev`。当前基线：`0caeb35`（第一批后端）；本任务起点为 `f8d852f`。
 
 ## 当前任务
 
 实现 [TODO](../../docs/TODO.md) 的开机启动开关。用户已确认逻辑层方案，以及新增「应用设置」页的布局：导航入口位于列表首项，开关放在正文，修改即时生效，该页底栏只显示「关闭」。
 
-按用户确认的两批工作区审阅推进，不自动提交。第一批已完成，停在第一个审阅检查点；前端尚未开始。用户审阅第一批后再接页面。
+两批实现均已完成。第一批后端已提交至 `0caeb35`，第二批保留在工作区。用户审阅时指出 Workspace 不应处理侧栏导航，并明确要求无需再次声明、直接重构；本次导航重构已完成，本轮没有创建提交。
 
 ## 第一批已完成
 
@@ -16,25 +16,41 @@
 - [ui/webview.py](../../src/ui/webview.py) 的原生桥接增加 `get_autostart() -> bool`、`set_autostart(enabled: bool) -> None`。注册表访问失败继续抛出异常，供页面处理；开关不进入 Profile 的保存与应用流程。
 - 新增 [tests/app/test_autostart.py](../../tests/app/test_autostart.py) 的 14 项测试，通过公开接口验证注册状态、旧路径替换、重复操作与无效输入；包含带空格路径的命令和实际 `pythonw.exe` 子进程启动。测试使用独立临时注册表分支，结束后删除，不写真实的 Windows 启动项。
 
-本轮未修改配置格式或调度逻辑。上述改动及本交接记录保留在工作区，尚未提交。
+配置格式与调度逻辑保持原有职责，启动项由原生桥接独立管理。
+
+## 第二批已完成
+
+- [ApplicationSettings.vue](../../frontend/src/setup/application/ApplicationSettings.vue) 提供一行「开机启动」设置，左侧为名称和说明，右侧为开关。导航入口位于列表首项，仅在设置模式显示；[SetupFooter.vue](../../frontend/src/setup/workspace/SetupFooter.vue) 在此页只显示关闭按钮。页面切换保留原 Profile 草稿。
+- [autostart.ts](../../frontend/src/autostart.ts) 管理窗口内的读取与保存状态。读写期间禁用开关，写入成功后更新显示；失败时保留原状态并提供重试。保存状态跨页面保留；原生桥接延迟就绪后会重新读取。浏览器环境说明需在桌面窗口中修改，不写入本地存储模拟开机启动。
+- [useSetupWindow.ts](../../frontend/src/setup/workspace/useSetupWindow.ts) 关闭前等待启动项与外观写入完成，覆盖等待一项时又修改另一项的情况。放弃 Profile 草稿保留已经保存的开关状态。
+- 新增 [Switch 组件](../../frontend/src/components/ui/switch/Switch.vue)，复用现有 Reka UI 2.10.5 和 `@/lib/utils`。安装器附带的外部字体与依赖升级已清除，包清单与全局样式没有变更。
+- [workspace.ts](../../frontend/src/setup/copy/workspace.ts) 补齐中英文文案，[pywebview.d.ts](../../frontend/src/types/pywebview.d.ts) 声明两项原生接口；[页面测试](../../frontend/e2e/autostart.spec.ts) 覆盖新功能，测试桥接沿用原有调用方式并扩展开机启动接口。
+- 中文开关说明按用户审阅意见改为「开机后静默启动托盘运行。」；对应页面测试同步更新。
+- README 增加使用入口与移动程序后的操作说明，CHANGELOG 的 `[Unreleased]` 增加用户可见变化，TODO 标为实现完成并注明待审阅与待实测范围。
+
+## 审阅后的导航重构
+
+- `useStepNavigation.ts` 改为 [useSetupNavigation.ts](../../frontend/src/setup/workflow/useSetupNavigation.ts)，用 `PageId = StepId | "application"` 统一页面选择。对外提供只读的 `activePage` 与 `previousPage`，通过 `navigateTo(id, focus)` 统一处理页面切换、滚动和焦点。Profile 的校验与缺失项仍只使用 `StepId`。
+- [SetupSidebar.vue](../../frontend/src/setup/workspace/SetupSidebar.vue) 直接从现有设置会话取得导航列表和当前页面，点击后调用统一导航。删除专门的应用设置导航事件，以及用 `undefined` 表示应用设置选中的做法。
+- [SetupWorkspace.vue](../../frontend/src/setup/workspace/SetupWorkspace.vue) 只创建会话并组织布局，删除 `applicationOpen`、`showStep()` 和 `showApplication()`，不再转发侧栏事件或决定显示哪类页面。
+- `SetupStepContent.vue` 改为 [SetupPageContent.vue](../../frontend/src/setup/workspace/SetupPageContent.vue)，与底栏共同读取 `activePage`。底栏不再接收应用设置标志；[useSetupFeedback.ts](../../frontend/src/setup/workflow/useSetupFeedback.ts) 的校验跳转也通过统一导航，消除直接改写页面状态和重复调用焦点处理。
+- 页面历史记录实际来源。从应用设置进入配置检查后，「返回设置」回到应用设置；新增公开页面测试，并在 CHANGELOG 记录这处可见变化。
 
 ## 验证
 
-- `.\scripts\test.ps1 -q`：428 项通过，14 项调参工具测试按脚本默认规则排除。
-- `.venv\Scripts\python.exe -m ruff check src/app/autostart.py src/app/main.py src/ui/webview.py tests/app/test_autostart.py` 通过；同一组文件的 `ruff format --check` 通过。
-- `.venv\Scripts\python.exe main.py --help` 正常退出，公开命令行参数保持兼容。
+- 第一批 `.\scripts\test.ps1 -q`：428 项通过，14 项调参工具测试按脚本默认规则排除。相关 Python 文件的 Ruff 检查与格式检查通过，`main.py --help` 正常退出。第二批未修改 Python。
+- 导航重构后在 `frontend/` 执行 `npm run test:e2e -- --reporter=line --workers=2`：87 项全部通过，包含 15 项开机启动及导航测试，以及原有页面回归。
+- `npm run type-check`、`npm run build-only` 通过。
+- 用户调整中文说明后，重跑对应页面用例（`autostart.spec.ts --grep 开机启动独立即时保存`）：1 项通过；重新构建前端通过。
+- Impeccable 对导航重构修改的四个 Vue 界面文件运行 `detect --json`，结果为空。
+- 已查看 1280px 中文浅色页面与 320px 英文深色页面的浏览器截图；窄屏无横向溢出，键盘可切换开关。原生窗口测得标题 24px、说明 14px、设置行宽 760px，沿用项目的 Windows 字体。
+- 使用构建后的前端及真实 `AppWindow`、原生桥接和临时注册表分支，验证开启、页面重载后回填、再次关闭，以及无效输入产生 Promise 拒绝。另用超长启动命令验证写入失败后页面提示并保留关闭状态。两次验证均未写入真实 Windows 启动项。
+- 导航重构后，用最新构建再次通过原生窗口验证开启、重载回填与再次关闭。退出时 WebView 临时缓存清理遇到文件占用，后续清理被环境自动审批拦截，临时缓存保留在系统临时目录。
 - `git diff --check` 通过。
-- 尚未通过原生 WebView 调用新桥接，也未构建发布 exe 或执行 Windows 注销重登验收。
 
-## 第二批已确认范围
+## 待审阅与待实测
 
-- 新增 `frontend/src/setup/application/ApplicationSettings.vue` 和 `frontend/src/autostart.ts`。沿用现有字体与语义颜色，设置行左侧为名称和说明，右侧为开关；处理读取、切换、失败重试和桥接延迟就绪。
-- 修改 `SetupSidebar.vue`、`SetupWorkspace.vue` 和 `SetupFooter.vue`，接入独立的应用设置页。仅在设置模式显示，不加入首次配置步骤或 Profile 校验。
-- 修改 `useSetupWindow.ts`、`frontend/src/types/pywebview.d.ts` 和 `frontend/src/setup/copy/workspace.ts`，接入桥接类型与中英文文案，关闭前等待启动项写入完成。放弃 Profile 草稿仍保留已写入的开关状态。
-- 新增 shadcn-vue `Switch` 组件及导出文件；若安装器修改 `frontend/package.json`、`frontend/package-lock.json`，只纳入该组件所需改动。
-- 新增 `frontend/e2e/autostart.spec.ts`，扩展 `frontend/e2e/support/pywebview.ts`；验证即时保存、读写失败重试、重开回填、关闭等待，以及页面切换后保留原草稿。
-- 更新 CHANGELOG 的 `[Unreleased]`、README、TODO 和本交接；执行相关前端回归、类型检查与构建，检查渲染后的页面，再进入第二个工作区审阅检查点。
-
-原生验收需核对 Windows 启动项显示、系统侧另行禁用后的表现及登录后静默进托盘。实际注销重登的验证结果单独标明。
+- 等待用户审阅第二批及导航重构的工作区改动。
+- 尚未构建发布 exe，未执行 Windows 注销重登，也未核对系统设置或任务管理器另行禁用启动项后的表现。
 
 应用内更新继续暂缓，调查保留在 [IN_APP_UPDATE_OPTIONS.md](../../docs/half-finished/IN_APP_UPDATE_OPTIONS.md)，尚未确定实施方案。上一轮天气连接提示已在基线提交 `f8d852f` 中。

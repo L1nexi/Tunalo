@@ -8,7 +8,7 @@ import { STEP_ORDER, stepForIssue } from "./steps"
 import type { StepId } from "./steps"
 import { hasValidTiming } from "@/setup/profile/model"
 import type { ProfileEditor } from "@/setup/profile/useProfileDraft"
-import type { StepNavigation } from "./useStepNavigation"
+import type { PageFocus, PageId, SetupNavigation } from "./useSetupNavigation"
 
 function validationIssueField(path: Array<string | number>): string {
   const root = typeof path[0] === "string" ? path[0] : "profile"
@@ -23,9 +23,9 @@ function validationIssueField(path: Array<string | number>): string {
 }
 
 /** 统一提交前检查、服务端字段错误和修改后的反馈清理。 */
-export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigation) {
+export function useSetupFeedback(editor: ProfileEditor, navigation: SetupNavigation) {
   const { draft, locale, mode, pendingActivityFields } = editor
-  const { activeStep, allValid, missingSteps, isStepValid, focusStep } = navigation
+  const { activePage, allValid, missingSteps, isStepValid } = navigation
   const copy = computed(() => COPY[locale.value])
   const stepError = ref<"validation" | "fieldValidation" | "pendingActivity" | null>(null)
   const validationIssues = ref<ValidationIssue[]>([])
@@ -54,24 +54,23 @@ export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigati
     return grouped
   })
 
-  function navigateTo(id: StepId): void {
-    navigation.navigateTo(id)
+  function navigateTo(id: PageId, focus: PageFocus = "heading"): void {
+    navigation.navigateTo(id, focus)
     stepError.value = null
     submissionFailure.value = null
   }
 
   function navigateToStep(id: StepId): void {
-    const needsAttention = activeStep.value === "review" && !isStepValid(id)
-    navigateTo(id)
+    const needsAttention = activePage.value === "review" && !isStepValid(id)
+    navigateTo(id, needsAttention ? "error" : "heading")
     if (!needsAttention) return
     if (id === "scheduling" && !hasValidTiming(draft.disturbance)) timingOpen.value = true
     stepError.value = "validation"
-    void focusStep(true)
   }
 
   function clearStepFeedback(id: StepId): void {
     validationIssues.value = validationIssues.value.filter((issue) => stepForIssue(issue.path) !== id)
-    if (activeStep.value === id) stepError.value = null
+    if (activePage.value === id) stepError.value = null
     submissionFailure.value = null
   }
 
@@ -80,7 +79,7 @@ export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigati
       (issue) => !(issue.path[0] === "weather" && issue.path[1] === field),
     )
     if (
-      activeStep.value === "weather" &&
+      activePage.value === "weather" &&
       isStepValid("weather") &&
       !validationIssues.value.some((issue) => stepForIssue(issue.path) === "weather")
     )
@@ -90,15 +89,13 @@ export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigati
 
   function prepareSubmission(): boolean {
     if (pendingActivityFields.value.length > 0) {
-      navigateToStep("activity")
+      navigateTo("activity", "error")
       stepError.value = "pendingActivity"
-      void focusStep(true)
       return false
     }
     if (!allValid.value) {
-      activeStep.value = missingSteps.value[0].id
+      navigateTo(missingSteps.value[0].id, "error")
       stepError.value = "validation"
-      void focusStep(true)
       return false
     }
     return mode !== "settings" || editor.isDirty.value
@@ -110,13 +107,13 @@ export function useSetupFeedback(editor: ProfileEditor, navigation: StepNavigati
       return
     }
     validationIssues.value = error.payload.issues
-    activeStep.value =
+    const page =
       STEP_ORDER.find((id) => error.payload.issues?.some((issue) => stepForIssue(issue.path) === id)) ??
       "review"
+    navigateTo(page, "error")
     if (error.payload.issues.some((issue) => issue.path[0] === "disturbance")) timingOpen.value = true
     stepError.value = "fieldValidation"
     submissionFailure.value = null
-    void focusStep(true)
   }
 
   function clearSubmissionFailure(): void {

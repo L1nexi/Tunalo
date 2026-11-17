@@ -7,12 +7,11 @@ import { useSetupWorkspace } from "./useSetupWorkspace"
 import SetupConfirmations from "./SetupConfirmations.vue"
 import SetupFooter from "./SetupFooter.vue"
 import SetupSidebar from "./SetupSidebar.vue"
-import SetupStepContent from "./SetupStepContent.vue"
+import SetupPageContent from "./SetupPageContent.vue"
 
 const props = defineProps<{ initialProfile: Profile | null; initialLocale: Locale }>()
-const { editor, flow, submission } = useSetupWorkspace(props.initialProfile, props.initialLocale)
-const { mode, locale, isDirty, setLocale } = editor
-const { activeStep, steps, activeHeading, navigateTo } = flow
+const { flow, submission } = useSetupWorkspace(props.initialProfile, props.initialLocale)
+const { activeHeading } = flow
 const { submitting } = submission
 const contentViewport = useTemplateRef<HTMLDivElement>("content-viewport")
 const contentBody = useTemplateRef<HTMLDivElement>("content-body")
@@ -29,16 +28,7 @@ useResizeObserver([contentViewport, contentBody], () => {
     <div
       class="mx-auto grid w-full max-w-[100rem] md:h-full md:min-h-0 md:grid-cols-[14rem_minmax(0,1fr)]"
     >
-      <SetupSidebar
-        :locale="locale"
-        :mode="mode"
-        :steps="steps"
-        :active-step="activeStep"
-        :dirty="isDirty"
-        :submitting="submitting"
-        @navigate="navigateTo"
-        @update:locale="setLocale"
-      />
+      <SetupSidebar />
       <section class="flex min-h-[32rem] min-w-0 flex-col md:h-full md:min-h-0" aria-labelledby="setup-step-heading">
         <header class="flex shrink-0 flex-col gap-2 px-5 pt-8 pb-7 sm:px-8">
           <h1
@@ -58,7 +48,7 @@ useResizeObserver([contentViewport, contentBody], () => {
           class="min-h-0 flex-1 overflow-y-auto px-5 pb-8 sm:px-8"
         >
           <div ref="content-body">
-            <SetupStepContent />
+            <SetupPageContent />
           </div>
         </div>
         <SetupFooter :scrollable="contentScrollable" />

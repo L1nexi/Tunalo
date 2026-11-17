@@ -1,6 +1,17 @@
 const zh = {
   appName: "Tunalo",
   mode: { setup: "首次设置", settings: "设置" },
+  application: {
+    title: "应用设置",
+    description: "此页修改即时生效。",
+    autostart: "开机启动",
+    autostartDescription: "开机后静默启动托盘运行。",
+    desktopOnly: "请在 Tunalo 桌面窗口中修改此设置。",
+    loading: "正在读取开机启动设置…",
+    saving: "正在保存开机启动设置…",
+    loadError: "无法读取开机启动设置，请重试。",
+    saveError: "开机启动设置未能保存，请重试。",
+  },
   loading: {
     title: "正在读取设置",
     description: "连接本地调度器并准备设置草稿。",
@@ -65,6 +76,17 @@ const zh = {
 const en = {
   appName: "Tunalo",
   mode: { setup: "First-time setup", settings: "Settings" },
+  application: {
+    title: "Application settings",
+    description: "Changes on this page take effect immediately.",
+    autostart: "Launch at sign-in",
+    autostartDescription: "Run in the tray when you sign in to Windows, without opening the settings window.",
+    desktopOnly: "Open the Tunalo desktop window to change this setting.",
+    loading: "Reading startup settings…",
+    saving: "Saving startup settings…",
+    loadError: "Couldn't read startup settings. Please try again.",
+    saveError: "Couldn't save startup settings. Please try again.",
+  },
   loading: {
     title: "Loading settings",
     description: "Connecting to the local scheduler and preparing a Profile draft.",

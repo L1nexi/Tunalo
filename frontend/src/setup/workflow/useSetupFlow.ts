@@ -3,11 +3,11 @@ import type { usePlaylistScan } from "@/setup/wallpaper/usePlaylistScan"
 import type { ProfileEditor } from "@/setup/profile/useProfileDraft"
 import { useSceneRemovalNotice } from "@/setup/scenes/useSceneRemovalNotice"
 import { useSetupFeedback } from "./useSetupFeedback"
-import { useStepNavigation } from "./useStepNavigation"
+import { useSetupNavigation } from "./useSetupNavigation"
 
 /** 编辑操作负责清理对应反馈；步骤导航和提交校验共享同一份编辑会话。 */
 export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof usePlaylistScan>) {
-  const navigation = useStepNavigation(editor, scan)
+  const navigation = useSetupNavigation(editor, scan)
   const feedback = useSetupFeedback(editor, navigation)
   const { draft, pendingActivity, pendingActivityFields } = editor
   const { stepError, clearStepFeedback } = feedback
@@ -66,4 +66,3 @@ export function useSetupFlow(editor: ProfileEditor, scan: ReturnType<typeof useP
 }
 
 export type SetupFlow = ReturnType<typeof useSetupFlow>
-export type SetupNavigationItem = SetupFlow["steps"]["value"][number]
