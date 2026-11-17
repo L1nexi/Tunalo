@@ -37,7 +37,7 @@ const application = computed(() => activePage.value === "application")
     <Button v-else variant="outline" class="shrink-0" :disabled="submitting" @click="requestClose">{{
       mode === "setup" ? copy.common.cancel : copy.common.close
     }}</Button>
-    <div v-if="!application" class="flex min-w-0 flex-wrap justify-end gap-2">
+    <div v-if="!application || mode === 'setup'" class="flex min-w-0 flex-wrap justify-end gap-2">
       <Button
         v-if="activePage !== 'review'"
         :variant="mode === 'settings' ? 'outline' : 'default'"

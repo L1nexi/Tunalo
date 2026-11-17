@@ -26,7 +26,7 @@ test("开机启动独立即时保存，重开后回填并可关闭", async ({ pa
   await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
   await expect(page.locator("footer").getByRole("button")).toHaveText(["关闭"])
   const toggle = page.getByRole("switch", { name: "开机启动", exact: true })
-  await expect(toggle).toHaveAccessibleDescription("开机后静默启动托盘运行。")
+  await expect(toggle).toHaveAccessibleDescription("登录 Windows 时静默启动。")
   await toggle.click()
   await expect.poll(() => stored).toBe(true)
   await expect(toggle).toBeChecked()
@@ -40,11 +40,32 @@ test("开机启动独立即时保存，重开后回填并可关闭", async ({ pa
   expect(profileWrites).toEqual([])
 })
 
-test("首次配置不显示应用设置页", async ({ page }) => {
+test("首次设置也能打开应用设置页，开关与设置模式一致", async ({ page }, testInfo) => {
+  let stored = false
+  await mockPywebview(page, async () => "auto", async () => {}, () => {}, false, {
+    get: async () => stored,
+    set: async (enabled) => { stored = enabled },
+  })
   await mockSetupApi(page, false)
   await page.goto("/?locale=zh&test=1")
   await expect(page.getByRole("heading", { name: "连接 Wallpaper Engine" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "应用设置", exact: true })).toHaveCount(0)
+
+  const navigation = page.getByRole("navigation", { name: "设置项" })
+  await expect(navigation.getByRole("button").first()).toHaveAccessibleName("应用设置")
+  await openApplication(page)
+  await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
+  await expect(page.locator("footer").getByRole("button")).toHaveText(["取消", "查看配置草稿"])
+
+  const toggle = page.getByRole("switch", { name: "开机启动", exact: true })
+  await expect(toggle).toHaveAccessibleDescription("登录 Windows 时静默启动。")
+  await toggle.click()
+  await expect.poll(() => stored).toBe(true)
+  await expect(toggle).toBeChecked()
+  await page.waitForTimeout(200)
+  await page.screenshot({ path: testInfo.outputPath("setup-application-settings.png") })
+
+  await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "查看配置草稿", exact: true })).toBeVisible()
 })
 
 test("从应用设置进入配置检查后，返回到实际来源页面", async ({ page }) => {

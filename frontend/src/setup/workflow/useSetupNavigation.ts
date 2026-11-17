@@ -25,7 +25,7 @@ export function useSetupNavigation(editor: ProfileEditor, scan: ReturnType<typeo
     })),
   )
   const navigationItems = computed(() => {
-    const pages: PageId[] = mode === "settings" ? ["application", ...STEP_ORDER] : [...STEP_ORDER]
+    const pages: PageId[] = ["application", ...STEP_ORDER]
     return pages.map((id) => ({
       id,
       title:
@@ -86,7 +86,6 @@ export function useSetupNavigation(editor: ProfileEditor, scan: ReturnType<typeo
   }
 
   function navigateTo(id: PageId, focus: PageFocus = "heading"): void {
-    if (id === "application" && mode === "setup") return
     if (activePage.value !== "review" && id === "review") previousPage.value = activePage.value
     selectedPage.value = id
     void focusContent(focus)
