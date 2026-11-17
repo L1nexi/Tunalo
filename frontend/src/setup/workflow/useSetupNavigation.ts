@@ -1,12 +1,13 @@
 import { computed, nextTick, ref } from "vue"
 
 import { COPY } from "@/setup/copy"
-import { evaluateSteps, STEP_ORDER, WIDE_STEPS } from "./steps"
+import { createSetupPages } from "./pages"
+import type { PageId } from "./pages"
+import { evaluateSteps, STEP_ORDER } from "./steps"
 import type { StepId } from "./steps"
 import type { usePlaylistScan } from "@/setup/wallpaper/usePlaylistScan"
 import type { ProfileEditor } from "@/setup/profile/useProfileDraft"
 
-export type PageId = StepId | "application"
 export type PageFocus = "heading" | "error"
 
 /** 统一页面选择、导航状态和进入页面后的焦点；Profile 校验仍以 StepId 为范围。 */
@@ -16,6 +17,8 @@ export function useSetupNavigation(editor: ProfileEditor, scan: ReturnType<typeo
   const selectedPage = ref<PageId>("wallpaper")
   const previousPage = ref<PageId>("wallpaper")
   const activePage = computed(() => selectedPage.value)
+  const pages = computed(() => createSetupPages(locale.value, mode))
+  const currentPage = computed(() => pages.value.find((page) => page.id === activePage.value)!)
   const evaluation = computed(() => evaluateSteps(draft, scan.ready.value, scan.usablePlaylists.value))
   const allValid = computed(() => Object.values(evaluation.value.validity).every(Boolean))
   const missingSteps = computed(() =>
@@ -24,41 +27,14 @@ export function useSetupNavigation(editor: ProfileEditor, scan: ReturnType<typeo
       ...copy.value.steps[id],
     })),
   )
-  const navigationItems = computed(() => {
-    const pages: PageId[] = ["application", ...STEP_ORDER]
-    return pages.map((id) => ({
-      id,
-      title:
-        id === "application"
-          ? copy.value.application.title
-          : id === "review"
-            ? mode === "setup"
-              ? copy.value.nav.reviewSetup
-              : copy.value.nav.reviewSettings
-            : copy.value.steps[id].title,
-      status: id === "application" ? "" : stepStatus(id),
-      nextRequired: id === missingSteps.value[0]?.id,
-    }))
-  })
-  const activeHeading = computed(() => {
-    const content = copy.value
-    const headings = {
-      application: content.application,
-      wallpaper: content.wallpaper,
-      weather: content.weather,
-      scenes: content.scenes,
-      scheduling: content.preferences,
-      activity: content.activity,
-      review: {
-        title: mode === "setup" ? content.nav.reviewSetup : content.nav.reviewSettings,
-        description: content.review.description,
-      },
-    }
-    const { title, description } = headings[activePage.value]
-    return { title, description }
-  })
-  const contentClass = computed(() =>
-    activePage.value !== "application" && WIDE_STEPS.has(activePage.value) ? "max-w-4xl" : "max-w-[47.5rem]",
+  const navigationItems = computed(() =>
+    pages.value.map((page) => ({
+      id: page.id,
+      title: page.title,
+      icon: page.icon,
+      status: page.profileStep === null ? "" : stepStatus(page.profileStep),
+      nextRequired: page.profileStep === missingSteps.value[0]?.id,
+    })),
   )
 
   function isStepValid(id: StepId): boolean {
@@ -94,9 +70,8 @@ export function useSetupNavigation(editor: ProfileEditor, scan: ReturnType<typeo
   return {
     activePage,
     previousPage: computed(() => previousPage.value),
+    currentPage,
     navigationItems,
-    activeHeading,
-    contentClass,
     evaluation,
     allValid,
     missingSteps,

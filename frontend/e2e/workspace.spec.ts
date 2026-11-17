@@ -1,6 +1,65 @@
 import { expect, test } from "@playwright/test"
 import { mockSetupApi } from "./support/profileApi"
 
+for (const scenario of [
+  {
+    mode: "首次设置", hasProfile: false,
+    editorButtons: ["取消", "查看配置草稿"],
+    reviewButtons: ["返回设置", "完成设置"],
+    applicationButtons: ["取消", "查看配置草稿"],
+    englishEditorButtons: ["Cancel", "Review and finish"],
+    englishReviewButtons: ["Back to settings", "Finish setup"],
+    englishApplicationButtons: ["Cancel", "Review and finish"],
+    englishReviewTitle: "Review and finish",
+    englishSubmit: "Finish setup",
+  },
+  {
+    mode: "设置", hasProfile: true,
+    editorButtons: ["关闭", "查看配置草稿", "保存并应用"],
+    reviewButtons: ["返回设置", "保存并应用"],
+    applicationButtons: ["关闭"],
+    englishEditorButtons: ["Close", "Review and save", "Save and apply"],
+    englishReviewButtons: ["Back to settings", "Save and apply"],
+    englishApplicationButtons: ["Close"],
+    englishReviewTitle: "Review and save",
+    englishSubmit: "Save and apply",
+  },
+] as const) {
+  test(`${scenario.mode}中三类页面的底栏动作随语言切换更新`, async ({ page }) => {
+    await mockSetupApi(page, scenario.hasProfile)
+    await page.goto("/?locale=zh&test=1")
+    await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
+    const navigation = page.getByRole("navigation")
+    const footer = page.locator("footer")
+    await expect(footer.getByRole("button")).toHaveText([...scenario.editorButtons])
+
+    await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
+    await expect(footer.getByRole("button")).toHaveText([...scenario.reviewButtons])
+    await expect(footer.getByRole("button", { name: scenario.hasProfile ? "保存并应用" : "完成设置", exact: true })).toBeDisabled()
+
+    await navigation.getByRole("button", { name: "应用设置", exact: true }).click()
+    await expect(footer.getByRole("button")).toHaveText([...scenario.applicationButtons])
+    await expect(navigation.getByRole("button", { name: "应用设置", exact: true })).not.toHaveAttribute("aria-describedby")
+    await page.getByRole("group", { name: "语言", exact: true }).getByRole("button", { name: "English", exact: true }).click()
+    await expect(page.getByRole("heading", { name: "Application settings", exact: true })).toBeVisible()
+    await expect(page.getByText("Changes on this page take effect immediately.", { exact: true })).toBeVisible()
+    await expect(navigation.getByRole("button").first()).toHaveAccessibleName("Application settings")
+    await expect(footer.getByRole("button")).toHaveText([...scenario.englishApplicationButtons])
+
+    await navigation.getByRole("button", { name: "Wallpaper Engine", exact: true }).click()
+    await expect(page.getByRole("heading", { name: "Connect Wallpaper Engine", exact: true })).toBeFocused()
+    await expect(footer.getByRole("button")).toHaveText([...scenario.englishEditorButtons])
+    await footer.getByRole("button", { name: scenario.englishReviewTitle, exact: true }).click()
+    await expect(page.getByRole("heading", { name: scenario.englishReviewTitle, exact: true })).toBeFocused()
+    await expect(footer.getByRole("button")).toHaveText([...scenario.englishReviewButtons])
+    const submitButton = footer.getByRole("button", { name: scenario.englishSubmit, exact: true })
+    if (scenario.hasProfile) await expect(submitButton).toBeEnabled()
+    else await expect(submitButton).toBeDisabled()
+    await footer.getByRole("button", { name: "Back to settings", exact: true }).click()
+    await expect(page.getByRole("heading", { name: "Connect Wallpaper Engine", exact: true })).toBeFocused()
+  })
+}
+
 test("语言切换与主题选择可保留并跟随系统", async ({ page }) => {
   await mockSetupApi(page, true)
   await page.emulateMedia({ colorScheme: "light" })

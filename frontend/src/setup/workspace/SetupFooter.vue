@@ -16,18 +16,17 @@ import {
 defineProps<{ scrollable: boolean }>()
 
 const { locale, mode, isDirty } = useSetupEditor()
-const { activePage, previousPage, allValid, navigateTo, navigateToStep } = useSetupFlowContext()
+const { currentPage, previousPage, allValid, navigateTo, navigateToStep } = useSetupFlowContext()
 const { requestClose } = useSetupNativeWindow()
 const { submitting, submitProfile } = useSetupSubmission()
 const { locating } = useSetupWeather()
 const copy = computed(() => COPY[locale.value])
-const application = computed(() => activePage.value === "application")
 </script>
 
 <template>
   <footer :class="cn('flex shrink-0 items-end justify-between gap-3 border-t px-5 py-5 sm:px-8', scrollable ? 'border-border' : 'border-transparent')">
     <Button
-      v-if="activePage === 'review'"
+      v-if="currentPage.footer.leading === 'back'"
       variant="outline"
       class="shrink-0"
       :disabled="submitting"
@@ -37,9 +36,9 @@ const application = computed(() => activePage.value === "application")
     <Button v-else variant="outline" class="shrink-0" :disabled="submitting" @click="requestClose">{{
       mode === "setup" ? copy.common.cancel : copy.common.close
     }}</Button>
-    <div v-if="!application || mode === 'setup'" class="flex min-w-0 flex-wrap justify-end gap-2">
+    <div v-if="currentPage.footer.review || currentPage.footer.submit" class="flex min-w-0 flex-wrap justify-end gap-2">
       <Button
-        v-if="activePage !== 'review'"
+        v-if="currentPage.footer.review"
         :variant="mode === 'settings' ? 'outline' : 'default'"
         :disabled="submitting"
         @click="navigateToStep('review')"
@@ -47,7 +46,7 @@ const application = computed(() => activePage.value === "application")
         {{ mode === "setup" ? copy.nav.reviewSetup : copy.nav.reviewSettings }}
       </Button>
       <Button
-        v-if="mode === 'settings' || activePage === 'review'"
+        v-if="currentPage.footer.submit"
         :disabled="submitting || locating || !allValid || (mode === 'settings' && !isDirty)"
         @click="submitProfile()"
       >

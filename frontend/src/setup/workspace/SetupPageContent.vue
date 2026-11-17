@@ -23,7 +23,7 @@ const { locale, draft, savedDraft, mode, pendingActivity, pendingActivityFields,
   useSetupEditor()
 const {
   activePage,
-  contentClass,
+  currentPage,
   evaluation,
   allValid,
   missingSteps,
@@ -58,9 +58,8 @@ async function openScene(id: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex w-full flex-col" :class="contentClass">
-    <ApplicationSettings v-if="activePage === 'application'" :locale="locale" />
-    <template v-else>
+  <div class="flex w-full flex-col" :class="currentPage.contentClass">
+    <template v-if="currentPage.feedback === 'profile'">
       <Alert v-if="stepErrorText" variant="destructive" class="mb-6">
         <TriangleAlertIcon />
         <AlertTitle>{{ copy.common.needsAttention }}</AlertTitle>
@@ -71,76 +70,77 @@ async function openScene(id: string): Promise<void> {
         <AlertTitle>{{ copy.errors.generic }}</AlertTitle>
         <AlertDescription>{{ submissionError }}</AlertDescription>
       </Alert>
-      <WallpaperStep
-        v-if="activePage === 'wallpaper'"
-        :locale="locale"
-        :path="draft.wallpaper_engine_path"
-        :status="scan.status.value"
-        :detail="scan.detail.value"
-        :playlists="scan.playlists.value"
-        :usable-count="scan.usablePlaylists.value.length"
-        :native-bridge="hasNativeBridge"
-        :invalid="Boolean(stepError) && !isStepValid('wallpaper')"
-        :errors="issuesByStep.wallpaper.wallpaper_engine_path ?? []"
-        @update:path="updatePath"
-        @scan="scan.rescan"
-        @choose="scan.chooseWallpaperEngine"
-      />
-      <SetupWeatherContent v-else-if="activePage === 'weather'" />
-      <SceneBindingsStep
-        v-else-if="activePage === 'scenes'"
-        :locale="locale"
-        :scenes="draft.scenes"
-        :playlists="scan.usablePlaylists.value"
-        :valid="isStepValid('scenes')"
-        :attempted="Boolean(stepError)"
-        :errors="issuesByStep.scenes.scenes ?? []"
-        @update:scenes="updateScenes"
-        @remove-scene="removeScene"
-        @open-wallpaper="navigateToStep('wallpaper')"
-      />
-      <SchedulingStep
-        v-else-if="activePage === 'scheduling'"
-        :locale="locale"
-        :layers="preferenceLayers"
-        :disturbance="draft.disturbance"
-        :timing-open="timingOpen"
-        :errors="issuesByStep.scheduling"
-        @update:layers="updatePreferenceLayers"
-        @add-layer="addPreferenceLayer"
-        @update:disturbance="updateDisturbance"
-        @update:timing-open="timingOpen = $event"
-      />
-      <ActivityRulesStep
-        v-else-if="activePage === 'activity'"
-        :locale="locale"
-        :activity="draft.activity"
-        :pending="pendingActivity"
-        :show-pending="stepError === 'pendingActivity'"
-        :conflicts="evaluation.conflicts"
-        :errors="issuesByStep.activity.activity ?? []"
-        @update:activity="updateActivity"
-        @update:pending="updatePendingActivity"
-      />
-      <ReviewStep
-        v-else
-        :locale="locale"
-        :draft="draft"
-        :saved-draft="savedDraft"
-        :playlists="scan.usablePlaylists.value"
-        :mode="mode"
-        :valid="allValid"
-        :missing-steps="missingSteps"
-        :weather-connection-state="weatherConnectionState"
-        :weather-connection-summary="weatherConnectionSummary"
-        :weather-tested-at-text="weatherTestedAtText"
-        :weather-connection-error="weatherConnectionError"
-        :validating-weather="validatingWeather"
-        :has-pending-activity="pendingActivityFields.length > 0"
-        @validate-weather="testWeatherConnection"
-        @open-step="navigateToStep"
-        @open-scene="openScene"
-      />
     </template>
+    <ApplicationSettings v-if="activePage === 'application'" :locale="locale" />
+    <WallpaperStep
+      v-else-if="activePage === 'wallpaper'"
+      :locale="locale"
+      :path="draft.wallpaper_engine_path"
+      :status="scan.status.value"
+      :detail="scan.detail.value"
+      :playlists="scan.playlists.value"
+      :usable-count="scan.usablePlaylists.value.length"
+      :native-bridge="hasNativeBridge"
+      :invalid="Boolean(stepError) && !isStepValid('wallpaper')"
+      :errors="issuesByStep.wallpaper.wallpaper_engine_path ?? []"
+      @update:path="updatePath"
+      @scan="scan.rescan"
+      @choose="scan.chooseWallpaperEngine"
+    />
+    <SetupWeatherContent v-else-if="activePage === 'weather'" />
+    <SceneBindingsStep
+      v-else-if="activePage === 'scenes'"
+      :locale="locale"
+      :scenes="draft.scenes"
+      :playlists="scan.usablePlaylists.value"
+      :valid="isStepValid('scenes')"
+      :attempted="Boolean(stepError)"
+      :errors="issuesByStep.scenes.scenes ?? []"
+      @update:scenes="updateScenes"
+      @remove-scene="removeScene"
+      @open-wallpaper="navigateToStep('wallpaper')"
+    />
+    <SchedulingStep
+      v-else-if="activePage === 'scheduling'"
+      :locale="locale"
+      :layers="preferenceLayers"
+      :disturbance="draft.disturbance"
+      :timing-open="timingOpen"
+      :errors="issuesByStep.scheduling"
+      @update:layers="updatePreferenceLayers"
+      @add-layer="addPreferenceLayer"
+      @update:disturbance="updateDisturbance"
+      @update:timing-open="timingOpen = $event"
+    />
+    <ActivityRulesStep
+      v-else-if="activePage === 'activity'"
+      :locale="locale"
+      :activity="draft.activity"
+      :pending="pendingActivity"
+      :show-pending="stepError === 'pendingActivity'"
+      :conflicts="evaluation.conflicts"
+      :errors="issuesByStep.activity.activity ?? []"
+      @update:activity="updateActivity"
+      @update:pending="updatePendingActivity"
+    />
+    <ReviewStep
+      v-else
+      :locale="locale"
+      :draft="draft"
+      :saved-draft="savedDraft"
+      :playlists="scan.usablePlaylists.value"
+      :mode="mode"
+      :valid="allValid"
+      :missing-steps="missingSteps"
+      :weather-connection-state="weatherConnectionState"
+      :weather-connection-summary="weatherConnectionSummary"
+      :weather-tested-at-text="weatherTestedAtText"
+      :weather-connection-error="weatherConnectionError"
+      :validating-weather="validatingWeather"
+      :has-pending-activity="pendingActivityFields.length > 0"
+      @validate-weather="testWeatherConnection"
+      @open-step="navigateToStep"
+      @open-scene="openScene"
+    />
   </div>
 </template>

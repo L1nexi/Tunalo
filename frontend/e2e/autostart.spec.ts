@@ -24,7 +24,6 @@ test("开机启动独立即时保存，重开后回填并可关闭", async ({ pa
   await openApplication(page)
 
   await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
-  await expect(page.locator("footer").getByRole("button")).toHaveText(["关闭"])
   const toggle = page.getByRole("switch", { name: "开机启动", exact: true })
   await expect(toggle).toHaveAccessibleDescription("登录 Windows 时静默启动。")
   await toggle.click()
@@ -54,7 +53,6 @@ test("首次设置也能打开应用设置页，开关与设置模式一致", as
   await expect(navigation.getByRole("button").first()).toHaveAccessibleName("应用设置")
   await openApplication(page)
   await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
-  await expect(page.locator("footer").getByRole("button")).toHaveText(["取消", "查看配置草稿"])
 
   const toggle = page.getByRole("switch", { name: "开机启动", exact: true })
   await expect(toggle).toHaveAccessibleDescription("登录 Windows 时静默启动。")
@@ -68,21 +66,54 @@ test("首次设置也能打开应用设置页，开关与设置模式一致", as
   await expect(page.getByRole("heading", { name: "查看配置草稿", exact: true })).toBeVisible()
 })
 
-test("从应用设置进入配置检查后，返回到实际来源页面", async ({ page }) => {
+for (const { mode, hasProfile } of [
+  { mode: "首次设置", hasProfile: false },
+  { mode: "设置", hasProfile: true },
+] as const) {
+  test(`${mode}从应用设置进入配置检查后，返回到实际来源页面`, async ({ page }) => {
+    await mockPywebview(page, async () => "auto", async () => {})
+    await mockSetupApi(page, hasProfile)
+    await page.goto("/?locale=zh&test=1")
+    const navigation = page.getByRole("navigation")
+    await navigation.getByRole("button", { name: "调度风格", exact: true }).click()
+    await openApplication(page)
+    const reviewEntry = hasProfile ? navigation : page.locator("footer")
+    await reviewEntry.getByRole("button", { name: "查看配置草稿", exact: true }).click()
+    await page.getByRole("button", { name: "返回设置", exact: true }).click()
+
+    await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
+    await expect(navigation.getByRole("button", { name: "应用设置", exact: true })).toHaveAttribute("aria-current", "page")
+    await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1)
+    await expect(page.getByRole("switch", { name: "开机启动", exact: true })).toBeVisible()
+  })
+}
+
+test("Profile 待处理反馈不影响应用设置，返回后仍保留草稿", async ({ page }) => {
   await mockPywebview(page, async () => "auto", async () => {})
   await mockSetupApi(page, true)
   await page.goto("/?locale=zh&test=1")
+  await expect(page.getByRole("table", { name: "播放列表及对应壁纸数量" })).toBeVisible()
   const navigation = page.getByRole("navigation")
-  await navigation.getByRole("button", { name: "调度风格", exact: true }).click()
-  await openApplication(page)
-  await navigation.getByRole("button", { name: "查看配置草稿", exact: true }).click()
-  await page.getByRole("button", { name: "返回设置", exact: true }).click()
+  const activityEntry = navigation.getByRole("button", { name: "活动识别", exact: true })
+  await activityEntry.click()
+  const processInput = page.getByRole("group", { name: "工作", exact: true }).getByRole("textbox", { name: "进程名", exact: true })
+  await processInput.fill("Photoshop.exe")
+  await expect(activityEntry).toHaveAccessibleDescription("已修改")
+  await page.getByRole("button", { name: "保存并应用", exact: true }).click()
+  await expect(page.getByRole("alert").filter({ hasText: "请先处理尚未添加的活动规则文字。" })).toBeVisible()
+  await expect(processInput).toHaveAttribute("aria-invalid", "true")
 
-  await expect(page.getByRole("heading", { name: "应用设置", exact: true })).toBeFocused()
-  await expect(navigation.getByRole("button", { name: "应用设置", exact: true })).toHaveAttribute("aria-current", "page")
-  await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1)
-  await expect(page.getByRole("switch", { name: "开机启动", exact: true })).toBeVisible()
-  await expect(page.locator("footer").getByRole("button")).toHaveText(["关闭"])
+  await openApplication(page)
+  await expect(navigation.getByRole("button", { name: "应用设置", exact: true })).not.toHaveAttribute("aria-describedby")
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  const toggle = page.getByRole("switch", { name: "开机启动", exact: true })
+  await expect(toggle).toBeEnabled()
+  await toggle.click()
+  await expect(toggle).toBeChecked()
+
+  await activityEntry.click()
+  await expect(processInput).toHaveValue("Photoshop.exe")
+  await expect(activityEntry).toHaveAccessibleDescription("已修改")
 })
 
 test("浏览器环境显示桌面窗口说明，开关不可操作", async ({ page }) => {

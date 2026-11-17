@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import type { Component } from "vue"
 import { computed } from "vue"
-import {
-  AppWindowIcon, ClipboardCheckIcon, CloudSunIcon, LayersIcon,
-  MonitorIcon, MoonIcon, SettingsIcon, SlidersHorizontalIcon, SunIcon,
-} from "@lucide/vue"
+import { MonitorIcon, MoonIcon, SunIcon } from "@lucide/vue"
 
 import TunaloMark from "@/components/TunaloMark.vue"
 import { Button } from "@/components/ui/button"
@@ -12,7 +8,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 import { COPY } from "@/setup/copy"
-import type { PageId } from "@/setup/workflow/useSetupNavigation"
 import { themeMode } from "@/theme"
 import { useSetupEditor, useSetupFlowContext, useSetupSubmission } from "./useSetupWorkspace"
 
@@ -20,15 +15,6 @@ const { locale, mode, isDirty: dirty, setLocale } = useSetupEditor()
 const { navigationItems, activePage, navigateTo } = useSetupFlowContext()
 const { submitting } = useSetupSubmission()
 const copy = computed(() => COPY[locale.value])
-const pageIcons: Record<PageId, Component> = {
-  application: SettingsIcon,
-  wallpaper: MonitorIcon,
-  weather: CloudSunIcon,
-  scenes: LayersIcon,
-  scheduling: SlidersHorizontalIcon,
-  activity: AppWindowIcon,
-  review: ClipboardCheckIcon,
-}
 const themeIcon = computed(() => ({ auto: MonitorIcon, light: SunIcon, dark: MoonIcon })[themeMode.value])
 const themeLabel = computed(() => ({
   auto: copy.value.nav.themeSystem,
@@ -66,7 +52,7 @@ function setTheme(value: unknown): void {
             : 'hover:bg-sidebar-accent')"
         @click="navigateTo(page.id)"
       >
-        <component :is="pageIcons[page.id]" data-icon="inline-start" :class="cn(activePage === page.id && 'text-primary')" />
+        <component :is="page.icon" data-icon="inline-start" :class="cn(activePage === page.id && 'text-primary')" />
         <span class="min-w-0 flex-1 truncate font-medium">{{ page.title }}</span>
         <span v-if="page.nextRequired" :id="`setup-nav-status-${page.id}`" class="shrink-0 text-xs text-muted-foreground">{{ copy.nav.pending }}</span>
         <span v-else-if="page.status === copy.nav.changed" :id="`setup-nav-status-${page.id}`" class="relative size-1.5 shrink-0 rounded-full bg-foreground">

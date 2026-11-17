@@ -11,7 +11,7 @@ import SetupPageContent from "./SetupPageContent.vue"
 
 const props = defineProps<{ initialProfile: Profile | null; initialLocale: Locale }>()
 const { flow, submission } = useSetupWorkspace(props.initialProfile, props.initialLocale)
-const { activeHeading } = flow
+const { currentPage } = flow
 const { submitting } = submission
 const contentViewport = useTemplateRef<HTMLDivElement>("content-viewport")
 const contentBody = useTemplateRef<HTMLDivElement>("content-body")
@@ -36,9 +36,9 @@ useResizeObserver([contentViewport, contentBody], () => {
             tabindex="-1"
             class="text-2xl leading-8 font-semibold tracking-tight focus:outline-none"
           >
-            {{ activeHeading.title }}
+            {{ currentPage.heading.title }}
           </h1>
-          <p v-if="activeHeading.description" class="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{{ activeHeading.description }}</p>
+          <p v-if="currentPage.heading.description" class="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{{ currentPage.heading.description }}</p>
         </header>
         <div
           id="setup-step-content"

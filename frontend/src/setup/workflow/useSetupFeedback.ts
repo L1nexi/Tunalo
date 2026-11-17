@@ -8,7 +8,8 @@ import { STEP_ORDER, stepForIssue } from "./steps"
 import type { StepId } from "./steps"
 import { hasValidTiming } from "@/setup/profile/model"
 import type { ProfileEditor } from "@/setup/profile/useProfileDraft"
-import type { PageFocus, PageId, SetupNavigation } from "./useSetupNavigation"
+import type { PageId } from "./pages"
+import type { PageFocus, SetupNavigation } from "./useSetupNavigation"
 
 function validationIssueField(path: Array<string | number>): string {
   const root = typeof path[0] === "string" ? path[0] : "profile"
