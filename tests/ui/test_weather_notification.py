@@ -33,9 +33,9 @@ def test_weather_notification_uses_the_current_language_and_is_silent_while_stop
     previous_language = i18n.current_lang
     try:
         i18n.set_language(language)
-        tray.notify_weather_unavailable(10799.0)
+        tray.notify_weather_unavailable(2)
         scheduler.stop_event.set()
-        tray.notify_weather_unavailable(14400.0)
+        tray.notify_weather_unavailable(2)
     finally:
         i18n.set_language(previous_language)
 

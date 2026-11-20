@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **天气更新提醒**：系统休眠或进程被挂起期间不再计入连续未更新时长，回到电脑后不会因为这段时间收到误报的天气更新超时提醒；通知文案固定为两小时。
+
 ## [0.13.1] - 2026-11-17
 
 ### Added
